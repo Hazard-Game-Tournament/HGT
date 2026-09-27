@@ -440,14 +440,6 @@ button,.tabbtn,input,select,textarea{touch-action:manipulation}
 .arena-item{display:block;width:100%;padding:10px 12px;border:0;border-radius:7px;background:transparent;color:inherit;text-align:left;white-space:nowrap;cursor:pointer}
 .arena-item:hover,.arena-item.active{background:#2a1722;color:#ead7b5}
 @media(max-width:700px){.arena-menu{position:fixed;top:auto;left:10px;right:10px;width:auto;min-width:0}}
-
-/* Fix desktop : le menu Arène ne doit pas être rogné par le conteneur horizontal des onglets. */
-@media (min-width:701px){
-  .tabs{overflow:visible!important;position:relative;z-index:120}
-  .arena-nav{z-index:130}
-  .arena-menu{z-index:1000!important}
-}
-
 </style>
 
 <style id="vaeloriaInteractiveMapV1">
@@ -613,7 +605,7 @@ body.hgt-gated{overflow:hidden}
 <button id="universeTabBtn" class="tabbtn">🌌 Univers</button>
 </div>
 <div id="wheelTab" class="tabpage active">
-<div class="layout"><section class="panel left"><div class="top"><div class="title" id="taskTitle">Prêt</div><div class="pill" id="count">0 roue</div></div><div class="wheelwrap"><div class="pointer"></div><canvas id="wheel" width="760" height="760"></canvas></div><div class="result" id="result">Clique sur « Commencer »<small>Les sous-roues seront ajoutées automatiquement selon les résultats.</small></div><div class="controls"><button id="spinBtn">Commencer</button><button class="secondary" id="autoBtn">Auto : OFF</button><button class="secondary" id="resetBtn">Réinitialiser</button><button class="secondary" id="exportBtn">Exporter JSON</button></div><div class="note">✓ Hazard Game Tournament : génération, lignées, tournoi simulé combat par combat et Hall of Fame.</div></section>
+<div class="layout"><section class="panel left"><div class="top"><div class="title" id="taskTitle">Prêt</div><div class="pill" id="count">0 roue</div></div><div class="wheelwrap"><div class="pointer"></div><canvas id="wheel" width="760" height="760"></canvas></div><div class="result" id="result">Clique sur « Commencer »<small>Les sous-roues seront ajoutées automatiquement selon les résultats.</small></div><div class="controls"><button id="spinBtn">Commencer</button><button class="secondary" id="autoBtn">Auto : OFF</button><button class="secondary" id="resetBtn">Réinitialiser</button><button class="secondary" id="exportBtn">Exporter JSON</button><button class="secondary" id="prevCharBtn">← Précédent</button><button class="secondary" id="nextCharBtn">Suivant →</button></div><div class="note">✓ Hazard Game Tournament : génération, lignées, tournoi simulé combat par combat et Hall of Fame.</div></section>
 <aside class="panel right"><div class="section"><h3>Identité</h3><div class="kv" id="identity"></div></div><div class="section"><h3>🧬 Origines & lignée</h3><div class="kv" id="originsLineage"></div></div><div class="section"><h3>Stats</h3><div class="stats" id="stats"></div></div><div class="section"><h3>Pouvoirs & capacités</h3><div id="powers">—</div></div><div class="section"><h3>Armes</h3><div id="weapons">—</div></div><div class="section"><h3>Faiblesse</h3><div id="weakness">—</div></div><div class="section"><h3>Extra / bénédictions / malédictions</h3><div id="extra">—</div></div><div class="section"><h3>Apparence</h3><div id="appearance">—</div></div><div class="section"><h3>Historique exact</h3><div class="log" id="log"></div></div>
 
 </aside></div>
@@ -806,6 +798,8 @@ const spinBtn=document.getElementById('spinBtn');
 const autoBtn=document.getElementById('autoBtn');
 const resetBtn=document.getElementById('resetBtn');
 const exportBtn=document.getElementById('exportBtn');
+const prevCharBtn=document.getElementById('prevCharBtn');
+const nextCharBtn=document.getElementById('nextCharBtn');
 const taskTitle=document.getElementById('taskTitle');
 const count=document.getElementById('count');
 const result=document.getElementById('result');
@@ -862,6 +856,76 @@ const ART_BODY7={'Pierre':[0,1,0,1,-1,0,0],'Métal enchanté':[0,1,0,1,0,1,0],'B
 const ALIEN7={'Humanoïde':[0,0,0,0,0,0,0],'Insectoïde':[1,1,0,1,1,-1,0],'Reptilien':[1,1,0,1,0,0,0],'Cristallin':[0,0,1,2,-1,1,-1],'Énergétique':[0,-2,1,1,2,3,-2],'Amorphe':[-1,0,0,2,-1,1,-1],'Végétaloïde':[0,1,0,2,-1,1,0],'Aquatique':[0,0,0,1,1,0,0],'Aviaire':[1,-1,0,-1,2,0,0],'Unique':[0,0,0,0,0,0,0]};
 const BEAST_REAL=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheval','Cerf','Chèvre','Gorille','Singe','Éléphant','Rhinocéros','Crocodile','Serpent','Lézard','Tortue','Aigle','Hibou','Chauve-souris','Requin','Baleine','Poulpe','Scorpion','Araignée','Scarabée','Fourmi','Guépard','Papillon'];
 const BEAST_FANTASY=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix','Fenrir','Cerbère','Hydre','Manticore','Chimère','Minotaure','Kelpie','Kraken','Serpent de mer','Léviathan','Loup spectral','Kitsune','Tengu','Naga'];
+// Traits anatomiques/visuels obligatoires des lignées Homme-bête.
+// Ils sont conservés dans le JSON du personnage et transmis au prompt d'image.
+const BEAST_MANDATORY_TRAITS={
+'Lion':['faciès léonin','oreilles félines arrondies','pelage court','longue queue terminée par un pinceau de poils','griffes'],
+'Tigre':['faciès félin','oreilles félines arrondies','pelage obligatoirement rayé','longue queue rayée','griffes','canines développées'],
+'Loup':['museau lupin','oreilles triangulaires dressées','fourrure','longue queue touffue','griffes','crocs développés'],
+'Renard':['museau vulpin fin','grandes oreilles triangulaires','fourrure','longue queue très touffue','griffes','silhouette naturellement plus fine'],
+'Ours':['faciès ursin','petites oreilles rondes','fourrure épaisse','corps naturellement massif','griffes longues et puissantes','queue extrêmement courte'],
+'Sanglier':['groin','oreilles porcines','pilosité épaisse et rêche','défenses apparentes','sabots aux pieds','petite queue'],
+'Taureau':['museau bovin','oreilles bovines','deux cornes','sabots aux pieds','queue bovine avec touffe terminale','carrure naturellement massive'],
+'Cheval':['museau équin','longues oreilles équines','crinière','sabots aux pieds','longue queue chevaline','jambes particulièrement adaptées à la course'],
+'Cerf':['museau cervidé','grandes oreilles','sabots aux pieds','queue courte','morphologie élancée'],
+'Chèvre':['museau caprin','oreilles caprines','deux cornes','sabots aux pieds','petite queue','pupilles horizontales'],
+'Gorille':['faciès simiesque robuste','nez large et aplati','pilosité dense','bras proportionnellement très longs','mains larges et puissantes','carrure naturellement massive'],
+'Singe':['faciès simiesque','oreilles arrondies apparentes','pilosité corporelle','mains et pieds préhensiles','longue queue préhensile','membres particulièrement agiles'],
+'Éléphant':['faciès d’éléphant','trompe fonctionnelle','très grandes oreilles','défenses','peau épaisse et plissée','pieds larges'],
+'Rhinocéros':['faciès de rhinocéros','peau très épaisse et plissée','grande corne nasale','petites oreilles','pieds larges à plusieurs doigts','carrure naturellement massive'],
+'Crocodile':['tête crocodilienne à mâchoire allongée','peau écailleuse épaisse','plaques dorsales et ostéodermes','griffes','longue queue massive','dents coniques apparentes'],
+'Serpent':['faciès ophidien','peau entièrement écailleuse','yeux de serpent','langue bifide','crocs','longue queue serpentine remplaçant les jambes'],
+'Lézard':['tête reptilienne','peau couverte d’écailles','doigts griffus','longue queue reptilienne','yeux reptiliens','dentition de petit prédateur'],
+'Tortue':['tête reptilienne à bec corné','peau écailleuse','grande carapace dorsale','plastron ventral','membres robustes griffus','cou rétractile'],
+'Aigle':['tête et faciès d’aigle','bec crochu','plumage','serres aux pieds','deux grandes ailes emplumées dans le dos','yeux d’oiseau de proie'],
+'Hibou':['tête et faciès de hibou','bec court et crochu','plumage','grands yeux frontaux','serres aux pieds','deux grandes ailes emplumées dans le dos'],
+'Chauve-souris':['faciès de chauve-souris','grandes oreilles','canines développées','deux grandes ailes membraneuses','griffes adaptées à l’accrochage','pilosité courte'],
+'Requin':['faciès de requin','peau rugueuse sans pelage','plusieurs rangées de dents triangulaires','fentes branchiales visibles','nageoire dorsale','queue caudale de requin'],
+'Baleine':['faciès de cétacé','peau lisse et épaisse','évent dorsal','membres supérieurs partiellement transformés en nageoires','large queue caudale horizontale','corps naturellement massif'],
+'Poulpe':['peau lisse sans poils','grands yeux','huit tentacules au total intégrés à la morphologie','ventouses visibles','absence de squelette externe','pigmentation cutanée variable'],
+'Scorpion':['exosquelette chitineux','longue queue segmentée terminée par un aiguillon','deux pinces antérieures','yeux sombres multiples','plaques corporelles segmentées','membres partiellement arthropodes'],
+'Araignée':['exosquelette partiel','huit membres au total','plusieurs yeux','chélicères et crochets près de la bouche','abdomen arachnéen','filières productrices de soie'],
+'Scarabée':['exosquelette chitineux épais','élytres dorsaux','ailes membraneuses repliées sous les élytres','antennes','mandibules','morphologie corporelle segmentée'],
+'Fourmi':['exosquelette chitineux','deux antennes articulées','mandibules développées','taille corporelle marquée entre thorax et abdomen','six membres au total','corps segmenté'],
+'Guépard':['faciès félin fin','petites oreilles arrondies','pelage tacheté','traits lacrymaux noirs caractéristiques','longue queue','longues jambes et silhouette élancée'],
+'Papillon':['faciès légèrement insectoïde','deux antennes','deux paires de grandes ailes couvertes d’écailles colorées','corps partiellement couvert de fines écailles ou pilosité','grands yeux composés','morphologie légère'],
+'Licorne':['faciès équin','oreilles équines','crinière','sabots','queue chevaline','corne unique longue et torsadée au centre du front'],
+'Pégase':['faciès équin','oreilles équines','crinière','sabots','queue chevaline','deux grandes ailes emplumées fonctionnelles dans le dos'],
+'Griffon':['tête et bec d’aigle','plumage sur la partie supérieure','deux grandes ailes emplumées','serres d’aigle','caractéristiques félines et léonines sur le reste du corps','queue de lion'],
+'Phénix':['faciès avien','bec','plumage','serres','deux grandes ailes','plumes parcourues de flammes surnaturelles','longue traîne de plumes incandescentes'],
+'Basilic':['faciès reptilien et serpentin','peau écailleuse','crocs','regard surnaturel immédiatement reconnaissable','longue queue serpentine','crête ou excroissances osseuses rappelant une couronne'],
+'Cocatrix':['tête de coq avec bec et crête','plumage','deux ailes','pattes et serres aviennes','longue queue reptilienne','écailles reptiliennes mêlées aux plumes'],
+'Fenrir':['faciès de loup','oreilles lupines','fourrure épaisse','crocs et griffes particulièrement développés','longue queue touffue','morphologie lupine anormalement massive et imposante'],
+'Cerbère':['morphologie canine','fourrure','griffes','trois têtes canines distinctes et fonctionnelles','trois gueules munies de crocs','queue canine'],
+'Hydre':['peau écailleuse','morphologie reptilienne','plusieurs longs cous terminés chacun par une tête reptilienne','crocs','griffes','longue queue reptilienne'],
+'Manticore':['faciès léonin','corps couvert de fourrure','crinière','griffes et crocs','queue de scorpion terminée par un aiguillon','deux grandes ailes membraneuses'],
+'Chimère':['tête principale léonine','crinière et fourrure','caractéristiques de chèvre intégrées à la morphologie avec cornes','éléments serpentins et reptiliens','queue terminée par une tête de serpent','griffes'],
+'Minotaure':['tête de taureau','deux grandes cornes bovines','museau bovin','oreilles bovines','sabots','queue bovine','carrure naturellement massive'],
+'Kelpie':['faciès équin','crinière','sabots','queue chevaline','peau ou pelage constamment humide','crinière mêlée d’éléments aquatiques et d’algues','caractéristiques surnaturelles liées à l’eau'],
+'Kraken':['morphologie céphalopode','nombreux tentacules massifs munis de ventouses','peau lisse','grands yeux','bec de céphalopode','anatomie clairement adaptée au milieu marin'],
+'Serpent de mer':['faciès reptilien et serpentin','écailles','crocs','longue partie inférieure serpentine sans jambes','nageoires ou crêtes aquatiques','longue queue adaptée à la nage'],
+'Léviathan':['faciès de gigantesque monstre marin','peau écailleuse ou cuirassée','mâchoire massive','structures aquatiques monumentales : nageoires, crêtes et membranes','longue queue marine','morphologie naturellement colossale'],
+'Loup spectral':['faciès lupin','oreilles de loup','crocs et griffes','longue queue','corps partiellement spectral et translucide','fourrure se dissipant par endroits en brume ou énergie surnaturelle'],
+'Kitsune':['faciès de renard','oreilles vulpines','fourrure','griffes','plusieurs longues queues de renard','caractéristiques surnaturelles et mystiques visibles'],
+'Tengu':['faciès avien humanoïde','bec proéminent','plumage','serres','deux grandes ailes emplumées','silhouette humanoïde conservée'],
+'Naga':['faciès humanoïde et reptilien','écailles','yeux reptiliens','langue bifide','crocs','torse humanoïde prolongé par une longue partie inférieure serpentine sans jambes']
+};
+function beastMandatoryTraits(species,gender=''){
+  const out=[...(BEAST_MANDATORY_TRAITS[species]||[])],g=String(gender||'').toLowerCase();
+  const male=g.includes('mâle')||g.includes('male')||g.includes('homme');
+  if(species==='Lion'&&male)out.push('crinière léonine développée');
+  if(species==='Cerf'&&male)out.push('grands bois de cerf');
+  if(species==='Paon'&&male)out.push('grande traîne ocellée');
+  return out;
+}
+function beastComponentsFromCharacter(c){
+  const out=[],seen=new Set();
+  const walk=x=>{if(!x||typeof x!=='object')return;if(x.race==='Homme-bête'&&x.species&&!seen.has(x.species)){seen.add(x.species);out.push({species:x.species,traits:beastMandatoryTraits(x.species,c?.gender)})}walk(x.compA);walk(x.compB);walk(x.originComponent)};
+  const L=c?.lineage||{};walk(L.primaryComponent);walk(L.hybridCompA);walk(L.hybridCompB);walk(L.originComponent);
+  if(L.beastSpecies&&!seen.has(L.beastSpecies))out.push({species:L.beastSpecies,traits:beastMandatoryTraits(L.beastSpecies,c?.gender)});
+  return out;
+}
+
 const BEAST_REAL_AFF={
 'Aetherys':'N N N N D D N N N N D D D D D N N N F F N D D D N N N N N N','Thoryndra':'D D F F F D N N D F D D D D D D D D F N D D D D D N D D D D','Liorael':'N F F F F F N F F N F F N N N F F N F F N D D D D F F F N F','Caelorn':'N N F F N N F F F F D D D D D N N N F F N D D D N N N N F N',
 'Iskarya':'N D F F F N N N F N D D D D D D D D F F D D D D D N N N D N','Kharadryn':'D D F F F N N N N F D D D D D D D D F N N D D D D N D D D D','Sylvaeryn':'N F F F F F N N F N F F N D N F N N N F F D D D D F F F D F','Avelorn':'F N N F N F F F F N D N F F N N N N N F N D D D D N N F F F','Drakhenor':'F N N N D N F F D F D D N F D F F D F N N D D D F F F F F D','Maelora':'N F N N N F N N N N F F F F F F F F N F F N N F F F F F N F','Nexara':'N N N N D N N N D N D N D D D N N N N N N D D D N N N N N N','Kaelora':'N N D N D N N N N N D N N N F F F F F N N F F F D N N N N N','Vaerunn':'F N F F F N F F N F D D N N D N N D F N F D D D F N N N F D',
@@ -3465,7 +3529,7 @@ function scheduleSuperiorAfterPower(prefix,comp){updateSuperiorDisplay(comp);if(
 function schedulePower(prefix,comp){insert([task(`${prefix} — Puissance`,POWER_STAGE,x=>{comp.power=powerExact(x);comp.powerBand=x;scheduleSuperiorAfterPower(prefix,comp)})])}
 function scheduleComponentDetails(prefix,comp){let r=comp.race;
  if(r==='Hybride'){insert([task(`${prefix} — Ascendance A`,()=>raceOptions(['Hybride','Vampire','Loup-garou','Esprit','Squelette']),x=>{let c=comp.compA={race:x};scheduleComponentDetails(`${prefix} A`,c)}),task(`${prefix} — Ascendance B`,()=>raceOptions(['Hybride','Vampire','Loup-garou','Esprit','Squelette']),x=>{let c=comp.compB={race:x};scheduleComponentDetails(`${prefix} B`,c)})]);return}
- if(r==='Homme-bête'){insert([task(`${prefix} — Nature Homme-bête`,[W('Animal réel',75),W('Animal fantastique',25)],x=>{comp.beastNature=x;const real=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheval','Cerf','Chèvre','Gorille','Singe','Éléphant','Rhinocéros','Crocodile','Serpent','Lézard','Tortue','Aigle','Hibou','Chauve-souris','Requin','Baleine','Poulpe','Scorpion','Araignée','Scarabée','Fourmi','Guépard','Papillon'];const fantasy=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix','Fenrir','Cerbère','Hydre','Manticore','Chimère','Minotaure','Kelpie','Kraken','Serpent de mer','Léviathan','Loup spectral','Kitsune','Tengu','Naga'];insert([task(`${prefix} — Espèce`,()=>beastSpeciesOptions(x),v=>comp.species=v)])})]);return}
+ if(r==='Homme-bête'){insert([task(`${prefix} — Nature Homme-bête`,[W('Animal réel',75),W('Animal fantastique',25)],x=>{comp.beastNature=x;const real=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheval','Cerf','Chèvre','Gorille','Singe','Éléphant','Rhinocéros','Crocodile','Serpent','Lézard','Tortue','Aigle','Hibou','Chauve-souris','Requin','Baleine','Poulpe','Scorpion','Araignée','Scarabée','Fourmi','Guépard','Papillon'];const fantasy=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix','Fenrir','Cerbère','Hydre','Manticore','Chimère','Minotaure','Kelpie','Kraken','Serpent de mer','Léviathan','Loup spectral','Kitsune','Tengu','Naga'];insert([task(`${prefix} — Espèce`,()=>beastSpeciesOptions(x),v=>{comp.species=v;comp.mandatoryRacialTraits=beastMandatoryTraits(v,state.gender);if(comp===state.lineage?.primaryComponent){state.mandatoryRacialTraits=[...comp.mandatoryRacialTraits]}})])})]);return}
  if(r==='Golem / Artificiel'){insert([task(`${prefix} — Origine artificielle`,[W('Arcane',40),W('Mécanique',35),W('Nexus',25)],x=>{comp.artificialOrigin=x;const c={Arcane:['Pierre','Métal enchanté','Bois vivant','Cristal','Glace','Matière organique artificielle'],'Mécanique':['Métal','Alliage léger','Céramique','Assemblage alchimique','Mécanisme composite','Matériau atypique'],Nexus:['Alliage Nexus','Matière synthétique','Cristal technologique','Structure énergétique','Biomatière artificielle','Nanostructure']};insert([task(`${prefix} — Constitution`,EQ(c[x]),v=>comp.artificialBody=v),task(`${prefix} — Éveil`,[W('À la création',60),W('Plus tard',40)],v=>comp.artificialAwakening=v)])})]);return}
  if(r==='Extraterrestre'){const envs=['Tempéré','Désertique','Glaciaire','Océanique','Jungle','Volcanique','Atmosphérique','Souterrain','Monde artificiel','Extrême'];const types=['Humanoïde','Insectoïde','Reptilien','Cristallin','Énergétique','Amorphe','Végétaloïde','Aquatique','Aviaire','Unique'];insert([task(`${prefix} — Environnement natal`,EQ(envs),x=>comp.alienEnvironment=x),task(`${prefix} — Type biologique`,()=>alienTypeOptions(comp.alienEnvironment),x=>comp.alienType=x),task(`${prefix} — Présence`,[W('Récente',30),W('Depuis plusieurs générations',45),W('Ancienne',25)],x=>comp.alienPresence=x)]);return}
  if(r==='Ange'){insert([task(`${prefix} — Évolution`,[W('Ange',90),W('Archange',10)],x=>comp.evolved=x==='Archange')]);return}
@@ -3772,7 +3836,7 @@ function buildInitial(){queue=[task('Strate de naissance',vaeloriaBirthStrataOpt
 task('Région',vaeloriaRegionOptions,x=>state.birthRegion=x),
 task('Race',raceOptions,x=>addRaceResult(x)),
 task('Culture',vaeloriaCultureOptions,x=>state.culture=x),
-task('Genre',[W('Mâle',45),W('Femelle',45),W('Autre / indéterminé',10)],x=>state.gender=x==='Mâle'?'Homme':x==='Femelle'?'Femme':x),task('Taille',sizeOptions,x=>{let n=parseFloat(x);if(state._historySizeMultiplier)n=Math.round(n*state._historySizeMultiplier*100)/100;state.size=n+' m'}),task('Archétype',EQ(archs),x=>{state.arch=x;state.archParts=[x];if(x==='Inclassable')insert([task('Inclassable — Archétype A',EQ(archs.filter(a=>a!=='Inclassable')),a=>{state.archParts=[a];if(a==='Slayer')addSlayerTarget('Slayer');if(a==='Invocateur')beginSummonerInvocation()}),task('Inclassable — Archétype B',EQ(archs.filter(a=>a!=='Inclassable')),a=>{state.archParts.push(a);state.arch=`Inclassable (${state.archParts.join(' + ')})`;if(a==='Slayer')addSlayerTarget('Slayer');if(a==='Invocateur')beginSummonerInvocation()})]);else if(x==='Slayer')addSlayerTarget('Slayer');if(x==='Invocateur')beginSummonerInvocation();if(x==='Prodige')insert([task('Prodige — Stat majeure',EQ(statNames),a=>{state.prodigeMods=[{stat:a,value:4}]}),task('Prodige — Stat secondaire',()=>EQ(statNames.filter(s=>s!==state.prodigeMods[0]?.stat)),a=>state.prodigeMods.push({stat:a,value:2}))])}),task('Métier',vaeloriaJobOptions,x=>{state.job=x;if(x==='Métier improbable')insert([task('Métier improbable — Manifestation',EQ(improbableJobs),u=>state.job=u)]);else if(x==='Métier légendaire'){let j={kind:'Métier légendaire',name:null,ability:null};state.extraDetail.push(j);insert([task('Métier légendaire — Profession',EQ(legendaryJobs),v=>j.name=v),task('Métier légendaire — Capacité',EQ(legendaryJobAbilities),v=>{j.ability=v;if(v==='Capacité professionnelle unique')insert([task('Métier légendaire — Capacité unique',EQ(uniqueLegendaryJobAbilities),u=>j.ability=u)])}),task('Métier légendaire — Finalisation',[W('Inscrire le métier')],()=>state.job=j.name||'Métier légendaire')])}}),task('Nombre d’histoires',[W('1 histoire',90),W('2 histoires',10)],x=>{let n=x.startsWith('2')?2:1;let ts=[];for(let j=1;j<=n;j++)ts.push(task(`Histoire ${j}`,vaeloriaHistoryOptions,h=>{state.history.push(h);if(h==='Béni')addBlessing(`Histoire ${j}`);if(h==='Maudit')addCurse(`Histoire ${j}`);applyHistoryConsequence(h,j);if(h==='Histoire improbable')insert([task(`Histoire ${j} improbable — Manifestation`,EQ(improbableHistories),u=>{state.history[state.history.length-1]=u})]);if(h==='Histoire légendaire'){let hi=state.history.length-1;insert([task(`Histoire ${j} légendaire — Événement`,EQ(legendaryHistories),u=>{state.history[hi]=u;if(u==='Histoire légendaire unique')insert([task(`Histoire ${j} légendaire — Manifestation unique`,EQ(uniqueLegendaryHistories),z=>state.history[hi]=z)])})])}}));insert(ts)}),task('Extra',vaeloriaExtraOptions,x=>{state.extra=x;if(x==='Familier')addFamiliar();else if(x==='Monture')addMount();else if(x==='Compagnon artificiel')addArtificialCompanion();else if(x==='Familier légendaire')addLegendaryFamiliar();else if(x==='Objet béni'||x==='Objet maudit'||x==='Artefact')addArtifact(x);else if(x==='Bénédiction')addBlessing('Extra');else if(x==='Deuxième pouvoir')state._extraPower=true;else if(x==='Deuxième arme')state._extraWeapon=true;else if(x==='Transformation')addTransformation();else if(x==='Éveil')addAwakening();else if(x==='Technique secrète'){let t={kind:'Technique secrète',name:null,mastery:null};state.extraDetail.push(t);insert([task('Technique secrète — Type',EQ(secretTechniques),v=>{t.name=v;if(v==='Technique unique')insert([task('Technique secrète — Manifestation unique',EQ(uniqueSecretTechniques),u=>t.name=u)])}),task('Technique secrète — Maîtrise',centered,v=>t.mastery=valNum(v))])}else if(x==='Armure spéciale'){let a={kind:'Armure spéciale',type:null,effect:null,power:null};state.extraDetail.push(a);insert([task('Armure spéciale — Type',EQ(armorTypes),v=>a.type=v),task('Armure spéciale — Propriété',EQ(armorEffects),v=>{a.effect=v;if(v==='Propriété unique')insert([task('Armure spéciale — Propriété unique',EQ(armorUniqueEffects),u=>a.effect=u)])}),task('Armure spéciale — Puissance',centered,v=>{a.power=valNum(v);registerArmorStatBonus(a)})])}else if(x==='Lien mystique'){let l={kind:'Lien mystique',target:null,nature:null,power:null,ownership:null,linkedItem:null,relationship:null};state.extraDetail.push(l);insert([task('Lien mystique — Cible',EQ(mysticLinkTargets),v=>{l.target=v;
+task('Genre',[W('Homme',45),W('Femme',45),W('Autre / indéterminé',10)],x=>state.gender=x),task('Taille',sizeOptions,x=>{let n=parseFloat(x);if(state._historySizeMultiplier)n=Math.round(n*state._historySizeMultiplier*100)/100;state.size=n+' m'}),task('Archétype',EQ(archs),x=>{state.arch=x;state.archParts=[x];if(x==='Inclassable')insert([task('Inclassable — Archétype A',EQ(archs.filter(a=>a!=='Inclassable')),a=>{state.archParts=[a];if(a==='Slayer')addSlayerTarget('Slayer');if(a==='Invocateur')beginSummonerInvocation()}),task('Inclassable — Archétype B',EQ(archs.filter(a=>a!=='Inclassable')),a=>{state.archParts.push(a);state.arch=`Inclassable (${state.archParts.join(' + ')})`;if(a==='Slayer')addSlayerTarget('Slayer');if(a==='Invocateur')beginSummonerInvocation()})]);else if(x==='Slayer')addSlayerTarget('Slayer');if(x==='Invocateur')beginSummonerInvocation();if(x==='Prodige')insert([task('Prodige — Stat majeure',EQ(statNames),a=>{state.prodigeMods=[{stat:a,value:4}]}),task('Prodige — Stat secondaire',()=>EQ(statNames.filter(s=>s!==state.prodigeMods[0]?.stat)),a=>state.prodigeMods.push({stat:a,value:2}))])}),task('Métier',vaeloriaJobOptions,x=>{state.job=x;if(x==='Métier improbable')insert([task('Métier improbable — Manifestation',EQ(improbableJobs),u=>state.job=u)]);else if(x==='Métier légendaire'){let j={kind:'Métier légendaire',name:null,ability:null};state.extraDetail.push(j);insert([task('Métier légendaire — Profession',EQ(legendaryJobs),v=>j.name=v),task('Métier légendaire — Capacité',EQ(legendaryJobAbilities),v=>{j.ability=v;if(v==='Capacité professionnelle unique')insert([task('Métier légendaire — Capacité unique',EQ(uniqueLegendaryJobAbilities),u=>j.ability=u)])}),task('Métier légendaire — Finalisation',[W('Inscrire le métier')],()=>state.job=j.name||'Métier légendaire')])}}),task('Nombre d’histoires',[W('1 histoire',90),W('2 histoires',10)],x=>{let n=x.startsWith('2')?2:1;let ts=[];for(let j=1;j<=n;j++)ts.push(task(`Histoire ${j}`,vaeloriaHistoryOptions,h=>{state.history.push(h);if(h==='Béni')addBlessing(`Histoire ${j}`);if(h==='Maudit')addCurse(`Histoire ${j}`);applyHistoryConsequence(h,j);if(h==='Histoire improbable')insert([task(`Histoire ${j} improbable — Manifestation`,EQ(improbableHistories),u=>{state.history[state.history.length-1]=u})]);if(h==='Histoire légendaire'){let hi=state.history.length-1;insert([task(`Histoire ${j} légendaire — Événement`,EQ(legendaryHistories),u=>{state.history[hi]=u;if(u==='Histoire légendaire unique')insert([task(`Histoire ${j} légendaire — Manifestation unique`,EQ(uniqueLegendaryHistories),z=>state.history[hi]=z)])})])}}));insert(ts)}),task('Extra',vaeloriaExtraOptions,x=>{state.extra=x;if(x==='Familier')addFamiliar();else if(x==='Monture')addMount();else if(x==='Compagnon artificiel')addArtificialCompanion();else if(x==='Familier légendaire')addLegendaryFamiliar();else if(x==='Objet béni'||x==='Objet maudit'||x==='Artefact')addArtifact(x);else if(x==='Bénédiction')addBlessing('Extra');else if(x==='Deuxième pouvoir')state._extraPower=true;else if(x==='Deuxième arme')state._extraWeapon=true;else if(x==='Transformation')addTransformation();else if(x==='Éveil')addAwakening();else if(x==='Technique secrète'){let t={kind:'Technique secrète',name:null,mastery:null};state.extraDetail.push(t);insert([task('Technique secrète — Type',EQ(secretTechniques),v=>{t.name=v;if(v==='Technique unique')insert([task('Technique secrète — Manifestation unique',EQ(uniqueSecretTechniques),u=>t.name=u)])}),task('Technique secrète — Maîtrise',centered,v=>t.mastery=valNum(v))])}else if(x==='Armure spéciale'){let a={kind:'Armure spéciale',type:null,effect:null,power:null};state.extraDetail.push(a);insert([task('Armure spéciale — Type',EQ(armorTypes),v=>a.type=v),task('Armure spéciale — Propriété',EQ(armorEffects),v=>{a.effect=v;if(v==='Propriété unique')insert([task('Armure spéciale — Propriété unique',EQ(armorUniqueEffects),u=>a.effect=u)])}),task('Armure spéciale — Puissance',centered,v=>{a.power=valNum(v);registerArmorStatBonus(a)})])}else if(x==='Lien mystique'){let l={kind:'Lien mystique',target:null,nature:null,power:null,ownership:null,linkedItem:null,relationship:null};state.extraDetail.push(l);insert([task('Lien mystique — Cible',EQ(mysticLinkTargets),v=>{l.target=v;
 if(v==='Une arme consciente'){l.ownership='Possédé par le personnage';l.linkedItem='Arme équipée';}
 else if(v==='Un artefact ancien'){l.ownership='Possédé par le personnage';l.linkedItem='Artefact possédé';}
 else if(v==='Un autre personnage'){l.ownership='Lié à un autre personnage';let r={kind:'Lien interpersonnage',status:null,type:null,targetId:null,targetName:null};l.relationship=r;state.relationships.push(r);insert([task('Lien — Statut du personnage',EQ(otherCharacterStatus),u=>{r.status=u;if(u==='Personnage déjà existant'){insert([task('Lien — Personnage existant',()=>{let roster=loadRoster();let candidates=Object.values(roster||{}).filter(c=>c&&c.id&&c.id!==state.id);return candidates.length?EQ(candidates.map(c=>`${c.id} — ${c.name||'Sans nom'}`)):[W('Aucun autre personnage sauvegardé')];},z=>{if(z==='Aucun autre personnage sauvegardé'){r.targetId=null;r.targetName=null;r.status='Personnage déjà existant — aucun candidat disponible';return;}let sep=z.indexOf(' — ');r.targetId=sep>=0?z.slice(0,sep):z;let roster=loadRoster();r.targetName=roster?.[r.targetId]?.name||(sep>=0?z.slice(sep+3):null);l.ownership=`Lié à ${r.targetId}${r.targetName?` — ${r.targetName}`:''}`;} )])}}),task('Lien — Nature de la relation',EQ(relationshipTypes),u=>r.type=u)])}
@@ -4295,29 +4359,14 @@ function renderHallOfFame(){
 wheelTabBtn.onclick=()=>showTab('wheel');
 listTabBtn.onclick=()=>{closeCharacterDetail();showTab('list')};
 genealogyTabBtn.onclick=()=>showTab('genealogy');
-function positionArenaMenuDesktop(){
-  if(!arenaMenu||!arenaTabBtn||arenaMenu.hidden||innerWidth<=700){if(arenaMenu){arenaMenu.style.left='';arenaMenu.style.top='';arenaMenu.style.right=''}return}
-  const r=arenaTabBtn.getBoundingClientRect(), gap=6, pad=10;
-  arenaMenu.style.position='fixed';
-  arenaMenu.style.top=(r.bottom+gap)+'px';
-  arenaMenu.style.left=Math.max(pad,Math.min(r.left,innerWidth-arenaMenu.offsetWidth-pad))+'px';
-  arenaMenu.style.right='auto';
-}
-function setArenaMenuOpen(open){
-  arenaMenu.hidden=!open;arenaTabBtn.setAttribute('aria-expanded',String(open));
-  if(open)requestAnimationFrame(positionArenaMenuDesktop);
-}
-arenaTabBtn.onclick=(e)=>{e.stopPropagation();setArenaMenuOpen(arenaMenu.hidden)};
-addEventListener('resize',()=>{if(!arenaMenu.hidden)positionArenaMenuDesktop()});
-addEventListener('scroll',()=>{if(!arenaMenu.hidden)positionArenaMenuDesktop()},true);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!arenaMenu.hidden)setArenaMenuOpen(false)});
+arenaTabBtn.onclick=(e)=>{e.stopPropagation();const open=arenaMenu.hidden;arenaMenu.hidden=!open;arenaTabBtn.setAttribute('aria-expanded',String(open))};
 tournamentTabBtn.onclick=()=>{arenaMenu.hidden=true;arenaTabBtn.setAttribute('aria-expanded','false');showTab('tournament')};
 hallTabBtn.onclick=()=>{arenaMenu.hidden=true;arenaTabBtn.setAttribute('aria-expanded','false');showTab('hall')};
 const duelLocalTabBtn=document.getElementById('duelLocalTabBtn'),multiplayerTabBtn=document.getElementById('multiplayerTabBtn');
 function closeArenaMenu(){if(arenaMenu)arenaMenu.hidden=true;if(arenaTabBtn)arenaTabBtn.setAttribute('aria-expanded','false')}
 if(duelLocalTabBtn)duelLocalTabBtn.onclick=()=>{closeArenaMenu();showTab('duelLocal')};
 if(multiplayerTabBtn)multiplayerTabBtn.onclick=async()=>{closeArenaMenu();showTab('multiplayer');if(cloudClient&&cloudUser){try{const [d,t]=await Promise.all([multiplayerDuelCall('status'),multiplayerTeamCall('status')]);__onlineDuelMatch=d?.match||null;__onlineTeamMatch=t?.match||null}catch(e){console.warn('Chargement multijoueur',e)}renderMultiplayerPage()}};
-document.addEventListener('click',(e)=>{if(!e.target.closest('.arena-nav')&&!e.target.closest('#arenaMenu'))setArenaMenuOpen(false)});
+document.addEventListener('click',(e)=>{if(!e.target.closest('.arena-nav')){arenaMenu.hidden=true;arenaTabBtn.setAttribute('aria-expanded','false')}});
 
 // Univers V18 — sous-navigation et codex racial relié aux données du jeu.
 const RACE_CODEX_LORE={
@@ -4470,6 +4519,8 @@ universeTabBtn.onclick=()=>showTab('universe');
 document.getElementById('createTournamentBtn').onclick=createTournament;
 document.getElementById('simulateTournamentPhaseBtn').onclick=()=>simulateTournamentBatch('round');
 document.getElementById('resetTournamentBtn').onclick=()=>{if(loadTournament()&&confirm('Effacer toute la progression du tournoi ?')){const oldT=loadTournament();localStorage.removeItem(TOURNAMENT_KEY);if(typeof cloudDeleteTournament==='function')cloudDeleteTournament(oldT?.season);renderTournament()}};
+prevCharBtn.onclick=()=>previousCharacter();
+nextCharBtn.onclick=()=>advanceCharacter();
 const resolveChildrenBtn=document.getElementById('resolveChildrenBtn');
 const selectDescBtn=document.getElementById('selectDescBtn');
 const importCharactersBtn=document.getElementById('importCharactersBtn');
@@ -4493,28 +4544,6 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_cRbNvF-wSAkFrSUYq_Uc6g_sJ56grrF';
 const CLOUD_GAME_KEY='roue_cloud_game_id_v1';
 const CLOUD_LOADED_GAME_KEY='roue_cloud_loaded_game_id_v1';
 const CLOUD_BACKUP_KEY='roue_local_backup_before_cloud_v1';
-const HGT_NEURONS_PER_IMAGE=114.93;
-const HGT_NEURON_DAILY_LIMIT=10000;
-async function recordEstimatedNeuronGeneration(meta={}){
-  if(!cloudClient||!cloudUser)return false;
-  const {error}=await cloudClient.from('ai_neuron_usage').insert({
-    user_id:cloudUser.id,
-    neurons:HGT_NEURONS_PER_IMAGE,
-    kind:'image_generation',
-    meta:meta||{}
-  });
-  if(error)throw error;
-  return true;
-}
-async function getEstimatedNeuronUsageToday(){
-  if(!cloudClient||!cloudUser)return null;
-  const {data,error}=await cloudClient.rpc('get_daily_neuron_usage');
-  if(error)throw error;
-  const row=Array.isArray(data)?data[0]:data;
-  const neurons=Number(row?.neurons_used||0),images=Number(row?.image_count||0);
-  return {neurons,images,remaining:Math.max(0,HGT_NEURON_DAILY_LIMIT-neurons)};
-}
-function neuronResetLabel(){return 'Reset : 00:00 UTC';}
 let cloudClient=null,cloudUser=null,cloudGames=[],cloudCurrentGame=null,cloudProfile=null;
 const PLAYER_PROFILE_TABLE='player_profiles';
 let __cloudCharacterTimers=new Map(),__cloudUniverseTimer=null,__cloudGameTimer=null,__cloudTournamentTimer=null;
@@ -4551,13 +4580,7 @@ function initHgtHomeMusic(){const a=document.getElementById('hgtHomeMusic'),b=do
   gate.addEventListener('pointerup',e=>{if(e.target?.closest?.('#hgtHomeSound'))return;tryStart()},{passive:true});
   b.onclick=async e=>{e.stopPropagation();hgtHomeMusicMuted=!hgtHomeMusicMuted;if(hgtHomeMusicMuted){a.muted=true;a.pause()}else{a.muted=false;a.volume=HGT_HOME_MUSIC_VOLUME;await tryStart()}syncHgtHomeSoundButton()};
 }
-function hgtNeedsOnboarding(){return !!(cloudUser?.user_metadata?.hgt_new_account&&!cloudUser?.user_metadata?.hgt_tutorial_completed)}
-function enterHgt(){
- if(!cloudUser||!cloudProfile?.username)return;
- if(hgtNeedsOnboarding()&&!cloudGames.length){fadeOutHgtHomeMusic();document.getElementById('hgtEntry').hidden=true;document.body.classList.remove('hgt-gated');openCloudModal();cloudSetMessage('Bienvenue ! Crée ta première partie pour commencer le tutoriel.');return}
- fadeOutHgtHomeMusic();document.getElementById('hgtEntry').hidden=true;document.body.classList.remove('hgt-gated');updatePlayerPseudo();
- if(hgtNeedsOnboarding())setTimeout(()=>startHgtTutorial(false),250);
-}
+function enterHgt(){if(!cloudUser||!cloudProfile?.username)return;fadeOutHgtHomeMusic();document.getElementById('hgtEntry').hidden=true;document.body.classList.remove('hgt-gated');updatePlayerPseudo();}
 function leaveHgtGate(){document.getElementById('hgtEntry').hidden=false;document.body.classList.add('hgt-gated');renderEntryGate();startHgtHomeMusic()}
 function bindEntryGateFallback(){
  const login=document.getElementById('entryLogin'),signup=document.getElementById('entrySignup');
@@ -4604,7 +4627,7 @@ async function entryUpdatePassword(){
   setTimeout(()=>renderEntryGate(),700);
 }
 async function entryLogin(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||!password){hgtEntryMessage('Entre ton e-mail et ton mot de passe.','error');return}if(!cloudClient){hgtEntryMessage('Connexion au service en cours… réessaie dans un instant.','error');return}hgtEntryMessage('Connexion…');const {error}=await cloudClient.auth.signInWithPassword({email,password});if(error)hgtEntryMessage('Connexion impossible : '+error.message,'error')}
-async function entrySignup(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||password.length<6){hgtEntryMessage('Entre un e-mail et un mot de passe d’au moins 6 caractères.','error');return}hgtEntryMessage('Création du compte…');const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname,data:{hgt_new_account:true,hgt_tutorial_completed:false}}});if(error){hgtEntryMessage('Inscription impossible : '+error.message,'error');return}if(!data.session)hgtEntryMessage('Compte créé. Vérifie ton e-mail si une confirmation est demandée.');}
+async function entrySignup(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||password.length<6){hgtEntryMessage('Entre un e-mail et un mot de passe d’au moins 6 caractères.','error');return}hgtEntryMessage('Création du compte…');const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});if(error){hgtEntryMessage('Inscription impossible : '+error.message,'error');return}if(!data.session)hgtEntryMessage('Compte créé. Vérifie ton e-mail si une confirmation est demandée.');}
 
 function cloudReady(){return !!(cloudClient&&cloudUser&&cloudCurrentGame?.id)}
 const HGT_PREF_HIDE_SUBWHEELS='hgt_pref_hide_subwheels';
@@ -4618,13 +4641,11 @@ function renderProfileModal(){
  const champs=championHistory(),roster=loadRoster(),selected=cloudProfile?.avatar_champion_id||'';
  const selectedChampion=champs.find(x=>x.id===selected),selectedName=selectedChampion?(roster[selected]?.name||selectedChampion.name||selected):'Aucune icône sélectionnée';
  const choices=champs.length?champs.map(ch=>{const c=roster[ch.id]||{},hasPortrait=!!(c?.imageGeneration?.championPath||c?.imageGeneration?.selectedPortrait);return `<button type="button" class="profile-avatar-choice ${selected===ch.id?'selected':''}" data-avatar-choice="${escapeHtml(ch.id)}" ${hasPortrait?'':'disabled'}><span class="champion-mini" data-profile-avatar-id="${escapeHtml(ch.id)}">${hasPortrait?'🏆':'—'}</span><small>${escapeHtml(c.name||ch.name||ch.id)}</small><small class="muted">S${Number(ch.season)||'?'}</small></button>`}).join(''):'<div class="muted">Aucun Champion disponible pour le moment.</div>';
- root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div class="profile-avatar-current"><span class="player-avatar" id="profileCurrentAvatar">👤</span><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div><b>Choisir parmi mes Champions</b><div class="muted">Tu peux changer d’icône à volonté. Seuls tes Champions disposant d’un portrait peuvent être sélectionnés.</div><div class="profile-avatar-grid">${choices}</div></div><div class="profile-option" style="display:block"><span class="profile-option-copy"><b>Cadrage de l’icône</b><small>Déplace le cadrage pour placer précisément la tête du Champion au centre de l’icône.</small></span><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px"><label class="muted">Horizontal<input id="avatarFocusX" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_x??50)}" style="width:100%"></label><label class="muted">Vertical<input id="avatarFocusY" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_y??32)}" style="width:100%"></label></div></div><label class="profile-option"><span class="profile-option-copy"><b>Masquer les sous-roues uniquement</b><small>Les tirages secondaires restent effectués normalement, mais leur animation n’est pas affichée. Les roues principales restent visibles.</small></span><input id="prefHideSubwheels" type="checkbox" ${hideSubwheelsEnabled()?'checked':''}></label><div class="profile-option" style="display:block"><span class="profile-option-copy"><b>⚡ Consommation Workers AI estimée</b><small id="profileNeuronUsage">Chargement…</small><small>${neuronResetLabel()}</small></span></div><div class="cloud-row" style="margin-top:14px"><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><button class="secondary" id="profileTutorialBtn">📖 Revoir le tutoriel</button><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
- try{getEstimatedNeuronUsageToday().then(u=>{const e=root.querySelector('#profileNeuronUsage');if(e&&u)e.textContent=`${u.neurons.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} / 10 000 neurons • ${u.images} image${u.images>1?'s':''} estimée${u.images>1?'s':''}`}).catch(err=>{const e=root.querySelector('#profileNeuronUsage');if(e)e.textContent='Compteur indisponible';console.warn(err)})}catch(_){}
+ root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div class="profile-avatar-current"><span class="player-avatar" id="profileCurrentAvatar">👤</span><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div><b>Choisir parmi mes Champions</b><div class="muted">Tu peux changer d’icône à volonté. Seuls tes Champions disposant d’un portrait peuvent être sélectionnés.</div><div class="profile-avatar-grid">${choices}</div></div><div class="profile-option" style="display:block"><span class="profile-option-copy"><b>Cadrage de l’icône</b><small>Déplace le cadrage pour placer précisément la tête du Champion au centre de l’icône.</small></span><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px"><label class="muted">Horizontal<input id="avatarFocusX" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_x??50)}" style="width:100%"></label><label class="muted">Vertical<input id="avatarFocusY" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_y??32)}" style="width:100%"></label></div></div><label class="profile-option"><span class="profile-option-copy"><b>Masquer les sous-roues uniquement</b><small>Les tirages secondaires restent effectués normalement, mais leur animation n’est pas affichée. Les roues principales restent visibles.</small></span><input id="prefHideSubwheels" type="checkbox" ${hideSubwheelsEnabled()?'checked':''}></label><div class="cloud-row" style="margin-top:14px"><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
  const fx=root.querySelector('#avatarFocusX'),fy=root.querySelector('#avatarFocusY'),preview=root.querySelector('#profileCurrentAvatar');const applyAvatarPreview=()=>{if(preview){preview.style.setProperty('--avatar-x',fx.value+'%');preview.style.setProperty('--avatar-y',fy.value+'%')}};fx.oninput=applyAvatarPreview;fy.oninput=applyAvatarPreview;const saveAvatarFocus=async()=>{const m=root.querySelector('#profileMessage');try{await setProfileAvatarFocus(fx.value,fy.value);m.textContent='Cadrage enregistré ✓'}catch(e){m.textContent='Erreur : '+(e.message||e)}};fx.onchange=saveAvatarFocus;fy.onchange=saveAvatarFocus;applyAvatarPreview();
  root.querySelector('#prefHideSubwheels').onchange=e=>setHideSubwheels(e.target.checked);
  root.querySelector('#profileGamesBtn').onclick=()=>{closeProfileModal();openCloudModal()};
  root.querySelector('#profileSyncBtn').onclick=async()=>{const m=root.querySelector('#profileMessage');m.textContent='Synchronisation…';try{await cloudSyncAllData();m.textContent='Synchronisation terminée ✓'}catch(e){m.textContent='Erreur : '+(e.message||e)}};
- root.querySelector('#profileTutorialBtn').onclick=()=>{closeProfileModal();startHgtTutorial(true)};
  root.querySelector('#profileBugBtn').onclick=()=>renderBugReportForm(root);
  root.querySelector('#profileLogoutBtn').onclick=cloudLogout;
  root.querySelectorAll('[data-avatar-choice]').forEach(btn=>btn.onclick=async()=>{const m=root.querySelector('#profileMessage');m.textContent='Mise à jour de l’icône…';try{await setProfileChampionAvatar(btn.dataset.avatarChoice);renderProfileModal()}catch(e){m.textContent='Erreur : '+(e.message||e)}});
@@ -4654,7 +4675,7 @@ function cloudStatus(text,kind=''){
 }
 function cloudSetMessage(text){const e=document.getElementById('cloudMessage');if(e)e.textContent=text}
 function openCloudModal(){document.getElementById('cloudModal')?.classList.add('active');renderCloudModal()}
-function closeCloudModal(){document.getElementById('cloudModal')?.classList.remove('active');if(hgtNeedsOnboarding()&&!cloudGames.length)leaveHgtGate()}
+function closeCloudModal(){document.getElementById('cloudModal')?.classList.remove('active')}
 function hasLocalUniverse(){return Object.keys(loadRoster()).length>0||Object.keys(descendants()).length>0||Object.keys(npcs()).length>0||!!loadTournament()}
 function localUniverseSnapshot(){return {at:new Date().toISOString(),season:seasonNumber,characterNumber,roster:loadRoster(),descendants:descendants(),npcs:npcs(),meta:universeMeta(),tournament:loadTournament()}}
 function saveEmergencyLocalBackup(){try{const snap=localUniverseSnapshot(),old=loadEmergencyLocalBackup();const useful=Object.keys(snap.roster||{}).length>0||!!snap.tournament||Object.keys(snap.meta?.champions||{}).length>0;if(useful||!old)localStorage.setItem(CLOUD_BACKUP_KEY,JSON.stringify(snap))}catch(e){console.warn('Backup local impossible',e)}}
@@ -4747,9 +4768,9 @@ async function cloudSignup(){
 }
 async function cloudLogout(){if(cloudReady())try{await cloudSyncAllData()}catch(e){} await cloudClient.auth.signOut();localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY);cloudCurrentGame=null;cloudProfile=null;closeCloudModal();leaveHgtGate()}
 async function cloudCreateGame(){
-  const name=prompt(hgtNeedsOnboarding()?'Donne un nom à ta première partie :':'Nom de la nouvelle partie :','Ma partie');if(name===null)return;
+  const name=prompt('Nom de la nouvelle partie :','Ma partie');if(name===null)return;
   const {data,error}=await cloudClient.from('games').insert({owner_id:cloudUser.id,name:(name.trim()||'Ma partie')}).select().single();
-  if(error){cloudSetMessage('Création impossible : '+error.message);return}sessionStorage.setItem('hgt_start_tutorial_after_game','1');await cloudRefreshGames();renderCloudModal();await cloudOpenGame(data.id,true);
+  if(error){cloudSetMessage('Création impossible : '+error.message);return}await cloudRefreshGames();renderCloudModal();await cloudOpenGame(data.id,true);
 }
 async function cloudRenameGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;const name=prompt('Nouveau nom :',g.name||'Partie');if(name===null||!name.trim())return;const {error}=await cloudClient.from('games').update({name:name.trim()}).eq('id',id);if(error){cloudSetMessage(error.message);return}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
 async function cloudDeleteGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;if(!confirm(`Supprimer définitivement la partie « ${g.name} » et toutes ses données en ligne ?`))return;const {error}=await cloudClient.from('games').delete().eq('id',id);if(error){cloudSetMessage(error.message);return}if(cloudCurrentGame?.id===id){cloudCurrentGame=null;localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY)}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
@@ -4960,6 +4981,9 @@ function characterPortraitPrompt(c){
   if(a.includes('invocateur'))role.push('summoner: deliberate control/ritual cues connected to the summoned being');
   if(a.includes('tireur'))role.push('ranged specialist: confident, technically correct ranged-weapon handling');
 
+  const beastComponents=beastComponentsFromCharacter(c);
+  const beastTraitLines=beastComponents.map(b=>`HOMME-BÊTE ${b.species.toUpperCase()} — MANDATORY RACIAL ANATOMY: ${b.traits.join('; ')}. Every listed trait must be visibly present and anatomically coherent.`);
+
   return `Create one standalone vertical 2:3 full-body cinematic dark-fantasy character illustration. No text, UI, card layout, border or logo.
 
 MANDATORY CHARACTER:
@@ -4970,6 +4994,7 @@ VAELORIA ORIGIN: born in ${clean(c.birthStratum)}, region ${clean(c.birthRegion)
 CLOTHING STYLE: ${clean(c.clothingStyle)}. Respect this clothing category unless mandatory equipment requires adaptation.
 Dominant character colors: ${colors}.
 ${signLine}
+${beastTraitLines.join('\n')}
 
 MANDATORY ABILITIES:
 POWER: ${power}. Show it as a specific controlled physical/magical phenomenon appropriate to the named ability, not a generic glow.
@@ -5124,9 +5149,6 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
       throw new Error(`Edge Function — ${String(detail).slice(0,500)}`);
     }
     if(!data?.success)throw new Error(data?.error||'Génération impossible');
-    // Estimation globale Workers AI : 114,93 neurons par génération d'image réussie.
-    // Le suivi est non bloquant : une panne du compteur ne doit jamais empêcher la génération.
-    try{await recordEstimatedNeuronGeneration({characterId,champion,model:data?.model||null})}catch(neuronError){console.warn('Compteur neurons indisponible',neuronError)}
     // Exactly one Edge Function / FLUX generation per click.
     // QA feedback is stored and used by the NEXT manual regeneration.
     const finalData=data;
@@ -5238,55 +5260,12 @@ async function initCloud(){
   }
   cloudUpdateTopStatus();
   renderEntryGate();
-  if(sessionStorage.getItem('hgt_start_tutorial_after_game')==='1'&&cloudUser&&cloudProfile?.username&&cloudGames.length){sessionStorage.removeItem('hgt_start_tutorial_after_game');setTimeout(()=>enterHgt(),120)}
   if(cloudReady()) setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1800);
   cloudClient.auth.onAuthStateChange(async(_event,session)=>{if(_event==='PASSWORD_RECOVERY')hgtPasswordRecovery=true;cloudUser=session?.user||null;if(cloudUser&&!hgtPasswordRecovery){try{await loadCloudProfile();await cloudRefreshGames();if(cloudReady())setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1200)}catch(e){cloudSyncError(e)}}else if(!cloudUser){cloudGames=[];cloudCurrentGame=null;cloudProfile=null}cloudUpdateTopStatus();renderEntryGate();renderCloudModal()});
 }
 const cloudAccountBtn=document.getElementById('cloudAccountBtn');if(cloudAccountBtn)cloudAccountBtn.onclick=()=>cloudUser?openProfileModal():openCloudModal();
 document.getElementById('cloudCloseBtn').onclick=closeCloudModal;
 document.getElementById('cloudModal').onclick=e=>{if(e.target.id==='cloudModal')closeCloudModal()};document.getElementById('profileModal').onclick=e=>{if(e.target.id==='profileModal')closeProfileModal()};document.getElementById('profileCloseBtn').onclick=closeProfileModal;
-// === Tutoriel HGT guidé ===
-const HGT_TUTORIAL_STEPS=[
- {title:'Bienvenue dans HGT',text:'Je vais te montrer directement l’interface. Les éléments utiles seront mis en lumière et le tutoriel avancera avec tes clics.',target:'#wheelTabBtn',action:'continue',button:'Commencer'},
- {title:'La Roue',text:'La Roue est le cœur de la création des combattants. Clique sur « Roue » pour ouvrir cet espace.',target:'#wheelTabBtn',action:'click'},
- {title:'Créer ton premier combattant',text:'Active le mode Auto. HGT va alors créer réellement ton premier personnage en enchaînant toutes les roues automatiquement. Le tutoriel reprendra dès que sa fiche sera terminée et sauvegardée.',target:'#autoBtn',action:'generate'},
- {title:'Liste des personnages',text:'Clique ici : tous tes personnages terminés et sauvegardés seront regroupés dans cette liste.',target:'#listTabBtn',action:'click'},
- {title:'Descendants & lignées',text:'Clique ici pour découvrir l’espace consacré aux descendants, aux familles et aux lignées.',target:'#genealogyTabBtn',action:'click'},
- {title:'L’Arène',text:'Clique sur Arène. Ce menu regroupe le tournoi, le Hall of Fame et les différents modes de combat.',target:'#arenaTabBtn',action:'click',prepare:()=>document.querySelector('.arena-nav')?.classList.add('hgt-tutorial-arena')},
- {title:'Le Tournoi',text:'Clique sur Tournoi. Une saison arrivée à 64 combattants peut entrer dans son tournoi saisonnier.',target:'#tournamentTabBtn',action:'click',prepare:()=>{document.querySelector('.arena-nav')?.classList.add('hgt-tutorial-arena');const m=document.getElementById('arenaMenu');if(m)m.hidden=false;document.getElementById('arenaTabBtn')?.setAttribute('aria-expanded','true')}},
- {title:'Hall of Fame',text:'Les Champions restent dans le Hall of Fame et peuvent ensuite servir dans les autres modes de combat.',target:'#hallTabBtn',action:'continue',button:'Continuer',prepare:()=>{document.querySelector('.arena-nav')?.classList.add('hgt-tutorial-arena');const m=document.getElementById('arenaMenu');if(m)m.hidden=false;document.getElementById('arenaTabBtn')?.setAttribute('aria-expanded','true')}},
- {title:'Vaeloria',text:'Clique sur Univers pour explorer Vaeloria, ses régions et le codex des races.',target:'#universeTabBtn',action:'click'},
- {title:'Ton profil',text:'Enfin, ton profil donne accès à tes parties, à la synchronisation, au signalement de bugs et permet de revoir ce tutoriel.',target:'#playerPseudo',action:'continue',button:'Terminer'}
-];
-let hgtTutorialIndex=0,hgtTutorialReplay=false,hgtTutorialCleanup=null;
-function startHgtTutorial(replay=false){
- if(!cloudUser)return;hgtTutorialReplay=!!replay;hgtTutorialIndex=0;closeProfileModal();closeCloudModal();showTab('wheel');setTimeout(renderHgtTutorial,120);
-}
-function hgtTutorialTarget(step){try{return document.querySelector(step.target)}catch(_){return null}}
-function hgtTutorialPosition(card,target){
- if(!card||!target)return;target.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});
- requestAnimationFrame(()=>{const r=target.getBoundingClientRect(),gap=18,cw=Math.min(390,innerWidth-24);card.style.width=cw+'px';card.style.left='12px';card.style.top='12px';const cr=card.getBoundingClientRect();let left=Math.max(12,Math.min(innerWidth-cr.width-12,r.left+r.width/2-cr.width/2));let top=r.bottom+gap,side='top';if(top+cr.height>innerHeight-12){top=r.top-cr.height-gap;side='bottom'}if(top<12){top=Math.max(12,innerHeight-cr.height-12);side='none'}card.style.left=left+'px';card.style.top=top+'px';card.dataset.arrow=side;card.style.setProperty('--arrow-x',Math.max(24,Math.min(cr.width-24,r.left+r.width/2-left))+'px');});
-}
-function clearHgtTutorial(){if(hgtTutorialCleanup){hgtTutorialCleanup();hgtTutorialCleanup=null}document.getElementById('hgtTutorialOverlay')?.remove();document.querySelectorAll('.hgt-tutorial-target').forEach(x=>x.classList.remove('hgt-tutorial-target'));document.querySelector('.arena-nav')?.classList.remove('hgt-tutorial-arena')}
-function renderHgtTutorial(){
- clearHgtTutorial();const step=HGT_TUTORIAL_STEPS[hgtTutorialIndex];if(!step)return;if(step.prepare)step.prepare();
- let target=hgtTutorialTarget(step);if(!target){hgtTutorialIndex++;if(hgtTutorialIndex<HGT_TUTORIAL_STEPS.length)setTimeout(renderHgtTutorial,80);else finishHgtTutorial();return}
- target.classList.add('hgt-tutorial-target');
- const wrap=document.createElement('div');wrap.id='hgtTutorialOverlay';wrap.className='hgt-tutorial-overlay';
- const last=hgtTutorialIndex===HGT_TUTORIAL_STEPS.length-1,effectiveAction=(step.action==='generate'&&hgtTutorialReplay)?'continue':step.action,needsClick=effectiveAction==='click'||effectiveAction==='generate';
- wrap.innerHTML=`<div class="hgt-tutorial-shade"></div><div class="hgt-tutorial-card" role="dialog"><div class="hgt-tutorial-kicker">Tutoriel · ${hgtTutorialIndex+1}/${HGT_TUTORIAL_STEPS.length}</div><h2>${escapeHtml(step.title)}</h2><p>${escapeHtml(step.text)}</p>${needsClick?`<div class="hgt-tutorial-instruction">${effectiveAction==='generate'?'⚙️ Active « Auto : OFF » : la création complète se fera automatiquement.':'☝️ Clique sur l’élément indiqué pour continuer'}</div>`:''}<div class="hgt-tutorial-progress"><i style="width:${((hgtTutorialIndex+1)/HGT_TUTORIAL_STEPS.length)*100}%"></i></div><div class="hgt-tutorial-actions"><button class="secondary" id="hgtTutorialSkip">Passer le tutoriel</button>${needsClick?'':`<button id="hgtTutorialNext">${escapeHtml(step.button||(last?'Terminer':'Continuer'))}</button>`}</div></div>`;
- document.body.appendChild(wrap);const card=wrap.querySelector('.hgt-tutorial-card');setTimeout(()=>hgtTutorialPosition(card,target),30);
- const reposition=()=>hgtTutorialPosition(card,target);addEventListener('resize',reposition);addEventListener('scroll',reposition,true);
- const advance=()=>{hgtTutorialIndex++;if(hgtTutorialIndex>=HGT_TUTORIAL_STEPS.length)finishHgtTutorial();else setTimeout(renderHgtTutorial,100)};
- let clickHandler=null,generateTimer=null;if(needsClick){clickHandler=e=>{if(!target.contains(e.target))return;if(effectiveAction==='generate'){setTimeout(()=>{if(!auto){auto=true;autoBtn.textContent='Auto : ON';if(!spinning)next()}generateTimer=setInterval(()=>{if(state?._generationComplete){clearInterval(generateTimer);generateTimer=null;advance()}},350)},0);return}setTimeout(advance,60)};document.addEventListener('click',clickHandler,true)}
- hgtTutorialCleanup=()=>{removeEventListener('resize',reposition);removeEventListener('scroll',reposition,true);if(clickHandler)document.removeEventListener('click',clickHandler,true);if(generateTimer)clearInterval(generateTimer);target?.classList.remove('hgt-tutorial-target')};
- wrap.querySelector('#hgtTutorialSkip').onclick=()=>finishHgtTutorial();const next=wrap.querySelector('#hgtTutorialNext');if(next)next.onclick=advance;
-}
-async function finishHgtTutorial(){
- clearHgtTutorial();const m=document.getElementById('arenaMenu');if(m)m.hidden=true;document.getElementById('arenaTabBtn')?.setAttribute('aria-expanded','false');showTab('wheel');
- if(!hgtTutorialReplay&&cloudClient&&cloudUser){const {data,error}=await cloudClient.auth.updateUser({data:{hgt_new_account:false,hgt_tutorial_completed:true}});if(!error&&data?.user)cloudUser=data.user;else if(error)console.warn('Tutoriel : enregistrement impossible',error)}
-}
-
 initCloud().catch(cloudSyncError);
 
 // Répare aussi une session déjà touchée par l'ancienne synchro, sans attendre une nouvelle ouverture cloud.
@@ -5398,27 +5377,7 @@ document.querySelectorAll('[data-region-map]').forEach(initVaeloriaRegionMap);
   window.addEventListener('resize',apply);
 })();
 document.addEventListener('DOMContentLoaded',()=>{bindEntryGateFallback();initHgtHomeMusic()});
-</script>
-<style id="desktopBehaviorAuditFix">
-/* Audit PC : navigation, menus et panneaux doivent rester au-dessus du contenu et dans le viewport. */
-@media (min-width:701px){
-  .tabs{overflow:visible!important;position:relative;z-index:300;flex-wrap:wrap;align-items:stretch}
-  .arena-nav{position:relative;z-index:310}
-  .arena-menu{position:fixed!important;z-index:12000!important;max-height:calc(100vh - 24px);overflow:auto}
-  .cloud-modal{z-index:13000}
-  .cloud-card{max-height:86vh;overflow:auto}
-  .combat-scene-modal{z-index:12500}
-  .race-codex-detail{z-index:12500}
-  .right{overscroll-behavior:contain}
-  .roster-shell,.genealogy-shell,.tournament-shell,.hall-shell,#universeTab{min-width:0}
-  img,canvas{max-width:100%}
-}
-@media (min-width:701px) and (max-width:1050px){
-  .tabs{justify-content:flex-start;padding-left:14px;padding-right:14px}
-  .tabbtn{white-space:nowrap}
-}
-</style>
-</body></html>
+</script></body></html>
 
 <style id="tournament-compact-fix">
 /* Tournoi compact : chaque phase reste lisible et la finale reste toujours accessible. */
@@ -5436,16 +5395,4 @@ document.addEventListener('DOMContentLoaded',()=>{bindEntryGateFallback();initHg
 .tournament-champion-banner{margin:12px 0 4px;padding:12px;border:1px solid #8a603f;border-radius:12px;background:linear-gradient(135deg,#1b1015,#0b080c);text-align:center;color:#ead3a0}
 .duel-panel{display:block!important;min-height:0!important}
 @media(max-width:700px){.tournament-round{width:86vw!important;min-width:86vw!important}.tournament-rounds{gap:10px!important}}
-
-/* === HGT onboarding / tutoriel guidé === */
-.hgt-tutorial-overlay{position:fixed;inset:0;z-index:10050;pointer-events:none}
-.hgt-tutorial-shade{position:absolute;inset:0;background:rgba(2,6,12,.70);backdrop-filter:blur(2px);pointer-events:auto}
-.hgt-tutorial-arena{position:relative!important;z-index:10052!important}.hgt-tutorial-arena .arena-menu{z-index:10053!important}
-.hgt-tutorial-target{position:relative!important;z-index:10052!important;box-shadow:0 0 0 4px #d7b65f,0 0 0 9px rgba(215,182,95,.22),0 0 30px rgba(215,182,95,.75)!important;border-radius:10px!important;animation:hgtTutorialPulse 1.35s ease-in-out infinite;pointer-events:auto!important}
-.hgt-tutorial-card{position:fixed;z-index:10054;background:linear-gradient(180deg,#141d2b,#0b111b);border:1px solid rgba(214,178,92,.75);border-radius:16px;padding:18px;box-shadow:0 18px 60px #000;color:#eef3f8;pointer-events:auto}
-.hgt-tutorial-card:before{content:'';position:absolute;left:var(--arrow-x,50%);transform:translateX(-50%);border:11px solid transparent}.hgt-tutorial-card[data-arrow="top"]:before{top:-22px;border-bottom-color:#d7b65f}.hgt-tutorial-card[data-arrow="bottom"]:before{bottom:-22px;border-top-color:#d7b65f}.hgt-tutorial-card[data-arrow="none"]:before{display:none}
-.hgt-tutorial-kicker{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:#d7b65f;margin-bottom:6px}.hgt-tutorial-card h2{margin:0 0 8px;font-size:1.25rem}.hgt-tutorial-card p{line-height:1.45;margin:0 0 10px}.hgt-tutorial-instruction{font-size:.88rem;color:#f0d98d;font-weight:700;margin-top:10px}.hgt-tutorial-progress{height:4px;background:#273142;border-radius:99px;overflow:hidden;margin:14px 0}.hgt-tutorial-progress>i{display:block;height:100%;background:#d7b65f}.hgt-tutorial-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.hgt-tutorial-actions button{min-width:0}
-@keyframes hgtTutorialPulse{50%{box-shadow:0 0 0 4px #f0d98d,0 0 0 12px rgba(215,182,95,.12),0 0 38px rgba(215,182,95,.85)}}
-@media(max-width:600px){.hgt-tutorial-card{padding:15px}.hgt-tutorial-card h2{font-size:1.12rem}.hgt-tutorial-card p{font-size:.92rem}}
-.hgt-onboarding-note{margin:10px 0;padding:10px 12px;border:1px solid rgba(214,178,92,.35);border-radius:10px;background:rgba(214,178,92,.08);color:#e9d59b}
 </style>
