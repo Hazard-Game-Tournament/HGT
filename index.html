@@ -4633,6 +4633,23 @@ function cloudReady(){return !!(cloudClient&&cloudUser&&cloudCurrentGame?.id)}
 const HGT_PREF_HIDE_SUBWHEELS='hgt_pref_hide_subwheels';
 function hideSubwheelsEnabled(){return localStorage.getItem(HGT_PREF_HIDE_SUBWHEELS)==='1'}
 function setHideSubwheels(v){localStorage.setItem(HGT_PREF_HIDE_SUBWHEELS,v?'1':'0')}
+async function getGlobalNeuronUsage(){
+  if(!cloudClient||!cloudUser)return null;
+  const {data,error}=await cloudClient.rpc('get_daily_neuron_usage');
+  if(error)throw error;
+  return Array.isArray(data)?(data[0]||null):data;
+}
+async function refreshProfileNeuronUsage(root){
+  const box=root?.querySelector('#profileNeuronUsage');if(!box)return;
+  try{
+    const u=await getGlobalNeuronUsage();
+    if(!u){box.innerHTML='<b>⚡ Neurons globaux</b><div class="muted">Compteur indisponible.</div>';return}
+    const used=Number(u.neurons_used||0),limit=Number(u.neurons_limit||10000),remaining=Number(u.neurons_remaining??Math.max(0,limit-used)),count=Number(u.image_count||0);
+    const reset=u.reset_at?new Date(u.reset_at):null;
+    const resetText=reset&&!Number.isNaN(reset.getTime())?reset.toLocaleString('fr-FR',{timeZone:'UTC',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' UTC':'00:00 UTC';
+    box.innerHTML=`<b>⚡ Neurons globaux aujourd’hui</b><div style="margin-top:5px"><strong>${used.toLocaleString('fr-FR',{maximumFractionDigits:2})}</strong> / ${limit.toLocaleString('fr-FR')} neurons · ${count} image${count>1?'s':''}</div><div class="muted">Restants estimés : ${remaining.toLocaleString('fr-FR',{maximumFractionDigits:2})} · Reset : ${resetText}</div>`;
+  }catch(e){box.innerHTML=`<b>⚡ Neurons globaux</b><div class="muted">Erreur compteur : ${escapeHtml(e?.message||String(e))}</div>`}
+}
 function openProfileModal(){document.getElementById('profileModal')?.classList.add('active');renderProfileModal()}
 function closeProfileModal(){document.getElementById('profileModal')?.classList.remove('active')}
 function renderProfileModal(){
@@ -4641,7 +4658,8 @@ function renderProfileModal(){
  const champs=championHistory(),roster=loadRoster(),selected=cloudProfile?.avatar_champion_id||'';
  const selectedChampion=champs.find(x=>x.id===selected),selectedName=selectedChampion?(roster[selected]?.name||selectedChampion.name||selected):'Aucune icône sélectionnée';
  const choices=champs.length?champs.map(ch=>{const c=roster[ch.id]||{},hasPortrait=!!(c?.imageGeneration?.championPath||c?.imageGeneration?.selectedPortrait);return `<button type="button" class="profile-avatar-choice ${selected===ch.id?'selected':''}" data-avatar-choice="${escapeHtml(ch.id)}" ${hasPortrait?'':'disabled'}><span class="champion-mini" data-profile-avatar-id="${escapeHtml(ch.id)}">${hasPortrait?'🏆':'—'}</span><small>${escapeHtml(c.name||ch.name||ch.id)}</small><small class="muted">S${Number(ch.season)||'?'}</small></button>`}).join(''):'<div class="muted">Aucun Champion disponible pour le moment.</div>';
- root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div class="profile-avatar-current"><span class="player-avatar" id="profileCurrentAvatar">👤</span><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div><b>Choisir parmi mes Champions</b><div class="muted">Tu peux changer d’icône à volonté. Seuls tes Champions disposant d’un portrait peuvent être sélectionnés.</div><div class="profile-avatar-grid">${choices}</div></div><div class="profile-option" style="display:block"><span class="profile-option-copy"><b>Cadrage de l’icône</b><small>Déplace le cadrage pour placer précisément la tête du Champion au centre de l’icône.</small></span><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px"><label class="muted">Horizontal<input id="avatarFocusX" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_x??50)}" style="width:100%"></label><label class="muted">Vertical<input id="avatarFocusY" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_y??32)}" style="width:100%"></label></div></div><label class="profile-option"><span class="profile-option-copy"><b>Masquer les sous-roues uniquement</b><small>Les tirages secondaires restent effectués normalement, mais leur animation n’est pas affichée. Les roues principales restent visibles.</small></span><input id="prefHideSubwheels" type="checkbox" ${hideSubwheelsEnabled()?'checked':''}></label><div class="cloud-row" style="margin-top:14px"><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
+ root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div id="profileNeuronUsage" class="profile-option" style="display:block"><b>⚡ Neurons globaux aujourd’hui</b><div class="muted">Chargement du compteur…</div></div><div class="profile-avatar-current"><span class="player-avatar" id="profileCurrentAvatar">👤</span><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div><b>Choisir parmi mes Champions</b><div class="muted">Tu peux changer d’icône à volonté. Seuls tes Champions disposant d’un portrait peuvent être sélectionnés.</div><div class="profile-avatar-grid">${choices}</div></div><div class="profile-option" style="display:block"><span class="profile-option-copy"><b>Cadrage de l’icône</b><small>Déplace le cadrage pour placer précisément la tête du Champion au centre de l’icône.</small></span><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px"><label class="muted">Horizontal<input id="avatarFocusX" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_x??50)}" style="width:100%"></label><label class="muted">Vertical<input id="avatarFocusY" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_y??32)}" style="width:100%"></label></div></div><label class="profile-option"><span class="profile-option-copy"><b>Masquer les sous-roues uniquement</b><small>Les tirages secondaires restent effectués normalement, mais leur animation n’est pas affichée. Les roues principales restent visibles.</small></span><input id="prefHideSubwheels" type="checkbox" ${hideSubwheelsEnabled()?'checked':''}></label><div class="cloud-row" style="margin-top:14px"><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
+ refreshProfileNeuronUsage(root);
  const fx=root.querySelector('#avatarFocusX'),fy=root.querySelector('#avatarFocusY'),preview=root.querySelector('#profileCurrentAvatar');const applyAvatarPreview=()=>{if(preview){preview.style.setProperty('--avatar-x',fx.value+'%');preview.style.setProperty('--avatar-y',fy.value+'%')}};fx.oninput=applyAvatarPreview;fy.oninput=applyAvatarPreview;const saveAvatarFocus=async()=>{const m=root.querySelector('#profileMessage');try{await setProfileAvatarFocus(fx.value,fy.value);m.textContent='Cadrage enregistré ✓'}catch(e){m.textContent='Erreur : '+(e.message||e)}};fx.onchange=saveAvatarFocus;fy.onchange=saveAvatarFocus;applyAvatarPreview();
  root.querySelector('#prefHideSubwheels').onchange=e=>setHideSubwheels(e.target.checked);
  root.querySelector('#profileGamesBtn').onclick=()=>{closeProfileModal();openCloudModal()};
@@ -5038,8 +5056,7 @@ function recordRegeneration(c){
 }
 async function refreshNeuronStatus(){
   const el=document.getElementById('neuronRemaining');if(!el)return;
-  // Cloudflare ne fournit pas ici de compteur public exploitable par le navigateur : l'allocation commune est affichée sans exposer les secrets du compte.
-  el.textContent='10 000 max/jour (quota partagé)';
+  try{const u=await getGlobalNeuronUsage();if(u)el.textContent=`${Number(u.neurons_used||0).toLocaleString('fr-FR',{maximumFractionDigits:2})} / ${Number(u.neurons_limit||10000).toLocaleString('fr-FR')} neurons`;}catch(_){el.textContent='Compteur indisponible';}
 }
 refreshNeuronStatus();
 async function ensureCloudGameForImageGeneration(){
@@ -5149,9 +5166,51 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
       throw new Error(`Edge Function — ${String(detail).slice(0,500)}`);
     }
     if(!data?.success)throw new Error(data?.error||'Génération impossible');
-    // Exactly one Edge Function / FLUX generation per click.
-    // QA feedback is stored and used by the NEXT manual regeneration.
-    const finalData=data;
+
+    // QA is mandatory, but runs as a second Edge Function request on the image
+    // that has already been generated and stored. A validator retry never calls
+    // FLUX again and therefore never consumes another image-generation charge.
+    let finalData=data;
+    if(data?.validationPending){
+      illustrationStatus(characterId,'🔎 Image générée • validation visuelle obligatoire…');
+      let validationData=null;
+      let validationError=null;
+      for(let validationAttempt=1;validationAttempt<=3;validationAttempt++){
+        try{
+          const validationPayload={
+            action:'validate',
+            character:c,
+            imagePath:data.path,
+            currentPrompt:data?.validationContext?.currentPrompt||data?.finalPrompt||'',
+            critical:Array.isArray(data?.validationContext?.critical)?data.validationContext.critical:[]
+          };
+          const validationInvoke=cloudClient.functions.invoke('Generate-character-image',{body:validationPayload});
+          const validationTimeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Validation Gemini dépassée (45 s).')),45000));
+          const result=await Promise.race([validationInvoke,validationTimeout]);
+          if(result?.error){
+            let detail=result.error.message||String(result.error);
+            try{if(result.error.context&&typeof result.error.context.json==='function'){const b=await result.error.context.json();detail=b?.error||b?.message||detail}}catch(_){ }
+            throw new Error(detail);
+          }
+          if(!result?.data?.success||!result?.data?.validation)throw new Error(result?.data?.error||'Validation vide');
+          validationData=result.data;
+          validationError=null;
+          break;
+        }catch(e){
+          validationError=e;
+          if(validationAttempt<3){
+            illustrationStatus(characterId,`🔎 Validation temporairement indisponible • nouvelle tentative ${validationAttempt+1}/3…`);
+            await new Promise(resolve=>setTimeout(resolve,1500*validationAttempt));
+          }
+        }
+      }
+      if(!validationData){
+        throw new Error(`Image générée et conservée, mais validation obligatoire impossible après 3 tentatives : ${String(validationError?.message||validationError||'erreur inconnue').slice(0,300)}`);
+      }
+      finalData={...data,validation:validationData.validation,validationPending:false};
+    }
+    // Exactly one FLUX generation per click. QA may retry independently on the
+    // same stored image, and its correction feedback is used by the next manual regeneration.
     const generatedPath=finalData?.path||(champion?`${cloudGeneratedImageDir(characterId)}/${characterImageIdentity(characterId)}-Champion.png`:cloudGeneratedImagePath(characterId,portraitNumber));
     const remote=await cloudDownloadPortraitPath(generatedPath);if(!remote)throw new Error('Image générée introuvable dans le Storage');
     if(champion){
