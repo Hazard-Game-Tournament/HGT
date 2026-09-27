@@ -194,6 +194,15 @@ function base64ToBytes(base64: string) {
   return bytes;
 }
 
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+  }
+  return btoa(binary);
+}
+
 function geminiText(data: any): string {
   const parts = data?.candidates?.[0]?.content?.parts;
   if (!Array.isArray(parts)) return "";
@@ -253,15 +262,21 @@ async function callGemini(
   apiKey: string,
   systemInstruction: string,
   parts: any[],
-  opts: { maxTokens?: number; temperature?: number } = {},
+  opts: { maxTokens?: number; temperature?: number; timeoutMs?: number } = {},
 ) {
   const maxAttempts = 3;
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const r = await fetch(endpoint, {
+    const controller = new AbortController();
+    const timeoutMs = Math.max(5000, Number(opts.timeoutMs ?? 25000));
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let r: Response;
+    try {
+      r = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemInstruction }] },
         contents: [{ role: "user", parts }],
@@ -271,7 +286,13 @@ async function callGemini(
           responseMimeType: "application/json",
         },
       }),
-    });
+      });
+    } catch (e: any) {
+      if (e?.name === "AbortError") throw new Error(`Gemini timeout après ${Math.round(timeoutMs/1000)} s`);
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
 
     const raw = await r.text();
     let data: any = null;
@@ -409,7 +430,7 @@ Return ONLY valid JSON with this exact structure:
   const canonRules = superiorCanonVisualContract(character);
   const user = `CHARACTER JSON:\n${JSON.stringify(character, null, 2)}\n\nMANDATORY CANONICAL RACIAL VISUAL CONTRACT (derived from the project race lore for this character only):\n${canonRules.length ? canonRules.map((x, i) => `${i + 1}. ${x}`).join("\\n") : "No additional superior-lineage visual rule applies."}\n\nThe CHARACTER JSON remains authoritative for generated individual facts. If CHARACTER JSON contains racialVisualTraits, every entry is authoritative character-specific canon, MUST be treated as CRITICAL, and MUST be transferred losslessly into flux_prompt. The canonical racial contract is also authoritative for mandatory racial anatomy/identity. If these sources can coexist, preserve all of them; never weaken racialVisualTraits.`;
 
-  const { text, data } = await callGemini(apiKey, system, [{ text: user }], { maxTokens: 4500, temperature: 0.2 });
+  const { text, data } = await callGemini(apiKey, system, [{ text: user }], { maxTokens: 4500, temperature: 0.2, timeoutMs: 25000 });
   const parsed = parseLooseJson(text);
   const fluxPrompt = String(parsed?.flux_prompt || extractFluxPromptFromText(text) || "").trim();
   if (!fluxPrompt) {
@@ -495,7 +516,7 @@ Do not treat other director embellishments or generation-prompt inventions as va
       { text: userText },
       { inlineData: { mimeType: "image/png", data: stripDataUri(imageBase64) } },
     ],
-    { maxTokens: 3500, temperature: 0 },
+    { maxTokens: 3500, temperature: 0, timeoutMs: 20000 },
   );
   
   const parsed = parseLooseJson(text);
@@ -709,11 +730,22 @@ async function generateFlux(
   });
 }
 
-    const r = await fetch(endpoint, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${cfToken}` },
-      body: form,
-    });
+    const controller = new AbortController();
+    const fluxTimer = setTimeout(() => controller.abort(), 80000);
+    let r: Response;
+    try {
+      r = await fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cfToken}` },
+        body: form,
+        signal: controller.signal,
+      });
+    } catch (e: any) {
+      if (e?.name === "AbortError") throw new Error("Cloudflare FLUX timeout après 80 s");
+      throw e;
+    } finally {
+      clearTimeout(fluxTimer);
+    }
 
     const raw = await r.text();
     let data: any = null;
@@ -790,6 +822,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return jsonResponse({ success: false, error: "POST required" }, 405);
 
   try {
+    const requestStartedAt = Date.now();
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -825,6 +858,53 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json();
+    const action = String(body?.action || "generate");
+
+    // Validation is deliberately a separate request from FLUX generation.
+    // This keeps QA mandatory without risking that a slow validator kills an
+    // already-successful image generation request.
+    if (action === "validate") {
+      const character = body?.character && typeof body.character === "object" ? body.character : null;
+      const imagePath = String(body?.imagePath || "").trim();
+      const currentPrompt = String(body?.currentPrompt || "").trim();
+      const critical = Array.isArray(body?.critical) ? body.critical : [];
+      if (!character || !imagePath) {
+        return jsonResponse({ success: false, error: "Character JSON and imagePath required for validation" }, 400);
+      }
+      const allowedPrefix = `${user.id}/characters/`;
+      if (!imagePath.startsWith(allowedPrefix)) {
+        return jsonResponse({ success: false, error: "Validation path outside authenticated user directory" }, 403);
+      }
+      const { data: blob, error: downloadError } = await admin.storage.from(BUCKET).download(imagePath);
+      if (downloadError || !blob) throw new Error(`Validation image download: ${downloadError?.message || "failed"}`);
+      const imageBase64 = bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
+      const validation = await validatePortrait(GEMINI_API_KEY, character, critical, currentPrompt, imageBase64);
+      if (!validation) throw new Error("Gemini validator returned no usable validation.");
+      const needsReview = !(validation.criticalPass && Number(validation.score || 0) >= VALIDATION_SCORE_MIN);
+      const failed = Array.isArray(validation.failedRacialTraits) ? validation.failedRacialTraits : [];
+      const failedBlock = failed.length
+        ? `\n\nFAILED MANDATORY RACIAL TRAITS — FIX ALL OF THESE:\n${failed.map((x: any) => `- ${x.trait} [QA: ${x.status}]`).join("\n")}\nPreserve every mandatory racial trait that already passed.`
+        : "";
+      const correctionRequested = !!(needsReview && validation.correctedFluxPrompt);
+      const correctionPromptForNextRequest = correctionRequested
+        ? `${String(validation.correctedFluxPrompt || "")}${failedBlock}\n\nCORRECTION PRIORITY:\nThis is a corrective regeneration of a previously failed portrait.\nFix every failed mandatory racial trait literally and preserve every mandatory racial trait that already passed.\nFor exact limb requirements, every required limb must be complete, anatomically connected, individually traceable from attachment point to extremity, clearly visible, and not cropped or hidden.`
+        : "";
+      return jsonResponse({
+        success: true,
+        validation: {
+          criticalPass: validation.criticalPass,
+          score: validation.score,
+          checks: validation.checks,
+          racialGatePass: validation.racialGatePass,
+          failedRacialTraits: validation.failedRacialTraits,
+          issues: validation.issues,
+          needsReview,
+          correctionRequested,
+          correctionPromptForNextRequest,
+        },
+      });
+    }
+
     const correctionMode = body?.correctionMode === true;
     const previousValidationScore = Number(body?.previousValidationScore ?? -1);
     const previousCriticalPass = body?.previousCriticalPass === true;
@@ -910,32 +990,27 @@ Keep the final image recognizably consistent with the canonical identities while
     }
 
     const first = await generateFlux(CF_ACCOUNT_ID, CF_TOKEN, model, fluxPrompt, seed, refs);
+
+    // Count neurons immediately after FLUX succeeds. This remains accurate even if
+    // the browser disconnects or the optional Gemini QA step later times out.
+    try {
+      const { error: neuronError } = await admin.from("neuron_usage").insert({
+        user_id: user.id,
+        character_id: displayCharacterId,
+        neurons: 114.93,
+      });
+      if (neuronError) warnings.push(`Neuron usage not recorded: ${neuronError.message}`);
+    } catch (e: any) {
+      warnings.push(`Neuron usage not recorded: ${String(e?.message || e).slice(0, 220)}`);
+    }
+
     let chosen = first;
     let chosenPrompt = first.promptUsed;
     let firstValidation: any = null;
     let attempts = 1;
 
-    if (character) {
-      try {
-        firstValidation = await validatePortrait(
-          GEMINI_API_KEY,
-          character,
-          director?.critical || [],
-          chosenPrompt,
-          first.image,
-        );
-      } catch (e: any) {
-        warnings.push(`Gemini validator unavailable: ${String(e?.message || e).slice(0, 300)}`);
-      }
-
-      const firstPass = !!firstValidation?.criticalPass && Number(firstValidation?.score || 0) >= VALIDATION_SCORE_MIN;
-
-      // One FLUX generation per Edge Function invocation.
-      // If QA fails, return the validation + correction prompt to the client.
-      // A later explicit regeneration request can use correctionMode/correctionPrompt.
-      // This avoids a second FLUX + Gemini validation pass in the same invocation,
-      // which can exceed Supabase execution time/resources.
-    }
+    // Mandatory QA now runs in a second Edge Function request after this image
+    // has been stored. Never skip QA; just decouple it from FLUX generation.
 
     const chosenValidation = firstValidation;
 
@@ -1046,19 +1121,9 @@ For exact limb requirements, every required limb must be complete, anatomically 
       attempts,
       regenerationMode,
       previousPortraitLoaded,
-      validation: chosenValidation
-        ? {
-            criticalPass: chosenValidation.criticalPass,
-            score: chosenValidation.score,
-            checks: chosenValidation.checks,
-            racialGatePass: chosenValidation.racialGatePass,
-            failedRacialTraits: chosenValidation.failedRacialTraits,
-            issues: chosenValidation.issues,
-            needsReview,
-            correctionRequested,
-            correctionPromptForNextRequest,
-          }
-        : null,
+      validation: null,
+      validationPending: !!character,
+      validationContext: character ? { critical: director?.critical || [], currentPrompt: chosenPrompt } : null,
       warnings,
       promptSource: director ? "gemini-director" : "legacy-fallback",
       finalPrompt: chosenPrompt,
