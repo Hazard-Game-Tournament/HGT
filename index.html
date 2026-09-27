@@ -542,6 +542,14 @@ body.hgt-gated{overflow:hidden}
 .combat-compare-masteries small{color:#d9bd8b;letter-spacing:.08em}
 @media(max-width:520px){.combat-compare-head,.combat-compare-row{grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr);font-size:.88em}.combat-compare-row{padding:9px 10px}.combat-compare-masteries{font-size:.84em}}
 </style>
+
+<style>
+.combat-character-link{appearance:none;border:0;background:none;color:inherit;font:inherit;padding:0;cursor:pointer;min-width:0}
+.combat-character-link:first-child{text-align:left}.combat-character-link:last-child{text-align:right}
+.combat-character-link small{display:inline-block;margin-left:.35em;opacity:.72;font-size:.72em}
+.combat-character-link:hover,.combat-character-link:focus{color:#f1d49b;text-decoration:underline}
+.combat-character-image{cursor:pointer}
+</style>
 </head><body class="hgt-gated"><div id="hgtEntry">
   <audio id="hgtHomeMusic" src="assets/audio/echoes-of-vaeloria.mp3" loop preload="auto"></audio>
   <button id="hgtHomeSound" class="hgt-entry-sound" type="button" aria-label="Couper la musique" title="Couper la musique">🔊</button>
@@ -4089,7 +4097,26 @@ async function combatScenePortrait(target,id){
   try{const f=await getIllustration(id);if(!f)return;const u=URL.createObjectURL(f);__combatSceneUrls.push(u);const img=document.createElement('img');img.src=u;target.prepend(img)}catch(e){}
 }
 
-function combatantComparisonHtml(ca,cb){
+function openCharacterFromCombat(id){
+  if(!id)return;
+  closeCombatScene();
+  try{
+    const roster=loadRoster(),c=roster?.[id];
+    if(!c){alert(`Personnage ${id} introuvable dans la liste.`);return}
+    // Reuse HGT's existing roster/card navigation where available.
+    if(typeof openRosterCharacter==='function'){showTab('roster');openRosterCharacter(id);return}
+    if(typeof openCharacterSheet==='function'){showTab('roster');openCharacterSheet(id);return}
+    if(typeof showCharacter==='function'){showTab('roster');showCharacter(id);return}
+    // Fallback: open the character list and click its existing card/button.
+    showTab('roster');
+    requestAnimationFrame(()=>{
+      const el=document.querySelector(`[data-character-id="${CSS.escape(id)}"],[data-id="${CSS.escape(id)}"],#${CSS.escape(id)}`);
+      if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.click()}
+      else alert(`Fiche ${id} chargée dans la liste des personnages.`);
+    });
+  }catch(e){console.error('Ouverture fiche personnage',e)}
+}
+function combatantComparisonHtml(ca,cb,idA='',idB=''){
   ca=ca||{};cb=cb||{};
   const sa=ca.stats||{},sb=cb.stats||{};
   const norm=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -4122,7 +4149,7 @@ function combatantComparisonHtml(ca,cb){
     return out.length?out.join('<br>'):'—';
   };
   return `<div class="combat-compare">
-    <div class="combat-compare-head"><strong>${escapeHtml(ca.name||'Combattant A')}</strong><span>CARACTÉRISTIQUES</span><strong>${escapeHtml(cb.name||'Combattant B')}</strong></div>
+    <div class="combat-compare-head"><button type="button" class="combat-character-link" data-character-id="${escapeHtml(idA)}"><strong>${escapeHtml(ca.name||'Combattant A')}</strong>${idA?` <small>${escapeHtml(idA)}</small>`:''}</button><span>CARACTÉRISTIQUES</span><button type="button" class="combat-character-link" data-character-id="${escapeHtml(idB)}"><strong>${escapeHtml(cb.name||'Combattant B')}</strong>${idB?` <small>${escapeHtml(idB)}</small>`:''}</button></div>
     ${rows.map(([ico,label,key])=>`<div class="combat-compare-row"><b>${escapeHtml(String(statVal(sa,key)))}</b><span>${ico} ${label}</span><b>${escapeHtml(String(statVal(sb,key)))}</b></div>`).join('')}
     <div class="combat-compare-masteries"><div><small>MAÎTRISES</small><br>${mastery(ca)}</div><span>VS</span><div><small>MAÎTRISES</small><br>${mastery(cb)}</div></div>
   </div>`;
@@ -4133,8 +4160,10 @@ function openCombatScene(battle,roster=loadRoster()){
   const m=document.createElement('div');m.id='combatSceneModal';m.className='combat-scene-modal open';
   const a=roster[battle.a]||battle.characterA||{},b=roster[battle.b]||battle.characterB||{};
   const pa=Math.round((Number(battle.probA)||.5)*100);
-  m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">⚔️ ${escapeHtml(battle.region||'Combat')}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="combat-stage" style="background-image:url('assets/universe/regions/${escapeHtml(regionSlug)}.webp')"><div class="combat-scene-result">🏆 ${escapeHtml(battle.winner||'')}</div><div class="combat-fighter-scene a"><span class="combat-fighter-name">${escapeHtml(a.name||battle.a||'Combattant 1')}</span></div><div class="combat-fighter-scene b"><span class="combat-fighter-name">${escapeHtml(b.name||battle.b||'Combattant 2')}</span></div></div><div class="combat-params">${combatantComparisonHtml(a,b)}<div class="combat-param"><b>Région</b>${escapeHtml(battle.region||'—')}</div><div class="combat-param"><b>Terrain</b>${escapeHtml(battle.terrain||'—')}</div><div class="combat-param"><b>Distance</b>${escapeHtml(battle.distanceLabel||'—')}${battle.distance!=null?` • ${battle.distance} m`:''}</div><div class="combat-param"><b>Informations</b>${escapeHtml(battle.knowledgeA||'—')} / ${escapeHtml(battle.knowledgeB||'—')}</div><div class="combat-param"><b>Chances avant tirage</b>${escapeHtml(battle.a||'A')} ${pa}% • ${escapeHtml(battle.b||'B')} ${100-pa}%</div></div></div>`;
-  document.body.appendChild(m);m.querySelector('.combat-scene-top button').onclick=closeCombatScene;m.onclick=e=>{if(e.target===m)closeCombatScene()};
+  m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">⚔️ ${escapeHtml(battle.region||'Combat')}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="combat-stage" style="background-image:url('assets/universe/regions/${escapeHtml(regionSlug)}.webp')"><div class="combat-scene-result">🏆 ${escapeHtml(battle.winner||'')}</div><div class="combat-fighter-scene a"><span class="combat-fighter-name">${escapeHtml(a.name||battle.a||'Combattant 1')}</span></div><div class="combat-fighter-scene b"><span class="combat-fighter-name">${escapeHtml(b.name||battle.b||'Combattant 2')}</span></div></div><div class="combat-params">${combatantComparisonHtml(a,b,battle.a||'',battle.b||'')}<div class="combat-param"><b>Région</b>${escapeHtml(battle.region||'—')}</div><div class="combat-param"><b>Terrain</b>${escapeHtml(battle.terrain||'—')}</div><div class="combat-param"><b>Distance</b>${escapeHtml(battle.distanceLabel||'—')}${battle.distance!=null?` • ${battle.distance} m`:''}</div><div class="combat-param"><b>Informations</b>${escapeHtml(battle.knowledgeA||'—')} / ${escapeHtml(battle.knowledgeB||'—')}</div><div class="combat-param"><b>Chances avant tirage</b>${escapeHtml(battle.a||'A')} ${pa}% • ${escapeHtml(battle.b||'B')} ${100-pa}%</div></div></div>`;
+  document.body.appendChild(m);m.querySelectorAll('[data-character-id]').forEach(el=>el.onclick=()=>openCharacterFromCombat(el.dataset.characterId));
+  m.querySelectorAll('[data-combat-character]').forEach(el=>el.onclick=()=>openCharacterFromCombat(el.dataset.combatCharacter));
+  m.querySelector('.combat-scene-top button').onclick=closeCombatScene;m.onclick=e=>{if(e.target===m)closeCombatScene()};
   combatScenePortrait(m.querySelector('.combat-fighter-scene.a'),battle.a);combatScenePortrait(m.querySelector('.combat-fighter-scene.b'),battle.b);
 }
 function hallDuelBattle(aId,bId){
