@@ -5199,39 +5199,46 @@ async function initCloud(){
 const cloudAccountBtn=document.getElementById('cloudAccountBtn');if(cloudAccountBtn)cloudAccountBtn.onclick=()=>cloudUser?openProfileModal():openCloudModal();
 document.getElementById('cloudCloseBtn').onclick=closeCloudModal;
 document.getElementById('cloudModal').onclick=e=>{if(e.target.id==='cloudModal')closeCloudModal()};document.getElementById('profileModal').onclick=e=>{if(e.target.id==='profileModal')closeProfileModal()};document.getElementById('profileCloseBtn').onclick=closeProfileModal;
-// === Tutoriel HGT ===
+// === Tutoriel HGT guidé ===
 const HGT_TUTORIAL_STEPS=[
- {title:'Bienvenue dans HGT',text:'Tu vas créer des combattants uniques dans Vaeloria, les conserver dans ta partie puis les faire évoluer jusqu’aux tournois et aux combats entre joueurs.',tip:'Le tutoriel ne modifie aucune donnée de ta partie.'},
- {title:'La Roue',text:'L’onglet Roue est le cœur de la création. Les tirages déterminent progressivement la race, le profil, les caractéristiques, les maîtrises et les particularités de ton personnage.',tab:'wheel',tip:'Les roues secondaires peuvent être masquées depuis ton profil.'},
- {title:'Tes personnages',text:'Une fois un personnage terminé et sauvegardé, retrouve-le dans Personnages. Tu peux ouvrir sa fiche pour consulter toutes ses informations et son portrait.',tab:'list'},
- {title:'Généalogie',text:'Les descendants et liens familiaux sont regroupés dans la Généalogie. Certaines saisons peuvent demander de générer ou sélectionner des descendants avant de poursuivre.',tab:'genealogy'},
- {title:'Tournois et Champions',text:'À 64 combattants, le tournoi saisonnier peut commencer. Le Champion rejoint durablement le Hall of Fame et peut ensuite participer aux autres modes de combat.',tab:'tournament'},
- {title:'Arène',text:'Le Hall of Fame rassemble tes Champions. Les modes Duel local et Multijoueur utilisent ces combattants, avec des statistiques et historiques séparés.',tab:'hall'},
- {title:'Vaeloria',text:'L’Univers présente le monde, ses régions et ses races. C’est le contexte dans lequel naissent et combattent tes personnages.',tab:'universe'},
- {title:'Tu es prêt !',text:'Ta partie est créée et le fonctionnement général de HGT est maintenant présenté. Tu peux revoir ce tutoriel à tout moment depuis ton profil.',tip:'Commence par l’onglet Roue pour créer ton premier combattant.'}
+ {title:'Bienvenue dans HGT',text:'Je vais te montrer directement l’interface. Les éléments utiles seront mis en lumière et le tutoriel avancera avec tes clics.',target:'#wheelTabBtn',action:'continue',button:'Commencer'},
+ {title:'La Roue',text:'La Roue est le cœur de la création des combattants. Clique sur « Roue » pour ouvrir cet espace.',target:'#wheelTabBtn',action:'click'},
+ {title:'Créer un combattant',text:'C’est ici que les tirages commencent. Ce bouton lance réellement la création. Pour le tutoriel, je te le montre seulement : tu pourras lancer ton premier personnage juste après.',target:'#spinBtn',action:'continue',button:'Compris'},
+ {title:'Liste des personnages',text:'Clique ici : tous tes personnages terminés et sauvegardés seront regroupés dans cette liste.',target:'#listTabBtn',action:'click'},
+ {title:'Descendants & lignées',text:'Clique ici pour découvrir l’espace consacré aux descendants, aux familles et aux lignées.',target:'#genealogyTabBtn',action:'click'},
+ {title:'L’Arène',text:'Clique sur Arène. Ce menu regroupe le tournoi, le Hall of Fame et les différents modes de combat.',target:'#arenaTabBtn',action:'click'},
+ {title:'Le Tournoi',text:'Clique sur Tournoi. Une saison arrivée à 64 combattants peut entrer dans son tournoi saisonnier.',target:'#tournamentTabBtn',action:'click',prepare:()=>{const m=document.getElementById('arenaMenu');if(m)m.hidden=false;document.getElementById('arenaTabBtn')?.setAttribute('aria-expanded','true')}},
+ {title:'Hall of Fame',text:'Les Champions restent dans le Hall of Fame et peuvent ensuite servir dans les autres modes de combat.',target:'#hallTabBtn',action:'continue',button:'Continuer',prepare:()=>{const m=document.getElementById('arenaMenu');if(m)m.hidden=false;document.getElementById('arenaTabBtn')?.setAttribute('aria-expanded','true')}},
+ {title:'Vaeloria',text:'Clique sur Univers pour explorer Vaeloria, ses régions et le codex des races.',target:'#universeTabBtn',action:'click'},
+ {title:'Ton profil',text:'Enfin, ton profil donne accès à tes parties, à la synchronisation, au signalement de bugs et permet de revoir ce tutoriel.',target:'#playerPseudo',action:'continue',button:'Terminer'}
 ];
-let hgtTutorialIndex=0,hgtTutorialReplay=false;
+let hgtTutorialIndex=0,hgtTutorialReplay=false,hgtTutorialCleanup=null;
 function startHgtTutorial(replay=false){
- if(!cloudUser)return;hgtTutorialReplay=!!replay;hgtTutorialIndex=0;closeProfileModal();closeCloudModal();renderHgtTutorial();
+ if(!cloudUser)return;hgtTutorialReplay=!!replay;hgtTutorialIndex=0;closeProfileModal();closeCloudModal();showTab('wheel');setTimeout(renderHgtTutorial,120);
 }
+function hgtTutorialTarget(step){try{return document.querySelector(step.target)}catch(_){return null}}
+function hgtTutorialPosition(card,target){
+ if(!card||!target)return;target.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});
+ requestAnimationFrame(()=>{const r=target.getBoundingClientRect(),gap=18,cw=Math.min(390,innerWidth-24);card.style.width=cw+'px';card.style.left='12px';card.style.top='12px';const cr=card.getBoundingClientRect();let left=Math.max(12,Math.min(innerWidth-cr.width-12,r.left+r.width/2-cr.width/2));let top=r.bottom+gap,side='top';if(top+cr.height>innerHeight-12){top=r.top-cr.height-gap;side='bottom'}if(top<12){top=Math.max(12,innerHeight-cr.height-12);side='none'}card.style.left=left+'px';card.style.top=top+'px';card.dataset.arrow=side;card.style.setProperty('--arrow-x',Math.max(24,Math.min(cr.width-24,r.left+r.width/2-left))+'px');});
+}
+function clearHgtTutorial(){if(hgtTutorialCleanup){hgtTutorialCleanup();hgtTutorialCleanup=null}document.getElementById('hgtTutorialOverlay')?.remove();document.querySelectorAll('.hgt-tutorial-target').forEach(x=>x.classList.remove('hgt-tutorial-target'))}
 function renderHgtTutorial(){
- document.getElementById('hgtTutorialOverlay')?.remove();
- const step=HGT_TUTORIAL_STEPS[hgtTutorialIndex];if(!step)return;
- if(step.tab)try{showTab(step.tab)}catch(e){}
+ clearHgtTutorial();const step=HGT_TUTORIAL_STEPS[hgtTutorialIndex];if(!step)return;if(step.prepare)step.prepare();
+ let target=hgtTutorialTarget(step);if(!target){hgtTutorialIndex++;if(hgtTutorialIndex<HGT_TUTORIAL_STEPS.length)setTimeout(renderHgtTutorial,80);else finishHgtTutorial();return}
+ target.classList.add('hgt-tutorial-target');
  const wrap=document.createElement('div');wrap.id='hgtTutorialOverlay';wrap.className='hgt-tutorial-overlay';
- const last=hgtTutorialIndex===HGT_TUTORIAL_STEPS.length-1;
- wrap.innerHTML=`<div class="hgt-tutorial-card" role="dialog" aria-modal="true" aria-labelledby="hgtTutorialTitle"><div class="hgt-tutorial-kicker">Tutoriel · ${hgtTutorialIndex+1}/${HGT_TUTORIAL_STEPS.length}</div><h2 id="hgtTutorialTitle">${escapeHtml(step.title)}</h2><p>${escapeHtml(step.text)}</p>${step.tip?`<div class="hgt-tutorial-tip">💡 ${escapeHtml(step.tip)}</div>`:''}<div class="hgt-tutorial-progress"><i style="width:${((hgtTutorialIndex+1)/HGT_TUTORIAL_STEPS.length)*100}%"></i></div><div class="hgt-tutorial-actions"><button class="secondary" id="hgtTutorialPrev" ${hgtTutorialIndex?'':'disabled'}>← Précédent</button><div>${hgtTutorialReplay?'<button class="secondary" id="hgtTutorialClose">Fermer</button>':''}<button id="hgtTutorialNext">${last?'Terminer':'Suivant →'}</button></div></div></div>`;
- document.body.appendChild(wrap);
- wrap.querySelector('#hgtTutorialPrev').onclick=()=>{if(hgtTutorialIndex>0){hgtTutorialIndex--;renderHgtTutorial()}};
- const close=wrap.querySelector('#hgtTutorialClose');if(close)close.onclick=()=>wrap.remove();
- wrap.querySelector('#hgtTutorialNext').onclick=async()=>{if(!last){hgtTutorialIndex++;renderHgtTutorial();return}await finishHgtTutorial();};
+ const last=hgtTutorialIndex===HGT_TUTORIAL_STEPS.length-1,needsClick=step.action==='click';
+ wrap.innerHTML=`<div class="hgt-tutorial-shade"></div><div class="hgt-tutorial-card" role="dialog"><div class="hgt-tutorial-kicker">Tutoriel · ${hgtTutorialIndex+1}/${HGT_TUTORIAL_STEPS.length}</div><h2>${escapeHtml(step.title)}</h2><p>${escapeHtml(step.text)}</p>${needsClick?'<div class="hgt-tutorial-instruction">☝️ Clique sur l’élément indiqué pour continuer</div>':''}<div class="hgt-tutorial-progress"><i style="width:${((hgtTutorialIndex+1)/HGT_TUTORIAL_STEPS.length)*100}%"></i></div><div class="hgt-tutorial-actions"><button class="secondary" id="hgtTutorialSkip">Passer le tutoriel</button>${needsClick?'':`<button id="hgtTutorialNext">${escapeHtml(step.button||(last?'Terminer':'Continuer'))}</button>`}</div></div>`;
+ document.body.appendChild(wrap);const card=wrap.querySelector('.hgt-tutorial-card');setTimeout(()=>hgtTutorialPosition(card,target),30);
+ const reposition=()=>hgtTutorialPosition(card,target);addEventListener('resize',reposition);addEventListener('scroll',reposition,true);
+ const advance=()=>{hgtTutorialIndex++;if(hgtTutorialIndex>=HGT_TUTORIAL_STEPS.length)finishHgtTutorial();else setTimeout(renderHgtTutorial,100)};
+ let clickHandler=null;if(needsClick){clickHandler=e=>{if(!target.contains(e.target))return;setTimeout(advance,60)};document.addEventListener('click',clickHandler,true)}
+ hgtTutorialCleanup=()=>{removeEventListener('resize',reposition);removeEventListener('scroll',reposition,true);if(clickHandler)document.removeEventListener('click',clickHandler,true);target?.classList.remove('hgt-tutorial-target')};
+ wrap.querySelector('#hgtTutorialSkip').onclick=()=>finishHgtTutorial();const next=wrap.querySelector('#hgtTutorialNext');if(next)next.onclick=advance;
 }
 async function finishHgtTutorial(){
- document.getElementById('hgtTutorialOverlay')?.remove();showTab('wheel');
- if(!hgtTutorialReplay&&cloudClient&&cloudUser){
-  const {data,error}=await cloudClient.auth.updateUser({data:{hgt_new_account:false,hgt_tutorial_completed:true}});
-  if(!error&&data?.user)cloudUser=data.user;else if(error)console.warn('Tutoriel : enregistrement impossible',error);
- }
+ clearHgtTutorial();const m=document.getElementById('arenaMenu');if(m)m.hidden=true;document.getElementById('arenaTabBtn')?.setAttribute('aria-expanded','false');showTab('wheel');
+ if(!hgtTutorialReplay&&cloudClient&&cloudUser){const {data,error}=await cloudClient.auth.updateUser({data:{hgt_new_account:false,hgt_tutorial_completed:true}});if(!error&&data?.user)cloudUser=data.user;else if(error)console.warn('Tutoriel : enregistrement impossible',error)}
 }
 
 initCloud().catch(cloudSyncError);
@@ -5364,8 +5371,14 @@ document.addEventListener('DOMContentLoaded',()=>{bindEntryGateFallback();initHg
 .duel-panel{display:block!important;min-height:0!important}
 @media(max-width:700px){.tournament-round{width:86vw!important;min-width:86vw!important}.tournament-rounds{gap:10px!important}}
 
-/* === HGT onboarding / tutoriel === */
-.hgt-tutorial-overlay{position:fixed;inset:0;z-index:10050;background:rgba(3,7,14,.78);display:flex;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(5px)}
-.hgt-tutorial-card{width:min(560px,94vw);background:linear-gradient(180deg,#141d2b,#0b111b);border:1px solid rgba(214,178,92,.55);border-radius:18px;padding:22px;box-shadow:0 24px 80px #000;color:#eef3f8}
-.hgt-tutorial-kicker{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:#d7b65f;margin-bottom:7px}.hgt-tutorial-card h2{margin:0 0 10px}.hgt-tutorial-card p{line-height:1.55;margin:0 0 12px}.hgt-tutorial-progress{height:5px;background:#273142;border-radius:99px;overflow:hidden;margin:16px 0}.hgt-tutorial-progress>i{display:block;height:100%;background:#d7b65f}.hgt-tutorial-actions{display:flex;gap:10px;justify-content:space-between;align-items:center}.hgt-tutorial-actions>div{display:flex;gap:8px}.hgt-tutorial-card button{min-width:105px}.hgt-tutorial-tip{font-size:.9rem;color:#aeb9c7}.hgt-onboarding-note{margin:10px 0;padding:10px 12px;border:1px solid rgba(214,178,92,.35);border-radius:10px;background:rgba(214,178,92,.08);color:#e9d59b}
+/* === HGT onboarding / tutoriel guidé === */
+.hgt-tutorial-overlay{position:fixed;inset:0;z-index:10050;pointer-events:none}
+.hgt-tutorial-shade{position:absolute;inset:0;background:rgba(2,6,12,.70);backdrop-filter:blur(2px);pointer-events:auto}
+.hgt-tutorial-target{position:relative!important;z-index:10052!important;box-shadow:0 0 0 4px #d7b65f,0 0 0 9px rgba(215,182,95,.22),0 0 30px rgba(215,182,95,.75)!important;border-radius:10px!important;animation:hgtTutorialPulse 1.35s ease-in-out infinite;pointer-events:auto!important}
+.hgt-tutorial-card{position:fixed;z-index:10054;background:linear-gradient(180deg,#141d2b,#0b111b);border:1px solid rgba(214,178,92,.75);border-radius:16px;padding:18px;box-shadow:0 18px 60px #000;color:#eef3f8;pointer-events:auto}
+.hgt-tutorial-card:before{content:'';position:absolute;left:var(--arrow-x,50%);transform:translateX(-50%);border:11px solid transparent}.hgt-tutorial-card[data-arrow="top"]:before{top:-22px;border-bottom-color:#d7b65f}.hgt-tutorial-card[data-arrow="bottom"]:before{bottom:-22px;border-top-color:#d7b65f}.hgt-tutorial-card[data-arrow="none"]:before{display:none}
+.hgt-tutorial-kicker{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:#d7b65f;margin-bottom:6px}.hgt-tutorial-card h2{margin:0 0 8px;font-size:1.25rem}.hgt-tutorial-card p{line-height:1.45;margin:0 0 10px}.hgt-tutorial-instruction{font-size:.88rem;color:#f0d98d;font-weight:700;margin-top:10px}.hgt-tutorial-progress{height:4px;background:#273142;border-radius:99px;overflow:hidden;margin:14px 0}.hgt-tutorial-progress>i{display:block;height:100%;background:#d7b65f}.hgt-tutorial-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.hgt-tutorial-actions button{min-width:0}
+@keyframes hgtTutorialPulse{50%{box-shadow:0 0 0 4px #f0d98d,0 0 0 12px rgba(215,182,95,.12),0 0 38px rgba(215,182,95,.85)}}
+@media(max-width:600px){.hgt-tutorial-card{padding:15px}.hgt-tutorial-card h2{font-size:1.12rem}.hgt-tutorial-card p{font-size:.92rem}}
+.hgt-onboarding-note{margin:10px 0;padding:10px 12px;border:1px solid rgba(214,178,92,.35);border-radius:10px;background:rgba(214,178,92,.08);color:#e9d59b}
 </style>
