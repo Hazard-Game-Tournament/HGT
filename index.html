@@ -4510,7 +4510,13 @@ function initHgtHomeMusic(){const a=document.getElementById('hgtHomeMusic'),b=do
   gate.addEventListener('pointerup',e=>{if(e.target?.closest?.('#hgtHomeSound'))return;tryStart()},{passive:true});
   b.onclick=async e=>{e.stopPropagation();hgtHomeMusicMuted=!hgtHomeMusicMuted;if(hgtHomeMusicMuted){a.muted=true;a.pause()}else{a.muted=false;a.volume=HGT_HOME_MUSIC_VOLUME;await tryStart()}syncHgtHomeSoundButton()};
 }
-function enterHgt(){if(!cloudUser||!cloudProfile?.username)return;fadeOutHgtHomeMusic();document.getElementById('hgtEntry').hidden=true;document.body.classList.remove('hgt-gated');updatePlayerPseudo();}
+function hgtNeedsOnboarding(){return !!(cloudUser?.user_metadata?.hgt_new_account&&!cloudUser?.user_metadata?.hgt_tutorial_completed)}
+function enterHgt(){
+ if(!cloudUser||!cloudProfile?.username)return;
+ if(hgtNeedsOnboarding()&&!cloudGames.length){openCloudModal();cloudSetMessage('Bienvenue ! Crée ta première partie pour commencer le tutoriel.');return}
+ fadeOutHgtHomeMusic();document.getElementById('hgtEntry').hidden=true;document.body.classList.remove('hgt-gated');updatePlayerPseudo();
+ if(hgtNeedsOnboarding())setTimeout(()=>startHgtTutorial(false),250);
+}
 function leaveHgtGate(){document.getElementById('hgtEntry').hidden=false;document.body.classList.add('hgt-gated');renderEntryGate();startHgtHomeMusic()}
 function bindEntryGateFallback(){
  const login=document.getElementById('entryLogin'),signup=document.getElementById('entrySignup');
@@ -4557,7 +4563,7 @@ async function entryUpdatePassword(){
   setTimeout(()=>renderEntryGate(),700);
 }
 async function entryLogin(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||!password){hgtEntryMessage('Entre ton e-mail et ton mot de passe.','error');return}if(!cloudClient){hgtEntryMessage('Connexion au service en cours… réessaie dans un instant.','error');return}hgtEntryMessage('Connexion…');const {error}=await cloudClient.auth.signInWithPassword({email,password});if(error)hgtEntryMessage('Connexion impossible : '+error.message,'error')}
-async function entrySignup(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||password.length<6){hgtEntryMessage('Entre un e-mail et un mot de passe d’au moins 6 caractères.','error');return}hgtEntryMessage('Création du compte…');const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});if(error){hgtEntryMessage('Inscription impossible : '+error.message,'error');return}if(!data.session)hgtEntryMessage('Compte créé. Vérifie ton e-mail si une confirmation est demandée.');}
+async function entrySignup(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||password.length<6){hgtEntryMessage('Entre un e-mail et un mot de passe d’au moins 6 caractères.','error');return}hgtEntryMessage('Création du compte…');const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname,data:{hgt_new_account:true,hgt_tutorial_completed:false}}});if(error){hgtEntryMessage('Inscription impossible : '+error.message,'error');return}if(!data.session)hgtEntryMessage('Compte créé. Vérifie ton e-mail si une confirmation est demandée.');}
 
 function cloudReady(){return !!(cloudClient&&cloudUser&&cloudCurrentGame?.id)}
 const HGT_PREF_HIDE_SUBWHEELS='hgt_pref_hide_subwheels';
@@ -4571,11 +4577,12 @@ function renderProfileModal(){
  const champs=championHistory(),roster=loadRoster(),selected=cloudProfile?.avatar_champion_id||'';
  const selectedChampion=champs.find(x=>x.id===selected),selectedName=selectedChampion?(roster[selected]?.name||selectedChampion.name||selected):'Aucune icône sélectionnée';
  const choices=champs.length?champs.map(ch=>{const c=roster[ch.id]||{},hasPortrait=!!(c?.imageGeneration?.championPath||c?.imageGeneration?.selectedPortrait);return `<button type="button" class="profile-avatar-choice ${selected===ch.id?'selected':''}" data-avatar-choice="${escapeHtml(ch.id)}" ${hasPortrait?'':'disabled'}><span class="champion-mini" data-profile-avatar-id="${escapeHtml(ch.id)}">${hasPortrait?'🏆':'—'}</span><small>${escapeHtml(c.name||ch.name||ch.id)}</small><small class="muted">S${Number(ch.season)||'?'}</small></button>`}).join(''):'<div class="muted">Aucun Champion disponible pour le moment.</div>';
- root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div class="profile-avatar-current"><span class="player-avatar" id="profileCurrentAvatar">👤</span><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div><b>Choisir parmi mes Champions</b><div class="muted">Tu peux changer d’icône à volonté. Seuls tes Champions disposant d’un portrait peuvent être sélectionnés.</div><div class="profile-avatar-grid">${choices}</div></div><div class="profile-option" style="display:block"><span class="profile-option-copy"><b>Cadrage de l’icône</b><small>Déplace le cadrage pour placer précisément la tête du Champion au centre de l’icône.</small></span><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px"><label class="muted">Horizontal<input id="avatarFocusX" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_x??50)}" style="width:100%"></label><label class="muted">Vertical<input id="avatarFocusY" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_y??32)}" style="width:100%"></label></div></div><label class="profile-option"><span class="profile-option-copy"><b>Masquer les sous-roues uniquement</b><small>Les tirages secondaires restent effectués normalement, mais leur animation n’est pas affichée. Les roues principales restent visibles.</small></span><input id="prefHideSubwheels" type="checkbox" ${hideSubwheelsEnabled()?'checked':''}></label><div class="cloud-row" style="margin-top:14px"><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
+ root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div class="profile-avatar-current"><span class="player-avatar" id="profileCurrentAvatar">👤</span><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div><b>Choisir parmi mes Champions</b><div class="muted">Tu peux changer d’icône à volonté. Seuls tes Champions disposant d’un portrait peuvent être sélectionnés.</div><div class="profile-avatar-grid">${choices}</div></div><div class="profile-option" style="display:block"><span class="profile-option-copy"><b>Cadrage de l’icône</b><small>Déplace le cadrage pour placer précisément la tête du Champion au centre de l’icône.</small></span><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px"><label class="muted">Horizontal<input id="avatarFocusX" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_x??50)}" style="width:100%"></label><label class="muted">Vertical<input id="avatarFocusY" type="range" min="0" max="100" value="${Number(cloudProfile?.avatar_focus_y??32)}" style="width:100%"></label></div></div><label class="profile-option"><span class="profile-option-copy"><b>Masquer les sous-roues uniquement</b><small>Les tirages secondaires restent effectués normalement, mais leur animation n’est pas affichée. Les roues principales restent visibles.</small></span><input id="prefHideSubwheels" type="checkbox" ${hideSubwheelsEnabled()?'checked':''}></label><div class="cloud-row" style="margin-top:14px"><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><button class="secondary" id="profileTutorialBtn">📖 Revoir le tutoriel</button><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
  const fx=root.querySelector('#avatarFocusX'),fy=root.querySelector('#avatarFocusY'),preview=root.querySelector('#profileCurrentAvatar');const applyAvatarPreview=()=>{if(preview){preview.style.setProperty('--avatar-x',fx.value+'%');preview.style.setProperty('--avatar-y',fy.value+'%')}};fx.oninput=applyAvatarPreview;fy.oninput=applyAvatarPreview;const saveAvatarFocus=async()=>{const m=root.querySelector('#profileMessage');try{await setProfileAvatarFocus(fx.value,fy.value);m.textContent='Cadrage enregistré ✓'}catch(e){m.textContent='Erreur : '+(e.message||e)}};fx.onchange=saveAvatarFocus;fy.onchange=saveAvatarFocus;applyAvatarPreview();
  root.querySelector('#prefHideSubwheels').onchange=e=>setHideSubwheels(e.target.checked);
  root.querySelector('#profileGamesBtn').onclick=()=>{closeProfileModal();openCloudModal()};
  root.querySelector('#profileSyncBtn').onclick=async()=>{const m=root.querySelector('#profileMessage');m.textContent='Synchronisation…';try{await cloudSyncAllData();m.textContent='Synchronisation terminée ✓'}catch(e){m.textContent='Erreur : '+(e.message||e)}};
+ root.querySelector('#profileTutorialBtn').onclick=()=>{closeProfileModal();startHgtTutorial(true)};
  root.querySelector('#profileBugBtn').onclick=()=>renderBugReportForm(root);
  root.querySelector('#profileLogoutBtn').onclick=cloudLogout;
  root.querySelectorAll('[data-avatar-choice]').forEach(btn=>btn.onclick=async()=>{const m=root.querySelector('#profileMessage');m.textContent='Mise à jour de l’icône…';try{await setProfileChampionAvatar(btn.dataset.avatarChoice);renderProfileModal()}catch(e){m.textContent='Erreur : '+(e.message||e)}});
@@ -4698,7 +4705,7 @@ async function cloudSignup(){
 }
 async function cloudLogout(){if(cloudReady())try{await cloudSyncAllData()}catch(e){} await cloudClient.auth.signOut();localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY);cloudCurrentGame=null;cloudProfile=null;closeCloudModal();leaveHgtGate()}
 async function cloudCreateGame(){
-  const name=prompt('Nom de la nouvelle partie :','Ma partie');if(name===null)return;
+  const name=prompt(hgtNeedsOnboarding()?'Donne un nom à ta première partie :':'Nom de la nouvelle partie :','Ma partie');if(name===null)return;
   const {data,error}=await cloudClient.from('games').insert({owner_id:cloudUser.id,name:(name.trim()||'Ma partie')}).select().single();
   if(error){cloudSetMessage('Création impossible : '+error.message);return}await cloudRefreshGames();renderCloudModal();await cloudOpenGame(data.id,true);
 }
@@ -5192,6 +5199,41 @@ async function initCloud(){
 const cloudAccountBtn=document.getElementById('cloudAccountBtn');if(cloudAccountBtn)cloudAccountBtn.onclick=()=>cloudUser?openProfileModal():openCloudModal();
 document.getElementById('cloudCloseBtn').onclick=closeCloudModal;
 document.getElementById('cloudModal').onclick=e=>{if(e.target.id==='cloudModal')closeCloudModal()};document.getElementById('profileModal').onclick=e=>{if(e.target.id==='profileModal')closeProfileModal()};document.getElementById('profileCloseBtn').onclick=closeProfileModal;
+// === Tutoriel HGT ===
+const HGT_TUTORIAL_STEPS=[
+ {title:'Bienvenue dans HGT',text:'Tu vas créer des combattants uniques dans Vaeloria, les conserver dans ta partie puis les faire évoluer jusqu’aux tournois et aux combats entre joueurs.',tip:'Le tutoriel ne modifie aucune donnée de ta partie.'},
+ {title:'La Roue',text:'L’onglet Roue est le cœur de la création. Les tirages déterminent progressivement la race, le profil, les caractéristiques, les maîtrises et les particularités de ton personnage.',tab:'wheel',tip:'Les roues secondaires peuvent être masquées depuis ton profil.'},
+ {title:'Tes personnages',text:'Une fois un personnage terminé et sauvegardé, retrouve-le dans Personnages. Tu peux ouvrir sa fiche pour consulter toutes ses informations et son portrait.',tab:'list'},
+ {title:'Généalogie',text:'Les descendants et liens familiaux sont regroupés dans la Généalogie. Certaines saisons peuvent demander de générer ou sélectionner des descendants avant de poursuivre.',tab:'genealogy'},
+ {title:'Tournois et Champions',text:'À 64 combattants, le tournoi saisonnier peut commencer. Le Champion rejoint durablement le Hall of Fame et peut ensuite participer aux autres modes de combat.',tab:'tournament'},
+ {title:'Arène',text:'Le Hall of Fame rassemble tes Champions. Les modes Duel local et Multijoueur utilisent ces combattants, avec des statistiques et historiques séparés.',tab:'hall'},
+ {title:'Vaeloria',text:'L’Univers présente le monde, ses régions et ses races. C’est le contexte dans lequel naissent et combattent tes personnages.',tab:'universe'},
+ {title:'Tu es prêt !',text:'Ta partie est créée et le fonctionnement général de HGT est maintenant présenté. Tu peux revoir ce tutoriel à tout moment depuis ton profil.',tip:'Commence par l’onglet Roue pour créer ton premier combattant.'}
+];
+let hgtTutorialIndex=0,hgtTutorialReplay=false;
+function startHgtTutorial(replay=false){
+ if(!cloudUser)return;hgtTutorialReplay=!!replay;hgtTutorialIndex=0;closeProfileModal();closeCloudModal();renderHgtTutorial();
+}
+function renderHgtTutorial(){
+ document.getElementById('hgtTutorialOverlay')?.remove();
+ const step=HGT_TUTORIAL_STEPS[hgtTutorialIndex];if(!step)return;
+ if(step.tab)try{showTab(step.tab)}catch(e){}
+ const wrap=document.createElement('div');wrap.id='hgtTutorialOverlay';wrap.className='hgt-tutorial-overlay';
+ const last=hgtTutorialIndex===HGT_TUTORIAL_STEPS.length-1;
+ wrap.innerHTML=`<div class="hgt-tutorial-card" role="dialog" aria-modal="true" aria-labelledby="hgtTutorialTitle"><div class="hgt-tutorial-kicker">Tutoriel · ${hgtTutorialIndex+1}/${HGT_TUTORIAL_STEPS.length}</div><h2 id="hgtTutorialTitle">${escapeHtml(step.title)}</h2><p>${escapeHtml(step.text)}</p>${step.tip?`<div class="hgt-tutorial-tip">💡 ${escapeHtml(step.tip)}</div>`:''}<div class="hgt-tutorial-progress"><i style="width:${((hgtTutorialIndex+1)/HGT_TUTORIAL_STEPS.length)*100}%"></i></div><div class="hgt-tutorial-actions"><button class="secondary" id="hgtTutorialPrev" ${hgtTutorialIndex?'':'disabled'}>← Précédent</button><div>${hgtTutorialReplay?'<button class="secondary" id="hgtTutorialClose">Fermer</button>':''}<button id="hgtTutorialNext">${last?'Terminer':'Suivant →'}</button></div></div></div>`;
+ document.body.appendChild(wrap);
+ wrap.querySelector('#hgtTutorialPrev').onclick=()=>{if(hgtTutorialIndex>0){hgtTutorialIndex--;renderHgtTutorial()}};
+ const close=wrap.querySelector('#hgtTutorialClose');if(close)close.onclick=()=>wrap.remove();
+ wrap.querySelector('#hgtTutorialNext').onclick=async()=>{if(!last){hgtTutorialIndex++;renderHgtTutorial();return}await finishHgtTutorial();};
+}
+async function finishHgtTutorial(){
+ document.getElementById('hgtTutorialOverlay')?.remove();showTab('wheel');
+ if(!hgtTutorialReplay&&cloudClient&&cloudUser){
+  const {data,error}=await cloudClient.auth.updateUser({data:{hgt_new_account:false,hgt_tutorial_completed:true}});
+  if(!error&&data?.user)cloudUser=data.user;else if(error)console.warn('Tutoriel : enregistrement impossible',error);
+ }
+}
+
 initCloud().catch(cloudSyncError);
 
 // Répare aussi une session déjà touchée par l'ancienne synchro, sans attendre une nouvelle ouverture cloud.
@@ -5321,4 +5363,9 @@ document.addEventListener('DOMContentLoaded',()=>{bindEntryGateFallback();initHg
 .tournament-champion-banner{margin:12px 0 4px;padding:12px;border:1px solid #8a603f;border-radius:12px;background:linear-gradient(135deg,#1b1015,#0b080c);text-align:center;color:#ead3a0}
 .duel-panel{display:block!important;min-height:0!important}
 @media(max-width:700px){.tournament-round{width:86vw!important;min-width:86vw!important}.tournament-rounds{gap:10px!important}}
+
+/* === HGT onboarding / tutoriel === */
+.hgt-tutorial-overlay{position:fixed;inset:0;z-index:10050;background:rgba(3,7,14,.78);display:flex;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(5px)}
+.hgt-tutorial-card{width:min(560px,94vw);background:linear-gradient(180deg,#141d2b,#0b111b);border:1px solid rgba(214,178,92,.55);border-radius:18px;padding:22px;box-shadow:0 24px 80px #000;color:#eef3f8}
+.hgt-tutorial-kicker{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:#d7b65f;margin-bottom:7px}.hgt-tutorial-card h2{margin:0 0 10px}.hgt-tutorial-card p{line-height:1.55;margin:0 0 12px}.hgt-tutorial-progress{height:5px;background:#273142;border-radius:99px;overflow:hidden;margin:16px 0}.hgt-tutorial-progress>i{display:block;height:100%;background:#d7b65f}.hgt-tutorial-actions{display:flex;gap:10px;justify-content:space-between;align-items:center}.hgt-tutorial-actions>div{display:flex;gap:8px}.hgt-tutorial-card button{min-width:105px}.hgt-tutorial-tip{font-size:.9rem;color:#aeb9c7}.hgt-onboarding-note{margin:10px 0;padding:10px 12px;border:1px solid rgba(214,178,92,.35);border-radius:10px;background:rgba(214,178,92,.08);color:#e9d59b}
 </style>
