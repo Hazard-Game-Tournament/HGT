@@ -4092,20 +4092,34 @@ async function combatScenePortrait(target,id){
 function combatantComparisonHtml(ca,cb){
   ca=ca||{};cb=cb||{};
   const sa=ca.stats||{},sb=cb.stats||{};
+  const norm=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const aliases={
+    combat:['combat'],
+    force:['force'],
+    intelligence:['intelligence'],
+    resilience:['resilience','résilience'],
+    vitesse:['vitesse'],
+    pouvoir:['pouvoir','power'],
+    arme:['arme','weapon','maitrise arme','maîtrise arme']
+  };
+  const statVal=(o,key)=>{
+    const wanted=(aliases[key]||[key]).map(norm);
+    for(const [k,v] of Object.entries(o||{}))if(wanted.includes(norm(k)))return v;
+    // Some saved HGT characters expose final values outside stats.
+    for(const [k,v] of Object.entries(ca===o?ca:cb))if(wanted.includes(norm(k))&&typeof v!=='object')return v;
+    return '—';
+  };
   const rows=[
     ['⚔️','Combat','combat'],['💪','Force','force'],['🧠','Intelligence','intelligence'],
     ['🛡️','Résilience','resilience'],['⚡','Vitesse','vitesse'],['✨','Pouvoir','pouvoir'],['🗡️','Arme','arme']
   ];
-  const statVal=(o,k)=>{
-    const keys=[k,k[0].toUpperCase()+k.slice(1),k==='resilience'?'résilience':k==='pouvoir'?'power':k==='arme'?'weapon':k];
-    for(const x of keys)if(o?.[x]!=null)return o[x];
-    return '—'
-  };
+  const getName=x=>x?.name||x?.power||x?.weapon||x?.label||x?.type||'';
+  const getMastery=x=>x?.mastery??x?.maitrise??x?.maîtrise??x?.level??x?.niveau;
   const mastery=(c)=>{
     const out=[];
-    (Array.isArray(c?.powers)?c.powers:[]).forEach(x=>{const n=x?.name||x?.power||x?.label;if(n)out.push(`${escapeHtml(n)}${x?.mastery!=null?` <b>${escapeHtml(String(x.mastery))}</b>`:''}`)});
-    (Array.isArray(c?.weapons)?c.weapons:[]).forEach(x=>{const n=x?.name||x?.weapon||x?.label;if(n)out.push(`${escapeHtml(n)}${x?.mastery!=null?` <b>${escapeHtml(String(x.mastery))}</b>`:''}`)});
-    return out.length?out.join('<br>'):'—'
+    for(const x of (Array.isArray(c?.powers)?c.powers:[])){const n=getName(x);if(n){const m=getMastery(x);out.push(`${escapeHtml(n)}${m!=null?` <b>${escapeHtml(String(m))}</b>`:''}`)}}
+    for(const x of (Array.isArray(c?.weapons)?c.weapons:[])){const n=getName(x);if(n){const m=getMastery(x);out.push(`${escapeHtml(n)}${m!=null?` <b>${escapeHtml(String(m))}</b>`:''}`)}}
+    return out.length?out.join('<br>'):'—';
   };
   return `<div class="combat-compare">
     <div class="combat-compare-head"><strong>${escapeHtml(ca.name||'Combattant A')}</strong><span>CARACTÉRISTIQUES</span><strong>${escapeHtml(cb.name||'Combattant B')}</strong></div>
