@@ -440,6 +440,14 @@ button,.tabbtn,input,select,textarea{touch-action:manipulation}
 .arena-item{display:block;width:100%;padding:10px 12px;border:0;border-radius:7px;background:transparent;color:inherit;text-align:left;white-space:nowrap;cursor:pointer}
 .arena-item:hover,.arena-item.active{background:#2a1722;color:#ead7b5}
 @media(max-width:700px){.arena-menu{position:fixed;top:auto;left:10px;right:10px;width:auto;min-width:0}}
+
+/* Fix desktop : le menu Arène ne doit pas être rogné par le conteneur horizontal des onglets. */
+@media (min-width:701px){
+  .tabs{overflow:visible!important;position:relative;z-index:120}
+  .arena-nav{z-index:130}
+  .arena-menu{z-index:1000!important}
+}
+
 </style>
 
 <style id="vaeloriaInteractiveMapV1">
@@ -4289,14 +4297,29 @@ function renderHallOfFame(){
 wheelTabBtn.onclick=()=>showTab('wheel');
 listTabBtn.onclick=()=>{closeCharacterDetail();showTab('list')};
 genealogyTabBtn.onclick=()=>showTab('genealogy');
-arenaTabBtn.onclick=(e)=>{e.stopPropagation();const open=arenaMenu.hidden;arenaMenu.hidden=!open;arenaTabBtn.setAttribute('aria-expanded',String(open))};
+function positionArenaMenuDesktop(){
+  if(!arenaMenu||!arenaTabBtn||arenaMenu.hidden||innerWidth<=700){if(arenaMenu){arenaMenu.style.left='';arenaMenu.style.top='';arenaMenu.style.right=''}return}
+  const r=arenaTabBtn.getBoundingClientRect(), gap=6, pad=10;
+  arenaMenu.style.position='fixed';
+  arenaMenu.style.top=(r.bottom+gap)+'px';
+  arenaMenu.style.left=Math.max(pad,Math.min(r.left,innerWidth-arenaMenu.offsetWidth-pad))+'px';
+  arenaMenu.style.right='auto';
+}
+function setArenaMenuOpen(open){
+  arenaMenu.hidden=!open;arenaTabBtn.setAttribute('aria-expanded',String(open));
+  if(open)requestAnimationFrame(positionArenaMenuDesktop);
+}
+arenaTabBtn.onclick=(e)=>{e.stopPropagation();setArenaMenuOpen(arenaMenu.hidden)};
+addEventListener('resize',()=>{if(!arenaMenu.hidden)positionArenaMenuDesktop()});
+addEventListener('scroll',()=>{if(!arenaMenu.hidden)positionArenaMenuDesktop()},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!arenaMenu.hidden)setArenaMenuOpen(false)});
 tournamentTabBtn.onclick=()=>{arenaMenu.hidden=true;arenaTabBtn.setAttribute('aria-expanded','false');showTab('tournament')};
 hallTabBtn.onclick=()=>{arenaMenu.hidden=true;arenaTabBtn.setAttribute('aria-expanded','false');showTab('hall')};
 const duelLocalTabBtn=document.getElementById('duelLocalTabBtn'),multiplayerTabBtn=document.getElementById('multiplayerTabBtn');
 function closeArenaMenu(){if(arenaMenu)arenaMenu.hidden=true;if(arenaTabBtn)arenaTabBtn.setAttribute('aria-expanded','false')}
 if(duelLocalTabBtn)duelLocalTabBtn.onclick=()=>{closeArenaMenu();showTab('duelLocal')};
 if(multiplayerTabBtn)multiplayerTabBtn.onclick=async()=>{closeArenaMenu();showTab('multiplayer');if(cloudClient&&cloudUser){try{const [d,t]=await Promise.all([multiplayerDuelCall('status'),multiplayerTeamCall('status')]);__onlineDuelMatch=d?.match||null;__onlineTeamMatch=t?.match||null}catch(e){console.warn('Chargement multijoueur',e)}renderMultiplayerPage()}};
-document.addEventListener('click',(e)=>{if(!e.target.closest('.arena-nav')){arenaMenu.hidden=true;arenaTabBtn.setAttribute('aria-expanded','false')}});
+document.addEventListener('click',(e)=>{if(!e.target.closest('.arena-nav')&&!e.target.closest('#arenaMenu'))setArenaMenuOpen(false)});
 
 // Univers V18 — sous-navigation et codex racial relié aux données du jeu.
 const RACE_CODEX_LORE={
@@ -5353,7 +5376,27 @@ document.querySelectorAll('[data-region-map]').forEach(initVaeloriaRegionMap);
   window.addEventListener('resize',apply);
 })();
 document.addEventListener('DOMContentLoaded',()=>{bindEntryGateFallback();initHgtHomeMusic()});
-</script></body></html>
+</script>
+<style id="desktopBehaviorAuditFix">
+/* Audit PC : navigation, menus et panneaux doivent rester au-dessus du contenu et dans le viewport. */
+@media (min-width:701px){
+  .tabs{overflow:visible!important;position:relative;z-index:300;flex-wrap:wrap;align-items:stretch}
+  .arena-nav{position:relative;z-index:310}
+  .arena-menu{position:fixed!important;z-index:12000!important;max-height:calc(100vh - 24px);overflow:auto}
+  .cloud-modal{z-index:13000}
+  .cloud-card{max-height:86vh;overflow:auto}
+  .combat-scene-modal{z-index:12500}
+  .race-codex-detail{z-index:12500}
+  .right{overscroll-behavior:contain}
+  .roster-shell,.genealogy-shell,.tournament-shell,.hall-shell,#universeTab{min-width:0}
+  img,canvas{max-width:100%}
+}
+@media (min-width:701px) and (max-width:1050px){
+  .tabs{justify-content:flex-start;padding-left:14px;padding-right:14px}
+  .tabbtn{white-space:nowrap}
+}
+</style>
+</body></html>
 
 <style id="tournament-compact-fix">
 /* Tournoi compact : chaque phase reste lisible et la finale reste toujours accessible. */
