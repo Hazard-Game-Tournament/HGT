@@ -518,7 +518,7 @@ body.hgt-gated{overflow:hidden}
 .hgt-entry-art{display:none}
 .hgt-entry-art img{width:100%;height:100%;object-fit:cover}.hgt-entry-placeholder{font-family:Cinzel,serif;color:#a58c96;letter-spacing:.08em}
 .hgt-entry-title{font-family:Cinzel,serif;font-size:clamp(25px,5vw,42px);color:#e5c77d;margin:0 0 5px}.hgt-entry-sub{color:#a99aa2;margin-bottom:18px}
-.hgt-entry-form{display:grid;gap:10px}.hgt-entry-form input{width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #59404a;background:#100c11;color:#eee;font:inherit}
+.hgt-entry-form{display:grid;gap:10px}.hgt-forgot{appearance:none;border:0;background:none;color:#c9ad72;padding:0;margin:-2px 0 2px;text-align:right;cursor:pointer;font:inherit;font-size:13px}.hgt-forgot:hover{text-decoration:underline;color:#ead3a0}.hgt-entry-form input{width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #59404a;background:#100c11;color:#eee;font:inherit}
 .hgt-entry-actions{display:flex;gap:9px}.hgt-entry-actions button{flex:1}.hgt-entry-message{min-height:20px;color:#b9aab1;font-size:13px;margin-top:8px}
 .hgt-player-chip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border:1px solid #6b4c59;border-radius:999px;background:#100b10;color:#ead3a0;font-weight:800;cursor:pointer}.hgt-player-chip:hover{border-color:#d2aa59;box-shadow:0 0 0 2px #d2aa5922}.player-avatar{width:30px;height:30px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#21151d;border:1px solid #8a6756;flex:0 0 auto}.player-avatar img{width:100%;height:100%;object-fit:cover;object-position:var(--avatar-x,50%) var(--avatar-y,32%)}.profile-avatar-current{display:flex;align-items:center;gap:12px;margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:#0d0b0e}.profile-avatar-current .player-avatar{width:58px;height:58px}.profile-avatar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:9px;margin-top:10px}.profile-avatar-choice{padding:7px;border:1px solid #4b3940;border-radius:10px;background:#100c10;color:inherit;cursor:pointer;text-align:center}.profile-avatar-choice.selected{border-color:#d8b65d;box-shadow:0 0 0 2px #d8b65d22}.profile-avatar-choice .champion-mini{width:100%;aspect-ratio:1/1;border-radius:8px;overflow:hidden;background:#09080b;display:grid;place-items:center;margin-bottom:6px}.profile-avatar-choice .champion-mini img{width:100%;height:100%;object-fit:cover;object-position:50% 32%}.profile-avatar-choice small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.profile-option{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid var(--line)}.profile-option input{width:20px;height:20px;accent-color:#d8b65d}.profile-option-copy{display:grid;gap:2px}.profile-option-copy small{color:var(--muted)}
 @media(max-width:600px){.hgt-entry-card{padding:18px}.hgt-entry-actions{flex-direction:column}.hgt-entry-art{height:190px}}
@@ -561,6 +561,7 @@ body.hgt-gated{overflow:hidden}
       <div class="hgt-entry-form">
         <input id="entryEmail" type="email" autocomplete="email" placeholder="Adresse e-mail">
         <input id="entryPassword" type="password" autocomplete="current-password" placeholder="Mot de passe (6 caractères minimum)">
+        <button class="hgt-forgot" id="entryForgot" type="button">Mot de passe oublié ?</button>
         <div class="hgt-entry-actions">
           <button id="entryLogin" type="button">Se connecter</button>
           <button class="secondary" id="entrySignup" type="button">Créer un compte</button>
@@ -4513,14 +4514,47 @@ function enterHgt(){if(!cloudUser||!cloudProfile?.username)return;fadeOutHgtHome
 function leaveHgtGate(){document.getElementById('hgtEntry').hidden=false;document.body.classList.add('hgt-gated');renderEntryGate();startHgtHomeMusic()}
 function bindEntryGateFallback(){
  const login=document.getElementById('entryLogin'),signup=document.getElementById('entrySignup');
- if(login)login.onclick=entryLogin;if(signup)signup.onclick=entrySignup;
+ if(login)login.onclick=entryLogin;if(signup)signup.onclick=entrySignup;const forgot=document.getElementById('entryForgot');if(forgot)forgot.onclick=entryForgotPassword;
+}
+let hgtPasswordRecovery=/[?#&]type=recovery(?:&|$)/.test(location.href);
+function renderPasswordRecovery(){
+  const root=document.getElementById('hgtEntryContent'),sub=document.getElementById('hgtEntrySubtitle');if(!root)return;
+  document.getElementById('hgtEntry').hidden=false;document.body.classList.add('hgt-gated');
+  if(sub)sub.textContent='Choisis un nouveau mot de passe.';
+  hgtEntryMessage('');
+  root.innerHTML=`<div class="hgt-entry-form"><input id="entryNewPassword" type="password" autocomplete="new-password" placeholder="Nouveau mot de passe (6 caractères minimum)"><input id="entryNewPasswordConfirm" type="password" autocomplete="new-password" placeholder="Confirmer le nouveau mot de passe"><button id="entryUpdatePassword" type="button">Enregistrer le nouveau mot de passe</button></div>`;
+  document.getElementById('entryUpdatePassword').onclick=entryUpdatePassword;
 }
 function renderEntryGate(){
   const root=document.getElementById('hgtEntryContent');if(!root)return;
   const sub=document.getElementById('hgtEntrySubtitle');hgtEntryMessage('');
-  if(!cloudUser){sub.textContent='Connecte-toi pour entrer dans Vaeloria.';root.innerHTML=`<div class="hgt-entry-form"><input id="entryEmail" type="email" autocomplete="email" placeholder="Adresse e-mail"><input id="entryPassword" type="password" autocomplete="current-password" placeholder="Mot de passe (6 caractères minimum)"><div class="hgt-entry-actions"><button id="entryLogin">Se connecter</button><button class="secondary" id="entrySignup">Créer un compte</button></div></div>`;document.getElementById('entryLogin').onclick=entryLogin;document.getElementById('entrySignup').onclick=entrySignup;return}
+  if(hgtPasswordRecovery){renderPasswordRecovery();return}
+  if(!cloudUser){sub.textContent='Connecte-toi pour entrer dans Vaeloria.';root.innerHTML=`<div class="hgt-entry-form"><input id="entryEmail" type="email" autocomplete="email" placeholder="Adresse e-mail"><input id="entryPassword" type="password" autocomplete="current-password" placeholder="Mot de passe (6 caractères minimum)"><button class="hgt-forgot" id="entryForgot" type="button">Mot de passe oublié ?</button><div class="hgt-entry-actions"><button id="entryLogin">Se connecter</button><button class="secondary" id="entrySignup">Créer un compte</button></div></div>`;document.getElementById('entryLogin').onclick=entryLogin;document.getElementById('entrySignup').onclick=entrySignup;document.getElementById('entryForgot').onclick=entryForgotPassword;return}
   if(!cloudProfile?.username){sub.textContent='Choisis ton identité publique pour les combats en ligne.';root.innerHTML=`<div class="hgt-entry-form"><input id="entryPseudo" maxlength="24" autocomplete="nickname" placeholder="Pseudo (3–24 caractères)"><button id="entryPseudoBtn">Créer mon pseudo</button><button class="secondary" id="entryLogout">Se déconnecter</button></div><div class="muted" style="margin-top:8px">Le pseudo est unique à l’identique. La casse compte : « Damien » et « damien » peuvent coexister.</div>`;document.getElementById('entryPseudoBtn').onclick=async()=>{const b=document.getElementById('entryPseudoBtn');b.disabled=true;try{await createCloudProfile(document.getElementById('entryPseudo').value);renderEntryGate()}catch(e){hgtEntryMessage(e.message||String(e),'error')}finally{b.disabled=false}};document.getElementById('entryLogout').onclick=cloudLogout;return}
   sub.textContent=`Bienvenue, ${cloudProfile.username}.`;root.innerHTML=`<div class="hgt-entry-form"><button id="entryPlay">⚔️ Jouer</button></div>`;document.getElementById('entryPlay').onclick=enterHgt;
+}
+async function entryForgotPassword(){
+  const email=document.getElementById('entryEmail')?.value.trim();
+  if(!email){hgtEntryMessage('Entre d’abord ton adresse e-mail.','error');return}
+  if(!cloudClient){hgtEntryMessage('Connexion au service en cours… réessaie dans un instant.','error');return}
+  hgtEntryMessage('Envoi du lien de récupération…');
+  const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error){hgtEntryMessage('Envoi impossible : '+error.message,'error');return}
+  hgtEntryMessage('Lien envoyé. Vérifie ta boîte e-mail.');
+}
+async function entryUpdatePassword(){
+  const password=document.getElementById('entryNewPassword')?.value||'',confirmPassword=document.getElementById('entryNewPasswordConfirm')?.value||'';
+  if(password.length<6){hgtEntryMessage('Le nouveau mot de passe doit contenir au moins 6 caractères.','error');return}
+  if(password!==confirmPassword){hgtEntryMessage('Les deux mots de passe ne correspondent pas.','error');return}
+  hgtEntryMessage('Mise à jour du mot de passe…');
+  const {error}=await cloudClient.auth.updateUser({password});
+  if(error){hgtEntryMessage('Mise à jour impossible : '+error.message,'error');return}
+  hgtEntryMessage('Mot de passe modifié ✓');
+  hgtPasswordRecovery=false;
+  history.replaceState({},document.title,location.origin+location.pathname);
+  await cloudClient.auth.signOut();
+  cloudUser=null;cloudProfile=null;cloudGames=[];cloudCurrentGame=null;
+  setTimeout(()=>renderEntryGate(),700);
 }
 async function entryLogin(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||!password){hgtEntryMessage('Entre ton e-mail et ton mot de passe.','error');return}if(!cloudClient){hgtEntryMessage('Connexion au service en cours… réessaie dans un instant.','error');return}hgtEntryMessage('Connexion…');const {error}=await cloudClient.auth.signInWithPassword({email,password});if(error)hgtEntryMessage('Connexion impossible : '+error.message,'error')}
 async function entrySignup(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||password.length<6){hgtEntryMessage('Entre un e-mail et un mot de passe d’au moins 6 caractères.','error');return}hgtEntryMessage('Création du compte…');const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});if(error){hgtEntryMessage('Inscription impossible : '+error.message,'error');return}if(!data.session)hgtEntryMessage('Compte créé. Vérifie ton e-mail si une confirmation est demandée.');}
@@ -4606,10 +4640,11 @@ function renderCloudModal(){
   const root=document.getElementById('cloudModalContent');if(!root)return;
   if(!cloudUser){
     root.innerHTML=`<h2>☁️ Hazard Game Tournament — Compte</h2><div class="muted">Connecte-toi pour retrouver tes parties sur plusieurs appareils.</div>
-      <div class="cloud-form"><input id="cloudEmail" type="email" autocomplete="email" placeholder="Adresse e-mail"><input id="cloudPassword" type="password" autocomplete="current-password" placeholder="Mot de passe (6 caractères minimum)">
+      <div class="cloud-form"><input id="cloudEmail" type="email" autocomplete="email" placeholder="Adresse e-mail"><input id="cloudPassword" type="password" autocomplete="current-password" placeholder="Mot de passe (6 caractères minimum)"><button class="hgt-forgot" id="cloudForgotBtn" type="button">Mot de passe oublié ?</button>
       <div class="cloud-row"><button id="cloudLoginBtn">Se connecter</button><button class="secondary" id="cloudSignupBtn">Créer un compte</button></div><div id="cloudMessage" class="cloud-message">Tes données locales ne sont pas supprimées.</div></div>`;
     document.getElementById('cloudLoginBtn').onclick=cloudLogin;
     document.getElementById('cloudSignupBtn').onclick=cloudSignup;
+    document.getElementById('cloudForgotBtn').onclick=cloudForgotPassword;
     return;
   }
   const rows=cloudGames.map(g=>`<div class="cloud-game ${cloudCurrentGame?.id===g.id?'cloud-current':''}"><div class="cloud-game-main"><div class="cloud-game-name">${escapeHtml(g.name||'Partie')}</div><div class="cloud-game-meta">S${g.current_season||1} • modifiée ${new Date(g.updated_at).toLocaleString('fr-FR')}</div></div><button class="secondary" data-open-game="${g.id}">${cloudCurrentGame?.id===g.id?'Ouverte':'Ouvrir'}</button><button class="secondary" data-rename-game="${g.id}">✏️</button><button class="cloud-danger" data-delete-game="${g.id}">🗑️</button></div>`).join('');
@@ -4622,6 +4657,14 @@ function renderCloudModal(){
   document.getElementById('cloudLogoutBtn').onclick=cloudLogout;
 }
 function escapeHtml(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function cloudForgotPassword(){
+  const email=document.getElementById('cloudEmail')?.value.trim();
+  if(!email){cloudSetMessage('Entre d’abord ton adresse e-mail.');return}
+  cloudSetMessage('Envoi du lien de récupération…');
+  const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error){cloudSetMessage('Envoi impossible : '+error.message);return}
+  cloudSetMessage('Lien envoyé. Vérifie ta boîte e-mail.');
+}
 async function cloudLogin(){
   const email=document.getElementById('cloudEmail')?.value.trim(),password=document.getElementById('cloudPassword')?.value||'';
   if(!email||!password){cloudSetMessage('Entre ton e-mail et ton mot de passe.');return}
@@ -5126,7 +5169,7 @@ async function initCloud(){
   cloudUpdateTopStatus();
   renderEntryGate();
   if(cloudReady()) setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1800);
-  cloudClient.auth.onAuthStateChange(async(_event,session)=>{cloudUser=session?.user||null;if(cloudUser){try{await loadCloudProfile();await cloudRefreshGames();if(cloudReady())setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1200)}catch(e){cloudSyncError(e)}}else{cloudGames=[];cloudCurrentGame=null;cloudProfile=null}cloudUpdateTopStatus();renderEntryGate();renderCloudModal()});
+  cloudClient.auth.onAuthStateChange(async(_event,session)=>{if(_event==='PASSWORD_RECOVERY')hgtPasswordRecovery=true;cloudUser=session?.user||null;if(cloudUser&&!hgtPasswordRecovery){try{await loadCloudProfile();await cloudRefreshGames();if(cloudReady())setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1200)}catch(e){cloudSyncError(e)}}else if(!cloudUser){cloudGames=[];cloudCurrentGame=null;cloudProfile=null}cloudUpdateTopStatus();renderEntryGate();renderCloudModal()});
 }
 const cloudAccountBtn=document.getElementById('cloudAccountBtn');if(cloudAccountBtn)cloudAccountBtn.onclick=()=>cloudUser?openProfileModal():openCloudModal();
 document.getElementById('cloudCloseBtn').onclick=closeCloudModal;
