@@ -676,7 +676,7 @@ body.hgt-gated{overflow:hidden}
 </section>
 <section id="multiplayerTab" class="tabpage">
   <div class="hall-shell">
-    <div class="panel hall-head"><div class="top"><div><div class="title">🌐 Duel multijoueur</div><div class="muted">Affronte en ligne le Champion d’un autre joueur.</div></div></div></div>
+    <div class="panel hall-head"><div class="top"><div><div class="title">🌐 Modes multijoueurs</div><div class="muted">Affronte d’autres joueurs en duel 1 vs 1 ou en combat d’équipe 5 vs 5.</div></div></div></div>
     <div id="multiplayerPageContent" class="panel champion-team-panel"></div>
   </div>
 </section>
@@ -4099,6 +4099,28 @@ function multiplayerHistoryHtml(meta,type){
   return `<details class="duel-history"><summary>📜 ${title}</summary><div class="duel-history-list">${arr.length?arr.slice(0,10).map(x=>`<div class="duel-history-item"><b>${x.won?'Victoire':'Défaite'}</b>${x.opponent?` • ${escapeHtml(x.opponent)}`:''}${x.champion?` • ${escapeHtml(x.champion)}`:''}${x.terrain?`<br>${escapeHtml(x.terrain)}${x.distanceLabel?` • ${escapeHtml(x.distanceLabel)}`:''}`:''}<br><span class="muted">${x.at?new Date(x.at).toLocaleString('fr-FR'):''}</span></div>`).join(''):'<div class="muted">Aucun combat enregistré.</div>'}</div></details>`;
 }
 
+let __onlineTeamStats=null,__onlineTeamMatch=null;
+async function multiplayerTeamCall(action,extra={}){
+  if(!cloudClient||!cloudUser)throw new Error('Connecte-toi à ton compte pour utiliser les combats 5v5.');
+  const {data,error}=await cloudClient.functions.invoke('multiplayer-team',{body:{action,username:cloudProfile?.username||null,...extra}});
+  if(error)throw error;if(data?.error)throw new Error(data.error);if(data?.stats)__onlineTeamStats=data.stats;if(data?.match)__onlineTeamMatch=data.match;return data;
+}
+function multiplayerCommonHistory(){
+  const duel=(Array.isArray(__onlineDuelStats?.recent_duels)?__onlineDuelStats.recent_duels:[]).map(x=>({...x,mode:'1v1'}));
+  const team=(Array.isArray(__onlineTeamStats?.recent_team_battles)?__onlineTeamStats.recent_team_battles:[]).map(x=>({...x,mode:'5v5'}));
+  return [...duel,...team].sort((a,b)=>new Date(b.at||0)-new Date(a.at||0)).slice(0,10);
+}
+function onlineCommonHistoryHtml(){
+  const arr=multiplayerCommonHistory();
+  return `<details class="duel-history" open><summary>📜 10 derniers matchs en ligne</summary><div class="duel-history-list">${arr.length?arr.map((x,i)=>`<div class="duel-history-item"><b>${x.won?'Victoire':'Défaite'}</b> • <b>${x.mode}</b> • ${escapeHtml(x.opponentUsername||x.opponentName||x.opponent||'Adversaire')}${x.mode==='5v5'&&x.score?` • ${escapeHtml(x.score)}`:''}<br><span class="muted">${x.at?new Date(x.at).toLocaleString('fr-FR'):''}</span>${x.battle?`<button type="button" class="secondary combat-view-btn" data-multi-history="${i}">🔎 Voir les détails</button>`:''}</div>`).join(''):'<div class="muted">Aucun match enregistré.</div>'}</div></details>`;
+}
+function openTeamBattleDetails(x){
+  const b=x?.battle;if(!b)return;closeCombatScene();
+  const m=document.createElement('div');m.id='combatSceneModal';m.className='combat-scene-modal open';
+  const rows=(b.duels||[]).map((d,i)=>`<div class="duel-history-item"><b>Duel ${i+1} — ${escapeHtml(d.characterA?.name||d.a||'Champion A')} vs ${escapeHtml(d.characterB?.name||d.b||'Champion B')}</b><br>🏆 ${escapeHtml(d.winner||'—')}<br><span class="muted">Région : ${escapeHtml(d.region||'—')} • Terrain : ${escapeHtml(d.terrain||'—')} • Distance : ${escapeHtml(d.distanceLabel||'—')}${d.distance!=null?` (${d.distance} m)`:''}<br>Informations : ${escapeHtml(d.knowledgeA||'—')} / ${escapeHtml(d.knowledgeB||'—')}</span></div>`).join('');
+  m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">👥 Combat d’équipe 5 vs 5 — ${escapeHtml(x.score||`${b.score1??0}-${b.score2??0}`)}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="muted" style="margin-bottom:12px">${escapeHtml(b.player1Username||'Joueur 1')} vs ${escapeHtml(b.player2Username||'Joueur 2')} • ${x.at?new Date(x.at).toLocaleString('fr-FR'):''}</div><div class="duel-history-list">${rows||'<div class="muted">Aucun détail disponible.</div>'}</div></div>`;
+  document.body.appendChild(m);m.querySelector('.combat-scene-top button').onclick=closeCombatScene;m.onclick=e=>{if(e.target===m)closeCombatScene()};
+}
 let __onlineDuelStats=null,__onlineDuelPoll=null,__onlineDuelMatch=null;
 async function multiplayerDuelCall(action,extra={}){
   if(!cloudClient||!cloudUser)throw new Error('Connecte-toi à ton compte pour utiliser les duels en ligne.');
@@ -4148,52 +4170,22 @@ function renderMultiplayerTeamBuilder(panel,champs,roster){
   let draft=(meta.championTeamDraft?.length?meta.championTeamDraft:meta.championTeam||[]).filter(id=>champs.some(c=>c.id===id));
   const box=document.createElement('div');box.className='duel-panel';box.id='multiplayerTeamPanel';
   if(!unlocked){box.innerHTML=`<div class="title">👥 Combat d’équipe 5 vs 5</div><div class="duel-lock">🔒 Débloqué après l’obtention de 5 Champions. Champions actuels : ${champs.length}/5.</div>`;panel.appendChild(box);return}
-  const draw=()=>{box.innerHTML=`<div class="title">👥 Combat d’équipe 5 vs 5</div><div class="muted">Compose une équipe de 5 Champions. Le matchmaking 5v5 est indépendant du duel 1v1. Les cinq affrontements seront appariés aléatoirement ; la première équipe à 3 victoires remporte la rencontre.</div><div class="team-slots">${Array.from({length:5},(_,i)=>{const id=draft[i],c=id?roster[id]:null;return `<div class="team-slot ${id?'filled':''}">${id?`<b>${escapeHtml(c?.name||id)}</b><small>${escapeHtml(id)}</small>`:`Place ${i+1}`}</div>`}).join('')}</div><div class="team-actions"><button id="saveChampionTeamBtn" ${draft.length===5?'':'disabled'}>💾 Enregistrer l’équipe (${draft.length}/5)</button><button id="onlineTeamSearchBtn" ${meta.championTeam?.length===5?'':'disabled'}>🔎 Matchmaking 5v5</button></div><div class="champion-team-picker">${champs.map(ch=>{const c=roster[ch.id]||{};return `<button type="button" class="secondary champion-select ${draft.includes(ch.id)?'selected':''}" data-team-champion="${escapeHtml(ch.id)}">${draft.includes(ch.id)?'✓':'＋'} S${ch.season} — ${escapeHtml(c.name||ch.name||ch.id)}</button>`}).join('')}</div><div class="muted" style="margin-top:8px">Le bouton de matchmaking 5v5 nécessite la fonction serveur <code>multiplayer-team</code>.</div>`;box.querySelectorAll('[data-team-champion]').forEach(b=>b.onclick=()=>{const id=b.dataset.teamChampion;if(draft.includes(id))draft=draft.filter(x=>x!==id);else if(draft.length<5)draft.push(id);else{alert('L’équipe contient déjà 5 Champions.');return}meta.championTeamDraft=draft;saveUniverseMeta(meta);draw()});const save=box.querySelector('#saveChampionTeamBtn');if(save)save.onclick=()=>{if(saveChampionTeam(draft)){renderMultiplayerPage()}};const search=box.querySelector('#onlineTeamSearchBtn');
-  if(search)search.onclick=async()=>{
-    if(!cloudReady()){alert('Connecte-toi à Supabase pour utiliser le matchmaking 5v5.');return}
-    const team=(universeMeta().championTeam||[]).filter(Boolean);
-    if(team.length!==5){alert('Enregistre d’abord une équipe de 5 Champions.');return}
-    search.disabled=true;search.textContent='⏳ Recherche 5v5…';
-    try{
-      const call=async(action,extra={})=>{
-        const {data:{session}}=await cloudClient.auth.getSession();
-        if(!session?.access_token)throw new Error('Session Supabase absente.');
-        const res=await fetch(`${SUPABASE_URL}/functions/v1/multiplayer-team`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':`Bearer ${session.access_token}`,'apikey':SUPABASE_ANON_KEY},
-          body:JSON.stringify({action,...extra})
-        });
-        const j=await res.json().catch(()=>({}));
-        if(!res.ok||j?.error)throw new Error(j?.error||`Erreur ${res.status}`);
-        return j
-      };
-      let r=await call('join');
-      if(r?.status==='waiting'){alert('Équipe placée dans la file 5v5. Relance la recherche dans quelques instants pour vérifier si un adversaire a été trouvé.');return}
-      if(r?.status==='matched'||r?.status==='ready'){
-        r=await call('select_team',{gameId:cloudCurrentGame?.id,championIds:team});
-        if(r?.status==='matched'){alert("Adversaire trouvé. Ton équipe est enregistrée ; attente de l'équipe adverse.");return}
-      }
-      if(r?.status==='ready'){
-        const done=await call('resolve');
-        if(done?.battle){
-          const b=done.battle,me=cloudUser?.id,won=b.winnerUserId===me;
-          alert(`${won?'🏆 Victoire':'💀 Défaite'} — ${b.score1}-${b.score2}\nLes 5 duels ont été enregistrés.`);
-        }
-        renderMultiplayerPage();
-      }
-    }catch(e){console.error('Matchmaking 5v5',e);alert('Matchmaking 5v5 : '+(e?.message||e))}
-    finally{search.disabled=false;search.textContent='🔎 Matchmaking 5v5'}
-  };};
-  draw();panel.appendChild(box);
+  const draw=()=>{const active=__onlineTeamMatch;box.innerHTML=`<div class="title">👥 Combat d’équipe 5 vs 5</div><div class="muted">Compose une équipe de 5 Champions. Les appariements sont tirés aléatoirement ; la première équipe à 3 victoires remporte le match.</div><div class="team-slots">${Array.from({length:5},(_,i)=>{const id=draft[i],c=id?roster[id]:null;return `<div class="team-slot ${id?'filled':''}">${id?`<b>${escapeHtml(c?.name||id)}</b><small>${escapeHtml(id)}</small>`:`Place ${i+1}`}</div>`}).join('')}</div><div class="team-actions"><button id="saveChampionTeamBtn" ${draft.length===5?'':'disabled'}>💾 Enregistrer l’équipe (${draft.length}/5)</button><button id="onlineTeamSearchBtn" ${meta.championTeam?.length===5?'':'disabled'}>${active?.status==='waiting'?'⏳ Recherche en cours…':'🔎 Recherche en ligne'}</button>${active?.status==='waiting'?'<button class="secondary" id="onlineTeamCancelBtn">Annuler</button>':''}</div><div class="champion-team-picker">${champs.map(ch=>{const c=roster[ch.id]||{};return `<button type="button" class="secondary champion-select ${draft.includes(ch.id)?'selected':''}" data-team-champion="${escapeHtml(ch.id)}">${draft.includes(ch.id)?'✓':'＋'} S${ch.season} — ${escapeHtml(c.name||ch.name||ch.id)}</button>`}).join('')}</div>`;
+    box.querySelectorAll('[data-team-champion]').forEach(bt=>bt.onclick=()=>{const id=bt.dataset.teamChampion;if(draft.includes(id))draft=draft.filter(x=>x!==id);else if(draft.length<5)draft.push(id);else{alert('L’équipe contient déjà 5 Champions.');return}meta.championTeamDraft=draft;saveUniverseMeta(meta);draw()});
+    const save=box.querySelector('#saveChampionTeamBtn');if(save)save.onclick=()=>{if(saveChampionTeam(draft))renderMultiplayerPage()};
+    const cancel=box.querySelector('#onlineTeamCancelBtn');if(cancel)cancel.onclick=async()=>{try{await multiplayerTeamCall('cancel');__onlineTeamMatch=null;renderMultiplayerPage()}catch(e){alert(e.message)}};
+    const search=box.querySelector('#onlineTeamSearchBtn');if(search)search.onclick=async()=>{const selected=(universeMeta().championTeam||[]).filter(Boolean);if(selected.length!==5){alert('Enregistre d’abord une équipe de 5 Champions.');return}search.disabled=true;try{let r=await multiplayerTeamCall('search');__onlineTeamMatch=r.match||null;if(r.status==='waiting'){renderMultiplayerPage();return}if(r.status==='matched'||r.status==='ready'){r=await multiplayerTeamCall('select_team',{gameId:cloudCurrentGame?.id,championIds:selected});__onlineTeamMatch=r.match||__onlineTeamMatch}if(r.status==='ready'){const done=await multiplayerTeamCall('resolve');__onlineTeamMatch=null;if(done?.stats)__onlineTeamStats=done.stats}renderMultiplayerPage()}catch(e){console.error(e);alert('Matchmaking 5v5 : '+(e?.message||e));search.disabled=false}};
+  };draw();panel.appendChild(box);
 }
 function renderMultiplayerPage(){
-  const panel=document.getElementById('multiplayerPageContent');if(!panel)return;
-  panel.innerHTML='';
+  const panel=document.getElementById('multiplayerPageContent');if(!panel)return;panel.innerHTML='';
   const champs=championHistory(),roster=loadRoster();
-  const onlineV=Number(__onlineDuelStats?.victories)||0,onlineD=Number(__onlineDuelStats?.defeats)||0;
-  panel.insertAdjacentHTML('beforeend',`<div class="hall-stats"><span class="hall-stat">⚔️ Duels en ligne : ${onlineV} V / ${onlineD} D</span></div>${onlineDuelHistoryHtml()}`);
-  panel.querySelectorAll('[data-online-history]').forEach(btn=>btn.onclick=()=>{const x=__onlineDuelStats?.recent_duels?.[Number(btn.dataset.onlineHistory)];if(x?.battle)openCombatScene(x.battle,{[x.battle.a]:x.battle.characterA||{},[x.battle.b]:x.battle.characterB||{}})});
-  try{renderOnlineDuelPanel(panel,champs,roster)}catch(e){console.error('Duel multijoueur',e);panel.insertAdjacentHTML('beforeend','<div class="duel-lock">Erreur de chargement du multijoueur. Recharge la page.</div>')}
+  const duelV=Number(__onlineDuelStats?.victories)||0,duelD=Number(__onlineDuelStats?.defeats)||0;
+  const teamV=Number(__onlineTeamStats?.victories)||0,teamD=Number(__onlineTeamStats?.defeats)||0;
+  panel.insertAdjacentHTML('beforeend',`<div class="hall-stats"><span class="hall-stat">⚔️ 1v1 : ${duelV} V / ${duelD} D</span><span class="hall-stat">👥 5v5 : ${teamV} V / ${teamD} D</span></div>${onlineCommonHistoryHtml()}`);
+  const hist=multiplayerCommonHistory();
+  panel.querySelectorAll('[data-multi-history]').forEach(btn=>btn.onclick=()=>{const x=hist[Number(btn.dataset.multiHistory)];if(!x?.battle)return;if(x.mode==='5v5')openTeamBattleDetails(x);else openCombatScene(x.battle,{[x.battle.a]:x.battle.characterA||{},[x.battle.b]:x.battle.characterB||{}})});
+  try{renderOnlineDuelPanel(panel,champs,roster)}catch(e){console.error('Duel multijoueur',e)}
   try{renderMultiplayerTeamBuilder(panel,champs,roster)}catch(e){console.error('Équipe multijoueur',e)}
 }
 function renderHallOfFame(){
@@ -4212,7 +4204,7 @@ hallTabBtn.onclick=()=>{arenaMenu.hidden=true;arenaTabBtn.setAttribute('aria-exp
 const duelLocalTabBtn=document.getElementById('duelLocalTabBtn'),multiplayerTabBtn=document.getElementById('multiplayerTabBtn');
 function closeArenaMenu(){if(arenaMenu)arenaMenu.hidden=true;if(arenaTabBtn)arenaTabBtn.setAttribute('aria-expanded','false')}
 if(duelLocalTabBtn)duelLocalTabBtn.onclick=()=>{closeArenaMenu();showTab('duelLocal')};
-if(multiplayerTabBtn)multiplayerTabBtn.onclick=()=>{closeArenaMenu();showTab('multiplayer')};
+if(multiplayerTabBtn)multiplayerTabBtn.onclick=async()=>{closeArenaMenu();showTab('multiplayer');if(cloudClient&&cloudUser){try{const [d,t]=await Promise.all([multiplayerDuelCall('status'),multiplayerTeamCall('status')]);__onlineDuelMatch=d?.match||null;__onlineTeamMatch=t?.match||null}catch(e){console.warn('Chargement multijoueur',e)}renderMultiplayerPage()}};
 document.addEventListener('click',(e)=>{if(!e.target.closest('.arena-nav')){arenaMenu.hidden=true;arenaTabBtn.setAttribute('aria-expanded','false')}});
 
 // Univers V18 — sous-navigation et codex racial relié aux données du jeu.
