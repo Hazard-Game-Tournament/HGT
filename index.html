@@ -4094,27 +4094,32 @@ function closeCombatScene(){
   __combatSceneUrls.forEach(u=>URL.revokeObjectURL(u));__combatSceneUrls=[];
 }
 async function combatScenePortrait(target,id){
-  try{const f=await getIllustration(id);if(!f)return;const u=URL.createObjectURL(f);__combatSceneUrls.push(u);const img=document.createElement('img');img.src=u;target.prepend(img)}catch(e){}
+  try{
+    const f=await getIllustration(id);if(!f)return;
+    const u=URL.createObjectURL(f);__combatSceneUrls.push(u);
+    const img=document.createElement('img');
+    img.src=u;
+    img.classList.add('combat-character-image');
+    img.title=`Voir la fiche de ${id}`;
+    img.onclick=(e)=>{e.stopPropagation();openCharacterFromCombat(id)};
+    target.prepend(img);
+  }catch(e){}
 }
 
 function openCharacterFromCombat(id){
   if(!id)return;
+  const roster=loadRoster();
+  if(!roster?.[id]){alert(`Personnage ${id} introuvable dans la liste.`);return}
   closeCombatScene();
-  try{
-    const roster=loadRoster(),c=roster?.[id];
-    if(!c){alert(`Personnage ${id} introuvable dans la liste.`);return}
-    // Reuse HGT's existing roster/card navigation where available.
-    if(typeof openRosterCharacter==='function'){showTab('roster');openRosterCharacter(id);return}
-    if(typeof openCharacterSheet==='function'){showTab('roster');openCharacterSheet(id);return}
-    if(typeof showCharacter==='function'){showTab('roster');showCharacter(id);return}
-    // Fallback: open the character list and click its existing card/button.
-    showTab('roster');
+  showTab('list');
+  requestAnimationFrame(()=>{
+    renderRoster();
+    openCharacterDetail(id);
     requestAnimationFrame(()=>{
-      const el=document.querySelector(`[data-character-id="${CSS.escape(id)}"],[data-id="${CSS.escape(id)}"],#${CSS.escape(id)}`);
-      if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.click()}
-      else alert(`Fiche ${id} chargée dans la liste des personnages.`);
+      const detail=document.getElementById('characterDetail')||document.querySelector('.character-detail,.detail-panel');
+      if(detail)detail.scrollIntoView({behavior:'smooth',block:'start'});
     });
-  }catch(e){console.error('Ouverture fiche personnage',e)}
+  });
 }
 function combatantComparisonHtml(ca,cb,idA='',idB=''){
   ca=ca||{};cb=cb||{};
@@ -4160,7 +4165,7 @@ function openCombatScene(battle,roster=loadRoster()){
   const m=document.createElement('div');m.id='combatSceneModal';m.className='combat-scene-modal open';
   const a=roster[battle.a]||battle.characterA||{},b=roster[battle.b]||battle.characterB||{};
   const pa=Math.round((Number(battle.probA)||.5)*100);
-  m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">⚔️ ${escapeHtml(battle.region||'Combat')}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="combat-stage" style="background-image:url('assets/universe/regions/${escapeHtml(regionSlug)}.webp')"><div class="combat-scene-result">🏆 ${escapeHtml(battle.winner||'')}</div><div class="combat-fighter-scene a"><span class="combat-fighter-name">${escapeHtml(a.name||battle.a||'Combattant 1')}</span></div><div class="combat-fighter-scene b"><span class="combat-fighter-name">${escapeHtml(b.name||battle.b||'Combattant 2')}</span></div></div><div class="combat-params">${combatantComparisonHtml(a,b,battle.a||'',battle.b||'')}<div class="combat-param"><b>Région</b>${escapeHtml(battle.region||'—')}</div><div class="combat-param"><b>Terrain</b>${escapeHtml(battle.terrain||'—')}</div><div class="combat-param"><b>Distance</b>${escapeHtml(battle.distanceLabel||'—')}${battle.distance!=null?` • ${battle.distance} m`:''}</div><div class="combat-param"><b>Informations</b>${escapeHtml(battle.knowledgeA||'—')} / ${escapeHtml(battle.knowledgeB||'—')}</div><div class="combat-param"><b>Chances avant tirage</b>${escapeHtml(battle.a||'A')} ${pa}% • ${escapeHtml(battle.b||'B')} ${100-pa}%</div></div></div>`;
+  m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">⚔️ ${escapeHtml(battle.region||'Combat')}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="combat-stage" style="background-image:url('assets/universe/regions/${escapeHtml(regionSlug)}.webp')"><div class="combat-scene-result">🏆 ${escapeHtml(battle.winner||'')}</div><div class="combat-fighter-scene a"></div><div class="combat-fighter-scene b"></div></div><div class="combat-params">${combatantComparisonHtml(a,b,battle.a||'',battle.b||'')}<div class="combat-param"><b>Région</b>${escapeHtml(battle.region||'—')}</div><div class="combat-param"><b>Terrain</b>${escapeHtml(battle.terrain||'—')}</div><div class="combat-param"><b>Distance</b>${escapeHtml(battle.distanceLabel||'—')}${battle.distance!=null?` • ${battle.distance} m`:''}</div><div class="combat-param"><b>Informations</b>${escapeHtml(battle.knowledgeA||'—')} / ${escapeHtml(battle.knowledgeB||'—')}</div><div class="combat-param"><b>Chances avant tirage</b>${escapeHtml(battle.a||'A')} ${pa}% • ${escapeHtml(battle.b||'B')} ${100-pa}%</div></div></div>`;
   document.body.appendChild(m);m.querySelectorAll('[data-character-id]').forEach(el=>el.onclick=()=>openCharacterFromCombat(el.dataset.characterId));
   m.querySelectorAll('[data-combat-character]').forEach(el=>el.onclick=()=>openCharacterFromCombat(el.dataset.combatCharacter));
   m.querySelector('.combat-scene-top button').onclick=closeCombatScene;m.onclick=e=>{if(e.target===m)closeCombatScene()};
