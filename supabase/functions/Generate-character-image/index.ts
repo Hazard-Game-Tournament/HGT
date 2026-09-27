@@ -14,7 +14,7 @@ const WIDTH = 512;
 const HEIGHT = 1024;
 const VALIDATION_SCORE_MIN = 80;
 
-const SITE_BASE_URL = "https://piaultdamien-gif.github.io/Roue-de-la-fortune";
+const SITE_BASE_URL = "https://hazard-game-tournament.github.io/HGT";
 const RACE_ASSET_BASE = `${SITE_BASE_URL}/assets/universe/races`;
 const REGION_ASSET_BASE = `${SITE_BASE_URL}/assets/universe/regions`;
 
