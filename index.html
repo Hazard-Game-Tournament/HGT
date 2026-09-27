@@ -605,7 +605,7 @@ body.hgt-gated{overflow:hidden}
 <button id="universeTabBtn" class="tabbtn">🌌 Univers</button>
 </div>
 <div id="wheelTab" class="tabpage active">
-<div class="layout"><section class="panel left"><div class="top"><div class="title" id="taskTitle">Prêt</div><div class="pill" id="count">0 roue</div></div><div class="wheelwrap"><div class="pointer"></div><canvas id="wheel" width="760" height="760"></canvas></div><div class="result" id="result">Clique sur « Commencer »<small>Les sous-roues seront ajoutées automatiquement selon les résultats.</small></div><div class="controls"><button id="spinBtn">Commencer</button><button class="secondary" id="autoBtn">Auto : OFF</button><button class="secondary" id="resetBtn">Réinitialiser</button><button class="secondary" id="exportBtn">Exporter JSON</button><button class="secondary" id="prevCharBtn">← Précédent</button><button class="secondary" id="nextCharBtn">Suivant →</button></div><div class="note">✓ Hazard Game Tournament : génération, lignées, tournoi simulé combat par combat et Hall of Fame.</div></section>
+<div class="layout"><section class="panel left"><div class="top"><div class="title" id="taskTitle">Prêt</div><div class="pill" id="count">0 roue</div></div><div class="wheelwrap"><div class="pointer"></div><canvas id="wheel" width="760" height="760"></canvas></div><div class="result" id="result">Clique sur « Commencer »<small>Les sous-roues seront ajoutées automatiquement selon les résultats.</small></div><div class="controls"><button id="spinBtn">Commencer</button><button class="secondary" id="autoBtn">Auto : OFF</button><button class="secondary" id="resetBtn">Réinitialiser</button><button class="secondary" id="exportBtn">Exporter JSON</button></div><div class="note">✓ Hazard Game Tournament : génération, lignées, tournoi simulé combat par combat et Hall of Fame.</div></section>
 <aside class="panel right"><div class="section"><h3>Identité</h3><div class="kv" id="identity"></div></div><div class="section"><h3>🧬 Origines & lignée</h3><div class="kv" id="originsLineage"></div></div><div class="section"><h3>Stats</h3><div class="stats" id="stats"></div></div><div class="section"><h3>Pouvoirs & capacités</h3><div id="powers">—</div></div><div class="section"><h3>Armes</h3><div id="weapons">—</div></div><div class="section"><h3>Faiblesse</h3><div id="weakness">—</div></div><div class="section"><h3>Extra / bénédictions / malédictions</h3><div id="extra">—</div></div><div class="section"><h3>Apparence</h3><div id="appearance">—</div></div><div class="section"><h3>Historique exact</h3><div class="log" id="log"></div></div>
 
 </aside></div>
@@ -798,8 +798,6 @@ const spinBtn=document.getElementById('spinBtn');
 const autoBtn=document.getElementById('autoBtn');
 const resetBtn=document.getElementById('resetBtn');
 const exportBtn=document.getElementById('exportBtn');
-const prevCharBtn=document.getElementById('prevCharBtn');
-const nextCharBtn=document.getElementById('nextCharBtn');
 const taskTitle=document.getElementById('taskTitle');
 const count=document.getElementById('count');
 const result=document.getElementById('result');
@@ -1589,6 +1587,8 @@ function newCharacterAtCurrentId(){
   const selectedDesc=null;
   taskTitle.textContent='Prêt';
   count.textContent='0 roue';
+  spinBtn.textContent='Commencer';
+  spinBtn.disabled=false;
   if(seasonNumber>1 && !tournamentChampionForSeason(seasonNumber-1)){
     taskTitle.textContent='Saison verrouillée — tournoi à terminer ⚔️';
     spinBtn.textContent='⚔️ Voir le tournoi';
@@ -4590,8 +4590,6 @@ universeTabBtn.onclick=()=>showTab('universe');
 document.getElementById('createTournamentBtn').onclick=createTournament;
 document.getElementById('simulateTournamentPhaseBtn').onclick=()=>simulateTournamentBatch('round');
 document.getElementById('resetTournamentBtn').onclick=()=>{if(loadTournament()&&confirm('Effacer toute la progression du tournoi ?')){const oldT=loadTournament();localStorage.removeItem(TOURNAMENT_KEY);if(typeof cloudDeleteTournament==='function')cloudDeleteTournament(oldT?.season);renderTournament()}};
-prevCharBtn.onclick=()=>previousCharacter();
-nextCharBtn.onclick=()=>advanceCharacter();
 const resolveChildrenBtn=document.getElementById('resolveChildrenBtn');
 const selectDescBtn=document.getElementById('selectDescBtn');
 const importCharactersBtn=document.getElementById('importCharactersBtn');
