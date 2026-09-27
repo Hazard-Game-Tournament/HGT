@@ -4513,7 +4513,7 @@ function initHgtHomeMusic(){const a=document.getElementById('hgtHomeMusic'),b=do
 function hgtNeedsOnboarding(){return !!(cloudUser?.user_metadata?.hgt_new_account&&!cloudUser?.user_metadata?.hgt_tutorial_completed)}
 function enterHgt(){
  if(!cloudUser||!cloudProfile?.username)return;
- if(hgtNeedsOnboarding()&&!cloudGames.length){openCloudModal();cloudSetMessage('Bienvenue ! Crée ta première partie pour commencer le tutoriel.');return}
+ if(hgtNeedsOnboarding()&&!cloudGames.length){fadeOutHgtHomeMusic();document.getElementById('hgtEntry').hidden=true;document.body.classList.remove('hgt-gated');openCloudModal();cloudSetMessage('Bienvenue ! Crée ta première partie pour commencer le tutoriel.');return}
  fadeOutHgtHomeMusic();document.getElementById('hgtEntry').hidden=true;document.body.classList.remove('hgt-gated');updatePlayerPseudo();
  if(hgtNeedsOnboarding())setTimeout(()=>startHgtTutorial(false),250);
 }
@@ -4612,7 +4612,7 @@ function cloudStatus(text,kind=''){
 }
 function cloudSetMessage(text){const e=document.getElementById('cloudMessage');if(e)e.textContent=text}
 function openCloudModal(){document.getElementById('cloudModal')?.classList.add('active');renderCloudModal()}
-function closeCloudModal(){document.getElementById('cloudModal')?.classList.remove('active')}
+function closeCloudModal(){document.getElementById('cloudModal')?.classList.remove('active');if(hgtNeedsOnboarding()&&!cloudGames.length)leaveHgtGate()}
 function hasLocalUniverse(){return Object.keys(loadRoster()).length>0||Object.keys(descendants()).length>0||Object.keys(npcs()).length>0||!!loadTournament()}
 function localUniverseSnapshot(){return {at:new Date().toISOString(),season:seasonNumber,characterNumber,roster:loadRoster(),descendants:descendants(),npcs:npcs(),meta:universeMeta(),tournament:loadTournament()}}
 function saveEmergencyLocalBackup(){try{const snap=localUniverseSnapshot(),old=loadEmergencyLocalBackup();const useful=Object.keys(snap.roster||{}).length>0||!!snap.tournament||Object.keys(snap.meta?.champions||{}).length>0;if(useful||!old)localStorage.setItem(CLOUD_BACKUP_KEY,JSON.stringify(snap))}catch(e){console.warn('Backup local impossible',e)}}
@@ -4707,7 +4707,7 @@ async function cloudLogout(){if(cloudReady())try{await cloudSyncAllData()}catch(
 async function cloudCreateGame(){
   const name=prompt(hgtNeedsOnboarding()?'Donne un nom à ta première partie :':'Nom de la nouvelle partie :','Ma partie');if(name===null)return;
   const {data,error}=await cloudClient.from('games').insert({owner_id:cloudUser.id,name:(name.trim()||'Ma partie')}).select().single();
-  if(error){cloudSetMessage('Création impossible : '+error.message);return}await cloudRefreshGames();renderCloudModal();await cloudOpenGame(data.id,true);
+  if(error){cloudSetMessage('Création impossible : '+error.message);return}sessionStorage.setItem('hgt_start_tutorial_after_game','1');await cloudRefreshGames();renderCloudModal();await cloudOpenGame(data.id,true);
 }
 async function cloudRenameGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;const name=prompt('Nouveau nom :',g.name||'Partie');if(name===null||!name.trim())return;const {error}=await cloudClient.from('games').update({name:name.trim()}).eq('id',id);if(error){cloudSetMessage(error.message);return}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
 async function cloudDeleteGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;if(!confirm(`Supprimer définitivement la partie « ${g.name} » et toutes ses données en ligne ?`))return;const {error}=await cloudClient.from('games').delete().eq('id',id);if(error){cloudSetMessage(error.message);return}if(cloudCurrentGame?.id===id){cloudCurrentGame=null;localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY)}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
@@ -5193,6 +5193,7 @@ async function initCloud(){
   }
   cloudUpdateTopStatus();
   renderEntryGate();
+  if(sessionStorage.getItem('hgt_start_tutorial_after_game')==='1'&&cloudUser&&cloudProfile?.username&&cloudGames.length){sessionStorage.removeItem('hgt_start_tutorial_after_game');setTimeout(()=>enterHgt(),120)}
   if(cloudReady()) setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1800);
   cloudClient.auth.onAuthStateChange(async(_event,session)=>{if(_event==='PASSWORD_RECOVERY')hgtPasswordRecovery=true;cloudUser=session?.user||null;if(cloudUser&&!hgtPasswordRecovery){try{await loadCloudProfile();await cloudRefreshGames();if(cloudReady())setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1200)}catch(e){cloudSyncError(e)}}else if(!cloudUser){cloudGames=[];cloudCurrentGame=null;cloudProfile=null}cloudUpdateTopStatus();renderEntryGate();renderCloudModal()});
 }
