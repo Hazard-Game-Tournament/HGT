@@ -525,6 +525,23 @@ body.hgt-gated{overflow:hidden}
 .hgt-entry-sound{position:fixed;right:18px;bottom:18px;z-index:30002;width:44px;height:44px;border-radius:50%;border:1px solid #8a6756;background:rgba(10,7,11,.76);color:#ead3a0;font-size:20px;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 8px 28px #0008}.hgt-entry-sound:hover{border-color:#d2aa59}.hgt-entry-sound[hidden]{display:none!important}
 
 </style>
+
+<style>
+.combat-compare{margin:16px 0;border:1px solid rgba(216,170,118,.28);border-radius:16px;overflow:hidden;background:rgba(17,12,17,.82)}
+.combat-compare-head,.combat-compare-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,.8fr) minmax(0,1fr);align-items:center;text-align:center}
+.combat-compare-head{padding:13px 10px;background:rgba(113,28,39,.2);color:#ead1a4;gap:8px}
+.combat-compare-head strong:first-child,.combat-compare-row b:first-child{text-align:left}
+.combat-compare-head strong:last-child,.combat-compare-row b:last-child{text-align:right}
+.combat-compare-head span{font-size:.72em;letter-spacing:.08em;opacity:.8}
+.combat-compare-row{padding:10px 14px;border-top:1px solid rgba(216,170,118,.13);gap:8px}
+.combat-compare-row span{color:#d9bd8b}
+.combat-compare-row b{font-size:1.05em}
+.combat-compare-masteries{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;padding:14px;border-top:1px solid rgba(216,170,118,.2)}
+.combat-compare-masteries>div:first-child{text-align:left}.combat-compare-masteries>div:last-child{text-align:right}
+.combat-compare-masteries>span{align-self:center;color:#d9bd8b;font-weight:700}
+.combat-compare-masteries small{color:#d9bd8b;letter-spacing:.08em}
+@media(max-width:520px){.combat-compare-head,.combat-compare-row{grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr);font-size:.88em}.combat-compare-row{padding:9px 10px}.combat-compare-masteries{font-size:.84em}}
+</style>
 </head><body class="hgt-gated"><div id="hgtEntry">
   <audio id="hgtHomeMusic" src="assets/audio/echoes-of-vaeloria.mp3" loop preload="auto"></audio>
   <button id="hgtHomeSound" class="hgt-entry-sound" type="button" aria-label="Couper la musique" title="Couper la musique">🔊</button>
@@ -4071,13 +4088,38 @@ function closeCombatScene(){
 async function combatScenePortrait(target,id){
   try{const f=await getIllustration(id);if(!f)return;const u=URL.createObjectURL(f);__combatSceneUrls.push(u);const img=document.createElement('img');img.src=u;target.prepend(img)}catch(e){}
 }
+
+function combatantComparisonHtml(ca,cb){
+  ca=ca||{};cb=cb||{};
+  const sa=ca.stats||{},sb=cb.stats||{};
+  const rows=[
+    ['⚔️','Combat','combat'],['💪','Force','force'],['🧠','Intelligence','intelligence'],
+    ['🛡️','Résilience','resilience'],['⚡','Vitesse','vitesse'],['✨','Pouvoir','pouvoir'],['🗡️','Arme','arme']
+  ];
+  const statVal=(o,k)=>{
+    const keys=[k,k[0].toUpperCase()+k.slice(1),k==='resilience'?'résilience':k==='pouvoir'?'power':k==='arme'?'weapon':k];
+    for(const x of keys)if(o?.[x]!=null)return o[x];
+    return '—'
+  };
+  const mastery=(c)=>{
+    const out=[];
+    (Array.isArray(c?.powers)?c.powers:[]).forEach(x=>{const n=x?.name||x?.power||x?.label;if(n)out.push(`${escapeHtml(n)}${x?.mastery!=null?` <b>${escapeHtml(String(x.mastery))}</b>`:''}`)});
+    (Array.isArray(c?.weapons)?c.weapons:[]).forEach(x=>{const n=x?.name||x?.weapon||x?.label;if(n)out.push(`${escapeHtml(n)}${x?.mastery!=null?` <b>${escapeHtml(String(x.mastery))}</b>`:''}`)});
+    return out.length?out.join('<br>'):'—'
+  };
+  return `<div class="combat-compare">
+    <div class="combat-compare-head"><strong>${escapeHtml(ca.name||'Combattant A')}</strong><span>CARACTÉRISTIQUES</span><strong>${escapeHtml(cb.name||'Combattant B')}</strong></div>
+    ${rows.map(([ico,label,key])=>`<div class="combat-compare-row"><b>${escapeHtml(String(statVal(sa,key)))}</b><span>${ico} ${label}</span><b>${escapeHtml(String(statVal(sb,key)))}</b></div>`).join('')}
+    <div class="combat-compare-masteries"><div><small>MAÎTRISES</small><br>${mastery(ca)}</div><span>VS</span><div><small>MAÎTRISES</small><br>${mastery(cb)}</div></div>
+  </div>`;
+}
 function openCombatScene(battle,roster=loadRoster()){
   closeCombatScene();if(!battle)return;
   const regionSlug=battle.regionSlug||String(battle.region||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   const m=document.createElement('div');m.id='combatSceneModal';m.className='combat-scene-modal open';
   const a=roster[battle.a]||battle.characterA||{},b=roster[battle.b]||battle.characterB||{};
   const pa=Math.round((Number(battle.probA)||.5)*100);
-  m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">⚔️ ${escapeHtml(battle.region||'Combat')}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="combat-stage" style="background-image:url('assets/universe/regions/${escapeHtml(regionSlug)}.webp')"><div class="combat-scene-result">🏆 ${escapeHtml(battle.winner||'')}</div><div class="combat-fighter-scene a"><span class="combat-fighter-name">${escapeHtml(a.name||battle.a||'Combattant 1')}</span></div><div class="combat-fighter-scene b"><span class="combat-fighter-name">${escapeHtml(b.name||battle.b||'Combattant 2')}</span></div></div><div class="combat-params"><div class="combat-param"><b>Région</b>${escapeHtml(battle.region||'—')}</div><div class="combat-param"><b>Terrain</b>${escapeHtml(battle.terrain||'—')}</div><div class="combat-param"><b>Distance</b>${escapeHtml(battle.distanceLabel||'—')}${battle.distance!=null?` • ${battle.distance} m`:''}</div><div class="combat-param"><b>Informations</b>${escapeHtml(battle.knowledgeA||'—')} / ${escapeHtml(battle.knowledgeB||'—')}</div><div class="combat-param"><b>Chances avant tirage</b>${escapeHtml(battle.a||'A')} ${pa}% • ${escapeHtml(battle.b||'B')} ${100-pa}%</div></div></div>`;
+  m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">⚔️ ${escapeHtml(battle.region||'Combat')}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="combat-stage" style="background-image:url('assets/universe/regions/${escapeHtml(regionSlug)}.webp')"><div class="combat-scene-result">🏆 ${escapeHtml(battle.winner||'')}</div><div class="combat-fighter-scene a"><span class="combat-fighter-name">${escapeHtml(a.name||battle.a||'Combattant 1')}</span></div><div class="combat-fighter-scene b"><span class="combat-fighter-name">${escapeHtml(b.name||battle.b||'Combattant 2')}</span></div></div><div class="combat-params">${combatantComparisonHtml(ca,cb)}<div class="combat-param"><b>Région</b>${escapeHtml(battle.region||'—')}</div><div class="combat-param"><b>Terrain</b>${escapeHtml(battle.terrain||'—')}</div><div class="combat-param"><b>Distance</b>${escapeHtml(battle.distanceLabel||'—')}${battle.distance!=null?` • ${battle.distance} m`:''}</div><div class="combat-param"><b>Informations</b>${escapeHtml(battle.knowledgeA||'—')} / ${escapeHtml(battle.knowledgeB||'—')}</div><div class="combat-param"><b>Chances avant tirage</b>${escapeHtml(battle.a||'A')} ${pa}% • ${escapeHtml(battle.b||'B')} ${100-pa}%</div></div></div>`;
   document.body.appendChild(m);m.querySelector('.combat-scene-top button').onclick=closeCombatScene;m.onclick=e=>{if(e.target===m)closeCombatScene()};
   combatScenePortrait(m.querySelector('.combat-fighter-scene.a'),battle.a);combatScenePortrait(m.querySelector('.combat-fighter-scene.b'),battle.b);
 }
