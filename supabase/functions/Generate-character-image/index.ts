@@ -245,16 +245,20 @@ async function callGemini(
   apiKey: string,
   systemInstruction: string,
   parts: any[],
-  opts: { maxTokens?: number; temperature?: number; timeoutMs?: number; timeoutAttempts?: number } = {},
+  opts: { maxTokens?: number; temperature?: number; timeoutMs?: number; timeoutAttempts?: number; maxAttempts?: number; retryStatuses?: number[]; retryDelayMs?: number; deadlineAt?: number } = {},
 ) {
-  const maxAttempts = 3;
+  const maxAttempts = Math.max(1, Number(opts.maxAttempts ?? 3));
+  const retryStatuses = Array.isArray(opts.retryStatuses) ? opts.retryStatuses : [429];
   const maxTimeoutAttempts = Math.max(1, Number(opts.timeoutAttempts ?? 1));
   let timeoutAttempt = 0;
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const controller = new AbortController();
-    const timeoutMs = Math.max(5000, Number(opts.timeoutMs ?? 25000));
+    const requestedTimeoutMs = Math.max(5000, Number(opts.timeoutMs ?? 25000));
+    const remainingMs = opts.deadlineAt ? opts.deadlineAt - Date.now() : Number.POSITIVE_INFINITY;
+    if (remainingMs <= 6000) throw new Error("Gemini annulé : budget temps Edge Function insuffisant.");
+    const timeoutMs = Math.max(5000, Math.min(requestedTimeoutMs, remainingMs - 5000));
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let r: Response;
     try {
@@ -294,11 +298,11 @@ async function callGemini(
       const text = geminiText(data);
       if (text) return { text, data };
       if (attempt === maxAttempts) throw new Error("Gemini a renvoyé une réponse vide.");
-    } else if (r.status !== 429 || attempt === maxAttempts) {
+    } else if (!retryStatuses.includes(r.status) || attempt === maxAttempts) {
       throw new Error(`Gemini ${r.status}: ${data?.error?.message || raw.slice(0, 500)}`);
     }
 
-    const delayMs = attempt * 2000;
+    const delayMs = Math.max(0, Number(opts.retryDelayMs ?? (attempt * 2000)));
     console.log(`GEMINI_RETRY attempt=${attempt}/${maxAttempts} status=${r.status} delay=${delayMs}ms`);
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
@@ -314,7 +318,7 @@ function localFallbackCloudflare3030(originalPrompt: string) {
   return `${neutralContext}\n\n${originalPrompt}`.slice(0, 12000);
 }
 
-async function reformulateCloudflare3030(apiKey: string, originalPrompt: string) {
+async function reformulateCloudflare3030(apiKey: string, originalPrompt: string, deadlineAt?: number) {
   const system = `You rewrite image-generation prompts only when Cloudflare FLUX has rejected them with safety code 3030.
 Preserve the character and scene exactly. Do not remove, weaken, invent, or alter any factual characteristic from the source prompt: race/species, anatomy, number of limbs, apparent age, gender presentation, body type, colors, clothing, weapons, powers, transformations, pose requirements, regional identity, environment, and mandatory visual traits must remain semantically unchanged.
 Your only task is to replace wording that may cause a false-positive safety filter with neutral, concrete, non-graphic visual language.
@@ -326,6 +330,7 @@ Return strict JSON only: {"prompt":"..."}.`;
     maxTokens: 7000,
     temperature: 0.1,
     timeoutMs: 30000,
+    deadlineAt,
   });
 
   const parsed = parseLooseJson(text);
@@ -334,7 +339,7 @@ Return strict JSON only: {"prompt":"..."}.`;
   return rewritten.slice(0, 12000);
 }
 
-async function buildDirectorPrompt(apiKey: string, character: any) {
+async function buildDirectorPrompt(apiKey: string, character: any, deadlineAt?: number) {
   const system = `You are the art director for a procedural dark-fantasy / science-fiction character generator.
 Your job is to convert raw character JSON into a concise, highly effective English image prompt for FLUX.2 Klein 4B.
 
@@ -460,7 +465,7 @@ Return ONLY valid JSON with this exact structure:
   const canonRules = superiorCanonVisualContract(character);
   const user = `CHARACTER JSON:\n${JSON.stringify(character, null, 2)}\n\nMANDATORY CANONICAL RACIAL VISUAL CONTRACT (derived from the project race lore for this character only):\n${canonRules.length ? canonRules.map((x, i) => `${i + 1}. ${x}`).join("\\n") : "No additional superior-lineage visual rule applies."}\n\nThe CHARACTER JSON remains authoritative for generated individual facts. If CHARACTER JSON contains racialVisualTraits, every entry is authoritative character-specific canon, MUST be treated as CRITICAL, and MUST be transferred losslessly into flux_prompt. The canonical racial contract is also authoritative for mandatory racial anatomy/identity. If these sources can coexist, preserve all of them; never weaken racialVisualTraits.`;
 
-  const { text, data } = await callGemini(apiKey, system, [{ text: user }], { maxTokens: 4500, temperature: 0.2, timeoutMs: 60000, timeoutAttempts: 2 });
+  const { text, data } = await callGemini(apiKey, system, [{ text: user }], { maxTokens: 4500, temperature: 0.2, timeoutMs: 45000, timeoutAttempts: 1, maxAttempts: 2, retryStatuses: [429, 503], retryDelayMs: 2000, deadlineAt });
   const parsed = parseLooseJson(text);
   const fluxPrompt = String(parsed?.flux_prompt || extractFluxPromptFromText(text) || "").trim();
   if (!fluxPrompt) {
@@ -769,6 +774,7 @@ async function generateFlux(
   prompt: string,
   seed: number,
   refs: { blob: Blob; name: string }[],
+  deadlineAt?: number,
 ) {
   const endpoint = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/${model}`;
 
@@ -787,7 +793,10 @@ async function generateFlux(
 }
 
     const controller = new AbortController();
-    const fluxTimer = setTimeout(() => controller.abort(), 80000);
+    const remainingMs = deadlineAt ? deadlineAt - Date.now() : 85000;
+    if (remainingMs <= 6000) throw new Error("Cloudflare FLUX annulé : budget temps Edge Function insuffisant.");
+    const fluxTimeoutMs = Math.max(5000, Math.min(80000, remainingMs - 5000));
+    const fluxTimer = setTimeout(() => controller.abort(), fluxTimeoutMs);
     let r: Response;
     try {
       r = await fetch(endpoint, {
@@ -797,7 +806,7 @@ async function generateFlux(
         signal: controller.signal,
       });
     } catch (e: any) {
-      if (e?.name === "AbortError") throw new Error("Cloudflare FLUX timeout après 80 s");
+      if (e?.name === "AbortError") throw new Error(`Cloudflare FLUX timeout après ${Math.round(fluxTimeoutMs / 1000)} s`);
       throw e;
     } finally {
       clearTimeout(fluxTimer);
@@ -835,7 +844,9 @@ async function generateFlux(
     let reformulated: string;
     let reformulationSource = "gemini";
     try {
-      reformulated = await reformulateCloudflare3030(geminiApiKey, prompt);
+      const remainingForRewrite = deadlineAt ? deadlineAt - Date.now() : Number.POSITIVE_INFINITY;
+      if (remainingForRewrite < 45000) throw new Error("Budget restant trop court pour une reformulation Gemini avant le retry FLUX.");
+      reformulated = await reformulateCloudflare3030(geminiApiKey, prompt, deadlineAt ? deadlineAt - 15000 : undefined);
     } catch (rewriteError: any) {
       reformulationSource = "local_fallback";
       reformulated = localFallbackCloudflare3030(prompt);
@@ -865,6 +876,7 @@ Deno.serve(async (req) => {
 
   try {
     const requestStartedAt = Date.now();
+    const generationDeadlineAt = requestStartedAt + 220000; // marge de 20 s avant la limite Edge de 240 s
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -978,7 +990,7 @@ Deno.serve(async (req) => {
 
     if (character) {
       try {
-        director = await buildDirectorPrompt(GEMINI_API_KEY, character);
+        director = await buildDirectorPrompt(GEMINI_API_KEY, character, Math.min(generationDeadlineAt, requestStartedAt + 100000));
         if (!incomingCorrectionPrompt) fluxPrompt = director.fluxPrompt;
       } catch (e: any) {
         warnings.push(`Gemini director unavailable: ${String(e?.message || e).slice(0, 300)}`);
@@ -1036,7 +1048,7 @@ The region reference guides environmental vocabulary: characteristic terrain, ma
 Keep the final image recognizably consistent with the canonical identities while giving this character a distinct composition.`;
     }
 
-    const first = await generateFlux(CF_ACCOUNT_ID, CF_TOKEN, GEMINI_API_KEY, model, fluxPrompt, seed, refs);
+    const first = await generateFlux(CF_ACCOUNT_ID, CF_TOKEN, GEMINI_API_KEY, model, fluxPrompt, seed, refs, generationDeadlineAt);
 
     // Count neurons immediately after FLUX succeeds. This remains accurate even if
     // the browser disconnects or the optional Gemini QA step later times out.
