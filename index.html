@@ -154,6 +154,7 @@
 .cloud-bar{max-width:1500px;margin:10px auto 0;padding:0 18px;display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap}
 .cloud-status{background:#121116;border:1px solid #4b3845;border-radius:999px;padding:7px 11px;color:#b9afa8;font-size:12px}
 .cloud-status.online{color:#cfe5d0;border-color:#355f42}.cloud-status.syncing{color:#e4cf9e;border-color:#7c6235}.cloud-status.error{color:#f0b5b5;border-color:#8d3434}
+.cloud-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.cloud-bar .account-actions{display:flex;align-items:center;gap:7px}.cloud-bar .account-actions .tabbtn{margin:0}.cloud-status .sync-dot{font-size:15px;line-height:1;color:#8f8a8d}.cloud-status.online .sync-dot{color:#63c174}.cloud-status.syncing .sync-dot{color:#e0b85a}.cloud-status.error .sync-dot{color:#df6262}.cloud-status .sync-short{display:none}@media(max-width:760px){.cloud-status .sync-detail{display:none}.cloud-status .sync-short{display:inline}.cloud-status{padding:6px 9px}.cloud-bar .account-actions .tabbtn{padding:7px 9px}.cloud-bar .account-actions #communityTabBtn{font-size:0}.cloud-bar .account-actions #communityTabBtn::before{content:"💬";font-size:16px}.cloud-bar .account-actions #communityTabBtn .hgt-badge{font-size:11px}.cloud-bar .account-actions #notificationBellBtn{font-size:16px}}
 .cloud-modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.78);display:none;align-items:flex-start;justify-content:center;padding:7vh 14px 30px;overflow:auto}
 .cloud-modal.active{display:flex}.cloud-card{width:min(720px,100%);background:linear-gradient(145deg,#1b171d,#0d0c10);border:1px solid #5a414b;border-radius:18px;padding:18px;box-shadow:0 24px 80px #000b}
 .cloud-card h2{margin:0 0 6px;font-family:Georgia,'Times New Roman',serif;color:#ead7b0}.cloud-card h3{font-family:Georgia,'Times New Roman',serif;color:#d9c18f}.cloud-form{display:grid;gap:9px;margin-top:14px}.cloud-form input{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #4a3c46}
@@ -581,7 +582,11 @@ body.hgt-gated{overflow:hidden}
 
 <div class="cloud-bar">
   <span id="playerPseudo" class="hgt-player-chip" hidden><span class="player-avatar" id="playerAvatar">👤</span><span id="playerPseudoText">—</span></span>
-  <span id="cloudStatus" class="cloud-status">☁️ Mode local</span>
+  <div class="account-actions">
+    <button id="communityTabBtn" class="tabbtn" type="button" title="Communauté">💬 Communauté <span id="communityMainBadge" class="hgt-badge"></span></button>
+    <button id="notificationBellBtn" class="tabbtn notification-bell" type="button" title="Notifications">🔔 <span id="notificationBadge" class="hgt-badge"></span></button>
+  </div>
+  <span id="cloudStatus" class="cloud-status"><span class="sync-dot">●</span> <span class="sync-short">Synchro</span><span class="sync-detail">Mode local</span></span>
 </div>
 <div id="cloudModal" class="cloud-modal" aria-hidden="true">
   <div class="cloud-card">
@@ -613,7 +618,6 @@ body.hgt-gated{overflow:hidden}
   </div>
 </div>
 <button id="universeTabBtn" class="tabbtn">🌌 Univers</button>
-<button id="communityTabBtn" class="tabbtn">💬 Communauté <span id="communityMainBadge" class="hgt-badge"></span></button><button id="notificationBellBtn" class="tabbtn notification-bell" type="button" title="Notifications">🔔 <span id="notificationBadge" class="hgt-badge"></span></button>
 </div>
 
 <div id="communityTab" class="tabpage">
@@ -4895,10 +4899,10 @@ function renderProfileModal(){
  const champs=championHistory(),roster=loadRoster(),selected=cloudProfile?.avatar_champion_id||'';
  const selectedChampion=champs.find(x=>x.id===selected),selectedName=selectedChampion?(roster[selected]?.name||selectedChampion.name||selected):'Aucune icône sélectionnée';
  const choices=champs.length?champs.map(ch=>{const c=roster[ch.id]||{},hasPortrait=!!(c?.imageGeneration?.championPath||c?.imageGeneration?.selectedPortrait);return `<button type="button" class="profile-avatar-choice ${selected===ch.id?'selected':''}" data-avatar-choice="${escapeHtml(ch.id)}" ${hasPortrait?'':'disabled'}><span class="champion-mini" data-profile-avatar-id="${escapeHtml(ch.id)}">${hasPortrait?'🏆':'—'}</span><small>${escapeHtml(c.name||ch.name||ch.id)}</small><small class="muted">S${Number(ch.season)||'?'}</small></button>`}).join(''):'<div class="muted">Aucun Champion disponible pour le moment.</div>';
- root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div id="profileNeuronUsage" class="profile-option" style="display:block"><b>⚡ Neurons globaux aujourd’hui</b><div class="muted">Chargement du compteur…</div></div><div class="profile-avatar-current"><button type="button" class="player-avatar" id="profileCurrentAvatar" aria-label="Changer l’icône de profil" title="Changer l’icône">👤</button><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div class="muted" style="margin:-4px 0 12px">Clique sur ton icône ci-dessus pour choisir un Champion et régler son cadrage.</div><label class="profile-option"><span class="profile-option-copy"><b>Masquer les sous-roues uniquement</b><small>Les tirages secondaires restent effectués normalement, mais leur animation n’est pas affichée. Les roues principales restent visibles.</small></span><input id="prefHideSubwheels" type="checkbox" ${hideSubwheelsEnabled()?'checked':''}></label><div class="cloud-row" style="margin-top:14px"><button id="profileFriendsBtn">👥 Amis</button><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
+ root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div id="profileNeuronUsage" class="profile-option" style="display:block"><b>⚡ Neurons globaux aujourd’hui</b><div class="muted">Chargement du compteur…</div></div><div class="profile-avatar-current"><button type="button" class="player-avatar" id="profileCurrentAvatar" aria-label="Changer l’icône de profil" title="Changer l’icône">👤</button><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div class="muted" style="margin:-4px 0 12px">Clique sur ton icône ci-dessus pour choisir un Champion et régler son cadrage.</div><label class="profile-option"><span class="profile-option-copy"><b>Masquer les sous-roues uniquement</b><small>Les tirages secondaires restent effectués normalement, mais leur animation n’est pas affichée. Les roues principales restent visibles.</small></span><input id="prefHideSubwheels" type="checkbox" ${hideSubwheelsEnabled()?'checked':''}></label><div class="cloud-row" style="margin-top:14px"><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
  refreshProfileNeuronUsage(root);
  root.querySelector('#prefHideSubwheels').onchange=e=>setHideSubwheels(e.target.checked);
- root.querySelector('#profileFriendsBtn').onclick=openFriendsModal;root.querySelector('#profileGamesBtn').onclick=()=>{closeProfileModal();openCloudModal()};
+ root.querySelector('#profileGamesBtn').onclick=()=>{closeProfileModal();openCloudModal()};
  root.querySelector('#profileSyncBtn').onclick=async()=>{const m=root.querySelector('#profileMessage');m.textContent='Synchronisation…';try{await cloudSyncAllData();m.textContent='Synchronisation terminée ✓'}catch(e){m.textContent='Erreur : '+(e.message||e)}};
  root.querySelector('#profileBugBtn').onclick=()=>renderBugReportForm(root);
  root.querySelector('#profileLogoutBtn').onclick=cloudLogout;
@@ -4924,7 +4928,10 @@ async function submitBugReport(){
 }
 function cloudStatus(text,kind=''){
   const el=document.getElementById('cloudStatus');if(!el)return;
-  el.textContent=text;el.className='cloud-status'+(kind?' '+kind:'');
+  const detail=String(text||'').replace(/^☁️\s*/, '');
+  el.className='cloud-status'+(kind?' '+kind:'');
+  el.title=detail;
+  el.innerHTML=`<span class="sync-dot">●</span> <span class="sync-short">Synchro</span><span class="sync-detail">${escapeHtml(detail)}</span>`;
 }
 function cloudSetMessage(text){const e=document.getElementById('cloudMessage');if(e)e.textContent=text}
 function openCloudModal(){document.getElementById('cloudModal')?.classList.add('active');renderCloudModal()}
