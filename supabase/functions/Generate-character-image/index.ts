@@ -245,9 +245,11 @@ async function callGemini(
   apiKey: string,
   systemInstruction: string,
   parts: any[],
-  opts: { maxTokens?: number; temperature?: number; timeoutMs?: number } = {},
+  opts: { maxTokens?: number; temperature?: number; timeoutMs?: number; timeoutAttempts?: number } = {},
 ) {
   const maxAttempts = 3;
+  const maxTimeoutAttempts = Math.max(1, Number(opts.timeoutAttempts ?? 1));
+  let timeoutAttempt = 0;
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -271,7 +273,14 @@ async function callGemini(
       }),
       });
     } catch (e: any) {
-      if (e?.name === "AbortError") throw new Error(`Gemini timeout après ${Math.round(timeoutMs/1000)} s`);
+      if (e?.name === "AbortError") {
+        timeoutAttempt++;
+        if (timeoutAttempt < maxTimeoutAttempts) {
+          console.log(`GEMINI_TIMEOUT_RETRY attempt=${timeoutAttempt}/${maxTimeoutAttempts} timeout=${Math.round(timeoutMs/1000)}s`);
+          continue;
+        }
+        throw new Error(`Gemini timeout après ${Math.round(timeoutMs/1000)} s (${timeoutAttempt} tentative${timeoutAttempt > 1 ? "s" : ""})`);
+      }
       throw e;
     } finally {
       clearTimeout(timer);
@@ -451,7 +460,7 @@ Return ONLY valid JSON with this exact structure:
   const canonRules = superiorCanonVisualContract(character);
   const user = `CHARACTER JSON:\n${JSON.stringify(character, null, 2)}\n\nMANDATORY CANONICAL RACIAL VISUAL CONTRACT (derived from the project race lore for this character only):\n${canonRules.length ? canonRules.map((x, i) => `${i + 1}. ${x}`).join("\\n") : "No additional superior-lineage visual rule applies."}\n\nThe CHARACTER JSON remains authoritative for generated individual facts. If CHARACTER JSON contains racialVisualTraits, every entry is authoritative character-specific canon, MUST be treated as CRITICAL, and MUST be transferred losslessly into flux_prompt. The canonical racial contract is also authoritative for mandatory racial anatomy/identity. If these sources can coexist, preserve all of them; never weaken racialVisualTraits.`;
 
-  const { text, data } = await callGemini(apiKey, system, [{ text: user }], { maxTokens: 4500, temperature: 0.2, timeoutMs: 25000 });
+  const { text, data } = await callGemini(apiKey, system, [{ text: user }], { maxTokens: 4500, temperature: 0.2, timeoutMs: 60000, timeoutAttempts: 2 });
   const parsed = parseLooseJson(text);
   const fluxPrompt = String(parsed?.flux_prompt || extractFluxPromptFromText(text) || "").trim();
   if (!fluxPrompt) {
