@@ -1144,6 +1144,7 @@ function weaponOptionsForCurrent(forceRanged=false){return finalDragonComponent(
 function attachWeaponTraits(w,system='classic'){w.weaponSystem=system;w.mandatoryWeaponTraits=weaponTraitsFor(w.name,system);return w}
 function weaponVisualTraitsFromCharacter(c){const out=[];for(const w of (c?.weapons||[])){let system=w.weaponSystem||'classic';if(w.racial&&!w.weaponSystem){const comp=c?.lineage?.primaryComponent;system=comp?.race==='Cyborg'&&Number(comp?.power)<50?'cyborg':'neoxus'}if(DRAGON_TAIL_WEAPONS.includes(w.name))system='dragon-tail';const traits=(w.mandatoryWeaponTraits?.length?w.mandatoryWeaponTraits:weaponTraitsFor(w.name,system));if(traits.length)out.push(...traits.map(t=>`${w.name}: ${t}`))}return out;}
 function weaponHandlingRulesFromCharacter(c){
+  const normText=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const ws=(c?.weapons||[]).filter(w=>w?.name&&normText(w.name)!=='aucune arme');
   if(ws.length<2)return [];
   const twoHanded=n=>{const x=normText(n);return ['epee a deux mains','hache a deux mains','marteau de guerre','lance','hallebarde','faux','baton','arc','arbalete','fusil','fusil de precision','fusil a pompe','mitrailleuse','lance-roquettes'].some(k=>x.includes(k))};
