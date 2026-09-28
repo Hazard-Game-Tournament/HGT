@@ -297,6 +297,14 @@ async function callGemini(
   throw new Error("Gemini indisponible après plusieurs tentatives.");
 }
 
+function localFallbackCloudflare3030(originalPrompt: string) {
+  // Fallback used only when the optional Gemini rewrite is unavailable.
+  // Keep the source prompt intact and add neutral rendering context instead of
+  // deleting or changing any character fact.
+  const neutralContext = `Non-graphic fictional character concept art. Depict the supplied character and scene faithfully as a clothed, non-sexualized, non-graphic fantasy/science-fiction illustration. Any combat, weapon, supernatural, anatomical, transformation, or dark-fantasy element is purely fictional and should be shown without gore, injury detail, nudity, or sexual content. Preserve every factual visual requirement below exactly.`;
+  return `${neutralContext}\n\n${originalPrompt}`.slice(0, 12000);
+}
+
 async function reformulateCloudflare3030(apiKey: string, originalPrompt: string) {
   const system = `You rewrite image-generation prompts only when Cloudflare FLUX has rejected them with safety code 3030.
 Preserve the character and scene exactly. Do not remove, weaken, invent, or alter any factual characteristic from the source prompt: race/species, anatomy, number of limbs, apparent age, gender presentation, body type, colors, clothing, weapons, powers, transformations, pose requirements, regional identity, environment, and mandatory visual traits must remain semantically unchanged.
@@ -815,16 +823,29 @@ async function generateFlux(
       referenceCount: refs.length,
     }));
 
-    const reformulated = await reformulateCloudflare3030(geminiApiKey, prompt);
+    let reformulated: string;
+    let reformulationSource = "gemini";
+    try {
+      reformulated = await reformulateCloudflare3030(geminiApiKey, prompt);
+    } catch (rewriteError: any) {
+      reformulationSource = "local_fallback";
+      reformulated = localFallbackCloudflare3030(prompt);
+      console.warn("CLOUDFLARE_3030_GEMINI_REWRITE_FAILED", JSON.stringify({
+        error: String(rewriteError?.message || rewriteError).slice(0, 500),
+        fallbackPromptLength: reformulated.length,
+      }));
+    }
 
-    console.log("CLOUDFLARE_3030_RETRY_AFTER_GEMINI", JSON.stringify({
+    console.log("CLOUDFLARE_3030_RETRY_AFTER_REFORMULATION", JSON.stringify({
+      source: reformulationSource,
       originalPromptLength: prompt.length,
       reformulatedPromptLength: reformulated.length,
       referenceCount: refs.length,
     }));
 
-    // Exactly one FLUX retry after Gemini reformulation. Keep the same references;
-    // if this retry is also rejected, propagate the Cloudflare error to the client.
+    // Exactly one FLUX retry after the 3030. Keep the same references.
+    // If Gemini is unavailable, the local neutral-context fallback is used.
+    // If this FLUX retry is also rejected, propagate the Cloudflare error.
     return await run(reformulated, seed + 1, true);
   }
 }
