@@ -15,7 +15,72 @@ const publicMatch=async(m:any)=>{if(!m)return null;const ids=[m.player1_id,m.pla
 const requireProfile=async()=>{const p=await profile(user.id);if(!p?.username)throw new Error('Crée un pseudo avant de lancer un duel en ligne.');return p};
 const stats=async()=>{const {data}=await db.from('multiplayer_duel_stats').select('victories,defeats,recent_duels').eq('user_id',user.id).maybeSingle();return data||{victories:0,defeats:0,recent_duels:[]}};
 if(['status','search','select_champion','resolve','private_create'].includes(action))await requireProfile();
-if(action==='private_create'){const inviteId=String(body?.inviteId||'');if(!inviteId)return out({error:'inviteId obligatoire.'},400);const {data:inv,error:ie}=await db.from('hgt_game_invites').select('id,sender_id,target_id,mode,status,expires_at').eq('id',inviteId).maybeSingle();if(ie||!inv)return out({error:'Invitation introuvable.'},404);if(inv.status!=='accepted')return out({error:"L'invitation n'est pas acceptée."},409);if(inv.mode!=='duel')return out({error:'Mode d’invitation incorrect.'},400);if(inv.sender_id!==user.id&&inv.target_id!==user.id)return out({error:'Invitation non autorisée.'},403);const other=inv.sender_id===user.id?inv.target_id:inv.sender_id;await db.from('multiplayer_duel_matches').delete().or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`).in('status',['waiting','matched','ready']);await db.from('multiplayer_duel_matches').delete().or(`player1_id.eq.${other},player2_id.eq.${other}`).in('status',['waiting','matched','ready']);const {data:existing}=await db.from('multiplayer_duel_matches').select('*').or(`player1_id.eq.${inv.sender_id},player2_id.eq.${inv.sender_id}`).or(`player1_id.eq.${inv.target_id},player2_id.eq.${inv.target_id}`).eq('status','matched').order('created_at',{ascending:false}).limit(1);if(existing?.[0]&&[existing[0].player1_id,existing[0].player2_id].includes(inv.sender_id)&&[existing[0].player1_id,existing[0].player2_id].includes(inv.target_id))return out({ok:true,status:'matched',match:await publicMatch(existing[0]),stats:await stats()});const {data:m,error}=await db.from('multiplayer_duel_matches').insert({player1_id:inv.sender_id,player2_id:inv.target_id,status:'matched'}).select().single();if(error)return out({error:'Impossible de créer le match privé : '+error.message},500);return out({ok:true,status:'matched',match:await publicMatch(m),stats:await stats()})}
+if(action==='private_create'){
+  const inviteId=String(body?.inviteId||'');
+  if(!inviteId)return out({error:'inviteId obligatoire.'},400);
+
+  const {data:inv,error:ie}=await db
+    .from('hgt_game_invites')
+    .select('id,sender_id,target_id,mode,status,expires_at')
+    .eq('id',inviteId)
+    .maybeSingle();
+
+  if(ie||!inv)return out({error:'Invitation introuvable.'},404);
+  if(inv.status!=='accepted')return out({error:"L'invitation n'est pas acceptée."},409);
+  if(inv.mode!=='duel')return out({error:'Mode d’invitation incorrect.'},400);
+  if(inv.sender_id!==user.id&&inv.target_id!==user.id)
+    return out({error:'Invitation non autorisée.'},403);
+
+  const pairFilter=
+    `and(player1_id.eq.${inv.sender_id},player2_id.eq.${inv.target_id}),`+
+    `and(player1_id.eq.${inv.target_id},player2_id.eq.${inv.sender_id})`;
+
+  const {data:existing,error:existingError}=await db
+    .from('multiplayer_duel_matches')
+    .select('*')
+    .or(pairFilter)
+    .in('status',['matched','ready','resolving'])
+    .order('created_at',{ascending:false})
+    .limit(1);
+
+  if(existingError)
+    return out({error:'Impossible de vérifier le match privé : '+existingError.message},500);
+
+  if(existing?.[0]){
+    return out({
+      ok:true,
+      status:existing[0].status,
+      match:await publicMatch(existing[0]),
+      stats:await stats()
+    });
+  }
+
+  const other=inv.sender_id===user.id?inv.target_id:inv.sender_id;
+
+  await db.from('multiplayer_duel_matches').delete()
+    .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
+    .eq('status','waiting');
+
+  await db.from('multiplayer_duel_matches').delete()
+    .or(`player1_id.eq.${other},player2_id.eq.${other}`)
+    .eq('status','waiting');
+
+  const {data:m,error}=await db
+    .from('multiplayer_duel_matches')
+    .insert({player1_id:inv.sender_id,player2_id:inv.target_id,status:'matched'})
+    .select()
+    .single();
+
+  if(error)
+    return out({error:'Impossible de créer le match privé : '+error.message},500);
+
+  return out({
+    ok:true,
+    status:'matched',
+    match:await publicMatch(m),
+    stats:await stats()
+  });
+}
 if(action==='status'){const {data,error}=await db.from('multiplayer_duel_matches').select('*').or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`).order('created_at',{ascending:false}).limit(1);if(error)return out({error:'Impossible de lire le matchmaking.'},500);const m=data?.[0]||null;return out({ok:true,status:m?.status||'idle',match:await publicMatch(m),stats:await stats()})}
 if(action==='cancel'){await db.from('multiplayer_duel_matches').delete().eq('player1_id',user.id).eq('status','waiting');return out({ok:true,status:'idle',stats:await stats()})}
 if(action==='search'){const {data:ex}=await db.from('multiplayer_duel_matches').select('*').or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`).in('status',['waiting','matched','ready','resolving']).order('created_at',{ascending:false}).limit(1);if(ex?.length)return out({ok:true,status:ex[0].status,match:await publicMatch(ex[0]),stats:await stats()});const {data:w}=await db.from('multiplayer_duel_matches').select('*').eq('status','waiting').neq('player1_id',user.id).order('created_at',{ascending:true}).limit(1);if(w?.[0]){const {data:m,error}=await db.from('multiplayer_duel_matches').update({player2_id:user.id,status:'matched',updated_at:new Date().toISOString()}).eq('id',w[0].id).eq('status','waiting').is('player2_id',null).select();if(error)return out({error:'Impossible de créer le duel.'},500);if(!m?.length)return out({ok:true,status:'retry'});return out({ok:true,status:'matched',match:await publicMatch(m[0]),stats:await stats()})}const {data:m,error}=await db.from('multiplayer_duel_matches').insert({player1_id:user.id,status:'waiting'}).select().single();if(error)return out({error:'Impossible de démarrer la recherche.'},500);return out({ok:true,status:'waiting',match:await publicMatch(m),stats:await stats()})}
