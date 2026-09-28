@@ -311,7 +311,7 @@ Return strict JSON only: {"prompt":"..."}.`;
     timeoutMs: 30000,
   });
 
-  const parsed = parseJsonLoose(text);
+  const parsed = parseLooseJson(text);
   const rewritten = String(parsed?.prompt || "").trim();
   if (!rewritten) throw new Error("Gemini n'a pas produit de reformulation exploitable après le code 3030.");
   return rewritten.slice(0, 12000);
