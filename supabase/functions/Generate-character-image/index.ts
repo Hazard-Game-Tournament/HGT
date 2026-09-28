@@ -241,23 +241,6 @@ function extractFluxPromptFromText(text: string): string | null {
   return v || null;
 }
 
-function neutralizeForCloudflare(prompt: string) {
-  // Fallback used ONLY after Cloudflare returns error 3030.
-  // Keep ordinary dark-fantasy visual vocabulary intact (blood, scars, wounds,
-  // injuries, bleeding, flesh, death, vampire, regeneration, etc.) so Flux can
-  // represent the JSON faithfully. Neutralize only unusually graphic/anatomical
-  // formulations that are more likely to trigger the provider filter.
-  return String(prompt || "")
-    .replace(/life[- ]?drain(?:ing)?/gi, "subtle dark arcane siphoning effect")
-    .replace(/extra organ nodules?/gi, "subtle unusual fantasy forms")
-    .replace(/layered tissue lumps?/gi, "layered fantasy forms")
-    .replace(/tissue lumps?/gi, "fantasy forms")
-    .replace(/organ nodules?/gi, "fantasy structures")
-    .replace(/thin translucent membranes?/gi, "soft translucent fantasy surfaces")
-    .replace(/restraint shackles/gi, "arcane connection")
-    .slice(0, 7000);
-}
-
 async function callGemini(
   apiKey: string,
   systemInstruction: string,
@@ -312,6 +295,26 @@ async function callGemini(
   }
 
   throw new Error("Gemini indisponible après plusieurs tentatives.");
+}
+
+async function reformulateCloudflare3030(apiKey: string, originalPrompt: string) {
+  const system = `You rewrite image-generation prompts only when Cloudflare FLUX has rejected them with safety code 3030.
+Preserve the character and scene exactly. Do not remove, weaken, invent, or alter any factual characteristic from the source prompt: race/species, anatomy, number of limbs, apparent age, gender presentation, body type, colors, clothing, weapons, powers, transformations, pose requirements, regional identity, environment, and mandatory visual traits must remain semantically unchanged.
+Your only task is to replace wording that may cause a false-positive safety filter with neutral, concrete, non-graphic visual language.
+Do not summarize the prompt. Do not shorten away requirements. Do not add safety commentary. Do not mention Cloudflare, moderation, filters, policy, or the rewrite itself.
+Return strict JSON only: {"prompt":"..."}.`;
+
+  const user = `Rewrite the following FLUX prompt while preserving every visual requirement and fact exactly:\n\n${originalPrompt}`;
+  const { text } = await callGemini(apiKey, system, [{ text: user }], {
+    maxTokens: 7000,
+    temperature: 0.1,
+    timeoutMs: 30000,
+  });
+
+  const parsed = parseJsonLoose(text);
+  const rewritten = String(parsed?.prompt || "").trim();
+  if (!rewritten) throw new Error("Gemini n'a pas produit de reformulation exploitable après le code 3030.");
+  return rewritten.slice(0, 12000);
 }
 
 async function buildDirectorPrompt(apiKey: string, character: any) {
@@ -744,6 +747,7 @@ function cloudflareErrorCode(data: any, raw: string) {
 async function generateFlux(
   cfAccountId: string,
   cfToken: string,
+  geminiApiKey: string,
   model: string,
   prompt: string,
   seed: number,
@@ -799,57 +803,30 @@ async function generateFlux(
   };
 
   try {
-  return await run(prompt);
-} catch (e: any) {
-  if (
-    String(e?.code) !== "3030" &&
-    !String(e?.message || "").includes("3030")
-  ) {
-    throw e;
-  }
-
-  const safer = neutralizeForCloudflare(prompt)
-    .replace(/without copying/gi, "with a fresh composition")
-    .replace(/do not copy/gi, "use character-specific")
-    .replace(/do not reproduce/gi, "choose fresh")
-    .replace(/do not closely imitate/gi, "choose a distinct")
-    .replace(/not composition templates/gi, "visual dictionaries")
-    .replace(/scene duplication/gi, "regional continuity");
-
-  console.log("CLOUDFLARE_3030_RETRY_WITH_REFERENCES", JSON.stringify({
-    originalPromptLength: prompt.length,
-    saferPromptLength: safer.length,
-    referenceCount: refs.length,
-  }));
-
-  try {
-    return await run(safer, seed + 1);
-  } catch (e2: any) {
+    return await run(prompt);
+  } catch (e: any) {
     const is3030 =
-      String(e2?.code) === "3030" ||
-      String(e2?.message || "").includes("3030");
+      String(e?.code) === "3030" ||
+      String(e?.message || "").includes("3030");
+    if (!is3030) throw e;
 
-    if (!is3030) {
-      throw e2;
-    }
+    console.log("CLOUDFLARE_3030_REFORMULATE_WITH_GEMINI", JSON.stringify({
+      originalPromptLength: prompt.length,
+      referenceCount: refs.length,
+    }));
 
-    try {
-      return await run(safer, seed + 2, false);
-    } catch (e3: any) {
-      console.log(
-        "CLOUDFLARE_3030_AFTER_NEUTRALIZE",
-        JSON.stringify({
-          characterPromptLength: prompt.length,
-          saferPromptLength: safer.length,
-          saferPreview: safer.slice(0, 1500),
-          error: String(e3?.message || e3),
-        }),
-      );
+    const reformulated = await reformulateCloudflare3030(geminiApiKey, prompt);
 
-      throw e3;
-    }
+    console.log("CLOUDFLARE_3030_RETRY_AFTER_GEMINI", JSON.stringify({
+      originalPromptLength: prompt.length,
+      reformulatedPromptLength: reformulated.length,
+      referenceCount: refs.length,
+    }));
+
+    // Exactly one FLUX retry after Gemini reformulation. Keep the same references;
+    // if this retry is also rejected, propagate the Cloudflare error to the client.
+    return await run(reformulated, seed + 1, true);
   }
-}
 }
   
 Deno.serve(async (req) => {
@@ -1029,7 +1006,7 @@ The region reference guides environmental vocabulary: characteristic terrain, ma
 Keep the final image recognizably consistent with the canonical identities while giving this character a distinct composition.`;
     }
 
-    const first = await generateFlux(CF_ACCOUNT_ID, CF_TOKEN, model, fluxPrompt, seed, refs);
+    const first = await generateFlux(CF_ACCOUNT_ID, CF_TOKEN, GEMINI_API_KEY, model, fluxPrompt, seed, refs);
 
     // Count neurons immediately after FLUX succeeds. This remains accurate even if
     // the browser disconnects or the optional Gemini QA step later times out.
