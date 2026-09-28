@@ -347,6 +347,9 @@ When racialVisualTraits says that one structure represents several domains, affi
 WEAPON VISUAL TRAITS — NON-NEGOTIABLE
 If the character JSON contains a weaponVisualTraits field, every item is an authoritative literal visual constraint for the generated weapon and MUST be classified as CRITICAL. Preserve the exact weapon category, construction, count, placement, integration and explicitly forbidden alternatives. Integrated Cyborg weapons must remain mechanically attached to the body; Neoxus weapons must remain techno-organic; draconic caudal weapons must be literal anatomical transformations of the tail and never handheld manufactured weapons.
 
+REGIONAL VISUAL IDENTITY — IMPORTANT, NOT A HARD ANATOMY GATE
+If the character JSON contains regionVisualIdentity, use those 2–3 markers together as the concise canonical visual vocabulary of the birthplace region. The environment should visibly read as that region rather than as a generic backdrop or as scenery inferred from the character's powers, clothing, profession or technology. Keep these markers SECONDARY to the character and do not expand them into additional invented lore. Do not turn each marker into a separate hard constraint: combine them naturally into one coherent background identity.
+
 MULTI-WEAPON PHYSICAL COHERENCE — NON-NEGOTIABLE
 If the character JSON contains weaponHandlingRules, every rule is CRITICAL. Two-handed weapons consume both normal hands while actively wielded. If a character owns two or more two-handed weapons, show only one actively wielded and keep the others fully separate, clearly identifiable, and plausibly stowed/carried. Never fuse distinct weapons into a hybrid object, never make them share structural parts, and never invent extra arms/hands/limbs to solve weapon handling. Preserve exact racial limb counts.
 
@@ -494,6 +497,9 @@ Rules:
 - Any corrected_flux_prompt must also be written as natural, coherent descriptive prose with complete sentences/connected clauses, not as a stack of keywords or tags. Weave the required corrections into the visual narrative.
 - Keep corrected prompts CHARACTER-FIRST as well: devote most fine detail to the character's anatomy, face, racial markers, clothing materials/layers, equipment and visible supernatural traits. Keep the environment identifiable but comparatively concise, and never let scenery consume detail that should belong to the character.
 
+REGIONAL IDENTITY CHECK — ONE GLOBAL CHECK, NOT A HARD GATE:
+If SOURCE CHARACTER JSON contains regionVisualIdentity, evaluate the environment once as `region_identity`. Judge whether the background as a whole convincingly expresses the supplied regional markers and avoids a contradictory generic identity. Use pass / weak / missing / wrong. This is an important quality check, but it does NOT automatically force critical_pass=false by itself. A weak/missing/wrong regional identity should meaningfully reduce the score and, when correction is requested, corrected_flux_prompt must restore the region using the supplied markers concisely without overwhelming the character. Do not create region_1, region_2, etc. checks.
+
 SOURCE-OF-TRUTH RULES:
 - Only facts explicitly present in SOURCE CHARACTER JSON may be treated as required character traits.
 - Details invented, inferred, expanded, or embellished by the director or FLUX prompt are artistic suggestions only.
@@ -520,6 +526,7 @@ If SOURCE CHARACTER JSON contains racialVisualTraits, they are a HARD VALIDATION
 When a racial trait passes, preserve it in corrected_flux_prompt. When a racial trait fails, corrected_flux_prompt must explicitly target that failed trait while preserving every already-correct racial trait.
 If SOURCE CHARACTER JSON contains weaponVisualTraits, they are also a HARD VALIDATION GATE. Evaluate them one by one in source order as weapon_1, weapon_2, etc. If ANY is weak, missing, wrong, obscured, cropped, misplaced, disconnected, or incompatible with the exact weapon category, critical_pass MUST be false. Preserve passed weapon traits and explicitly fix every failed weapon trait in corrected_flux_prompt.
 If SOURCE CHARACTER JSON contains weaponHandlingRules, they are also a HARD VALIDATION GATE. Evaluate them one by one as handling_1, handling_2, etc. Distinct weapons must not be fused or share structural components. A two-handed weapon that is actively wielded must have the required normal hands available; additional two-handed weapons must be separate and plausibly stowed/carried. Never accept invented extra limbs used only to hold equipment. Preserve exact racial anatomy.
+If SOURCE CHARACTER JSON contains regionVisualIdentity, evaluate it once as region_identity. Treat the supplied markers as a single important environmental identity: the region should be recognizable overall, but this is not a hard anatomy/equipment gate and must not create multiple region checks. A failed regional identity should lower the score and be fixed concisely in corrected_flux_prompt without sacrificing character fidelity.
 Do not treat other director embellishments or generation-prompt inventions as validation requirements.`;
 
   const { text, data } = await callGemini(
@@ -567,6 +574,9 @@ if (!parsed) {
   const handlingChecks = handlingRules.map((_: unknown, i: number) => String(parsed?.checks?.[`handling_${i + 1}`] || "missing"));
   const handlingGatePass = handlingRules.length === 0 || (handlingChecks.length === handlingRules.length && handlingChecks.every((v: string) => v === "pass"));
   const failedWeaponTraits = weaponTraits.map((trait: any, i: number) => ({index:i+1,trait:String(trait),status:weaponChecks[i]||"missing"})).filter((x:any)=>x.status!=="pass");
+  const regionIdentity = Array.isArray(character?.regionVisualIdentity) ? character.regionVisualIdentity : [];
+  const regionIdentityStatus = regionIdentity.length ? String(checks.region_identity || "missing").toLowerCase() : "not_applicable";
+  const regionIdentityPass = regionIdentity.length === 0 || regionIdentityStatus === "pass";
 
   return {
     criticalPass: parsed.critical_pass === true && racialGatePass && weaponGatePass && handlingGatePass,
@@ -577,6 +587,8 @@ if (!parsed) {
     weaponGatePass,
     handlingGatePass,
     failedWeaponTraits,
+    regionIdentityPass,
+    regionIdentityStatus,
     issues: Array.isArray(parsed.issues) ? parsed.issues.map(String).slice(0, 30) : [],
     correctedFluxPrompt: String(parsed.corrected_flux_prompt || "").trim(),
     raw: text,
@@ -920,6 +932,11 @@ Deno.serve(async (req) => {
           checks: validation.checks,
           racialGatePass: validation.racialGatePass,
           failedRacialTraits: validation.failedRacialTraits,
+          weaponGatePass: validation.weaponGatePass,
+          handlingGatePass: validation.handlingGatePass,
+          failedWeaponTraits: validation.failedWeaponTraits,
+          regionIdentityPass: validation.regionIdentityPass,
+          regionIdentityStatus: validation.regionIdentityStatus,
           issues: validation.issues,
           needsReview,
           correctionRequested,
