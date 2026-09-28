@@ -347,6 +347,9 @@ When racialVisualTraits says that one structure represents several domains, affi
 WEAPON VISUAL TRAITS — NON-NEGOTIABLE
 If the character JSON contains a weaponVisualTraits field, every item is an authoritative literal visual constraint for the generated weapon and MUST be classified as CRITICAL. Preserve the exact weapon category, construction, count, placement, integration and explicitly forbidden alternatives. Integrated Cyborg weapons must remain mechanically attached to the body; Neoxus weapons must remain techno-organic; draconic caudal weapons must be literal anatomical transformations of the tail and never handheld manufactured weapons.
 
+MULTI-WEAPON PHYSICAL COHERENCE — NON-NEGOTIABLE
+If the character JSON contains weaponHandlingRules, every rule is CRITICAL. Two-handed weapons consume both normal hands while actively wielded. If a character owns two or more two-handed weapons, show only one actively wielded and keep the others fully separate, clearly identifiable, and plausibly stowed/carried. Never fuse distinct weapons into a hybrid object, never make them share structural parts, and never invent extra arms/hands/limbs to solve weapon handling. Preserve exact racial limb counts.
+
 CRITICAL-TO-PROMPT GUARANTEE — LOSSLESS TRANSFER
 Every item classified as CRITICAL MUST be transferred into flux_prompt WITHOUT LOSS OF VISUAL INFORMATION.
 
@@ -484,6 +487,8 @@ Rules:
 - The checks object MUST contain one key per racialVisualTraits entry, using stable keys "racial_1", "racial_2", etc., in the same order as the source array, with values only "pass", "weak", "missing", or "wrong".
 - HARD WEAPON GATE: if SOURCE CHARACTER JSON contains weaponVisualTraits, evaluate EVERY entry separately. Every one must be clearly satisfied for critical_pass=true. A single weak, missing, wrong, obscured, cropped, misplaced, disconnected, or category-incompatible mandatory weapon trait forces critical_pass=false.
 - The checks object MUST contain one key per weaponVisualTraits entry, using stable keys "weapon_1", "weapon_2", etc., in source order, with values only "pass", "weak", "missing", or "wrong".
+- HARD WEAPON-HANDLING GATE: if SOURCE CHARACTER JSON contains weaponHandlingRules, evaluate EVERY rule separately. Any fused weapons, shared structural parts, impossible simultaneous two-handed grips, invented limbs/hands, or failure to stow additional two-handed weapons forces critical_pass=false.
+- The checks object MUST contain one key per weaponHandlingRules entry, using stable keys "handling_1", "handling_2", etc., in source order, with values only "pass", "weak", "missing", or "wrong".
 - score is 0-100 for overall visual conformity, not beauty. A high score can NEVER override a failed racialVisualTraits gate.
 - If the image fails, provide a COMPLETE replacement FLUX prompt that preserves successful traits and clearly fixes the failures. Do not merely list corrections.
 - Any corrected_flux_prompt must also be written as natural, coherent descriptive prose with complete sentences/connected clauses, not as a stack of keywords or tags. Weave the required corrections into the visual narrative.
@@ -514,6 +519,7 @@ The canonical racial contract defines mandatory race anatomy/identity and MUST b
 If SOURCE CHARACTER JSON contains racialVisualTraits, they are a HARD VALIDATION GATE. Evaluate them one by one in source order as racial_1, racial_2, etc. If ANY is weak, missing, wrong, incomplete, obscured, cropped, or only symbolically substituted when a physical structure is required, critical_pass MUST be false.
 When a racial trait passes, preserve it in corrected_flux_prompt. When a racial trait fails, corrected_flux_prompt must explicitly target that failed trait while preserving every already-correct racial trait.
 If SOURCE CHARACTER JSON contains weaponVisualTraits, they are also a HARD VALIDATION GATE. Evaluate them one by one in source order as weapon_1, weapon_2, etc. If ANY is weak, missing, wrong, obscured, cropped, misplaced, disconnected, or incompatible with the exact weapon category, critical_pass MUST be false. Preserve passed weapon traits and explicitly fix every failed weapon trait in corrected_flux_prompt.
+If SOURCE CHARACTER JSON contains weaponHandlingRules, they are also a HARD VALIDATION GATE. Evaluate them one by one as handling_1, handling_2, etc. Distinct weapons must not be fused or share structural components. A two-handed weapon that is actively wielded must have the required normal hands available; additional two-handed weapons must be separate and plausibly stowed/carried. Never accept invented extra limbs used only to hold equipment. Preserve exact racial anatomy.
 Do not treat other director embellishments or generation-prompt inventions as validation requirements.`;
 
   const { text, data } = await callGemini(
@@ -555,17 +561,21 @@ if (!parsed) {
     }))
     .filter((x: any) => x.status !== "pass");
   const weaponTraits = Array.isArray(character?.weaponVisualTraits) ? character.weaponVisualTraits : [];
+  const handlingRules = Array.isArray(character?.weaponHandlingRules) ? character.weaponHandlingRules : [];
   const weaponChecks = weaponTraits.map((_: any, i: number) => String(checks[`weapon_${i + 1}`] || "").toLowerCase());
   const weaponGatePass = weaponTraits.length === 0 || (weaponChecks.length === weaponTraits.length && weaponChecks.every((v: string) => v === "pass"));
+  const handlingChecks = handlingRules.map((_: unknown, i: number) => String(parsed?.checks?.[`handling_${i + 1}`] || "missing"));
+  const handlingGatePass = handlingRules.length === 0 || (handlingChecks.length === handlingRules.length && handlingChecks.every((v: string) => v === "pass"));
   const failedWeaponTraits = weaponTraits.map((trait: any, i: number) => ({index:i+1,trait:String(trait),status:weaponChecks[i]||"missing"})).filter((x:any)=>x.status!=="pass");
 
   return {
-    criticalPass: parsed.critical_pass === true && racialGatePass && weaponGatePass,
+    criticalPass: parsed.critical_pass === true && racialGatePass && weaponGatePass && handlingGatePass,
     score,
     checks,
     racialGatePass,
     failedRacialTraits,
     weaponGatePass,
+    handlingGatePass,
     failedWeaponTraits,
     issues: Array.isArray(parsed.issues) ? parsed.issues.map(String).slice(0, 30) : [],
     correctedFluxPrompt: String(parsed.corrected_flux_prompt || "").trim(),
