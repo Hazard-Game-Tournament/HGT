@@ -1143,6 +1143,22 @@ function weaponTraitsFor(name,system='classic'){const map=system==='neoxus'?NEXU
 function weaponOptionsForCurrent(forceRanged=false){return finalDragonComponent()?EQ(DRAGON_TAIL_WEAPONS):weaponOptions(forceRanged)}
 function attachWeaponTraits(w,system='classic'){w.weaponSystem=system;w.mandatoryWeaponTraits=weaponTraitsFor(w.name,system);return w}
 function weaponVisualTraitsFromCharacter(c){const out=[];for(const w of (c?.weapons||[])){let system=w.weaponSystem||'classic';if(w.racial&&!w.weaponSystem){const comp=c?.lineage?.primaryComponent;system=comp?.race==='Cyborg'&&Number(comp?.power)<50?'cyborg':'neoxus'}if(DRAGON_TAIL_WEAPONS.includes(w.name))system='dragon-tail';const traits=(w.mandatoryWeaponTraits?.length?w.mandatoryWeaponTraits:weaponTraitsFor(w.name,system));if(traits.length)out.push(...traits.map(t=>`${w.name}: ${t}`))}return out;}
+function weaponHandlingRulesFromCharacter(c){
+  const ws=(c?.weapons||[]).filter(w=>w?.name&&normText(w.name)!=='aucune arme');
+  if(ws.length<2)return [];
+  const twoHanded=n=>{const x=normText(n);return ['epee a deux mains','hache a deux mains','marteau de guerre','lance','hallebarde','faux','baton','arc','arbalete','fusil','fusil de precision','fusil a pompe','mitrailleuse','lance-roquettes'].some(k=>x.includes(k))};
+  const oneHanded=n=>{const x=normText(n);return ['epee','katana','hache','pistolet','fouet','bouclier offensif'].some(k=>x.includes(k))&&!twoHanded(n)};
+  const handheld=ws.filter(w=>w.weaponSystem!=='cyborg'&&w.weaponSystem!=='neoxus'&&w.weaponSystem!=='dragon-tail');
+  const heavy=handheld.filter(w=>twoHanded(w.name));
+  const light=handheld.filter(w=>oneHanded(w.name));
+  const rules=[];
+  if(heavy.length>=2)rules.push(`MULTI-WEAPON HANDLING: ${heavy.map(w=>w.name).join(' + ')} each require two hands. Only ONE may be actively wielded at a time; all other two-handed weapons must be completely separate, clearly identifiable, and securely stowed/carried on the back, shoulder sling, harness, or other plausible equipment mount.`);
+  else if(heavy.length===1&&handheld.length>=2)rules.push(`MULTI-WEAPON HANDLING: ${heavy[0].name} requires both hands when actively wielded. Any other handheld weapon must be clearly separate and stowed/carried, not simultaneously gripped.`);
+  if(light.length>=2&&heavy.length===0)rules.push('MULTI-WEAPON HANDLING: at most one one-handed weapon may be held in each normal available hand.');
+  rules.push('WEAPON SEPARATION: distinct weapons must remain distinct objects; never fuse, merge, share a barrel, blade, shaft, handle, stock, grip, or other structural component.');
+  rules.push('ANATOMICAL COHERENCE: never invent extra arms, hands, or limbs merely to hold multiple weapons. Preserve the character’s required racial anatomy and exact limb count.');
+  return rules;
+}
 
 const improvisedWeapons=['Barre métallique','Chaîne lourde','Bouteille brisée','Marteau d’atelier','Clé anglaise','Pied-de-biche','Pelle','Pioche','Hachette d’outil','Morceau de mobilier','Chaise','Panneau métallique','Tuyau','Câble lesté','Brique','Pierre massive','Débris de béton','Planche cloutée','Morceau de statue','Objet du décor inhabituel'];
 const secretTechniques=['Frappe éclair','Frappe destructrice','Point vital','Défense absolue','Contre parfait','Pas fantôme','Technique d’entrave','Lecture du combat','Coupe ultime','Tir impossible','Redirection','Libération physique','Contrôle corporel','Perception extrême','Onde de choc','Technique sacrificielle','Technique énergétique','Technique de scellement','Art martial légendaire','Technique unique'];
@@ -5207,6 +5223,7 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
     const generationCharacter=JSON.parse(JSON.stringify(c));
     generationCharacter.racialVisualTraits=beastComponentsFromCharacter(generationCharacter).flatMap(b=>b.traits.map(t=>`${b.species}: ${t}`));
     generationCharacter.weaponVisualTraits=weaponVisualTraitsFromCharacter(generationCharacter);
+    generationCharacter.weaponHandlingRules=weaponHandlingRulesFromCharacter(generationCharacter);
     const dragonFinal=finalDragonComponent(generationCharacter);if(dragonFinal?.dragonWeapon)generationCharacter.dragonWeapon=dragonFinal.dragonWeapon;
     const payload={
       characterId:imageStorageCharacterKey(characterId),
