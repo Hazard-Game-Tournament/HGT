@@ -868,15 +868,25 @@ function findCloudflareImage(data: any): string | null {
   return null;
 }
 
-function cloudflareErrorCode(data: any, raw: string) {
-  const possible = [
-    data?.errors?.[0]?.code,
-    data?.error?.code,
-    data?.code,
-  ].filter((x) => x !== undefined && x !== null);
-  if (possible.length) return String(possible[0]);
-  const m = raw.match(/\b3030\b/);
-  return m ? "3030" : "";
+function cloudflareErrorCode(data: any, _raw: string) {
+  // Only trust structured Cloudflare error codes. Do not scan arbitrary raw text:
+  // a request id/message containing "3030" must never trigger a paid FLUX retry.
+  const queue: any[] = [data];
+  const seen = new Set<any>();
+  let firstCode = "";
+  while (queue.length) {
+    const value = queue.shift();
+    if (!value || typeof value !== "object" || seen.has(value)) continue;
+    seen.add(value);
+    if (value.code !== undefined && value.code !== null) {
+      const code = String(value.code);
+      if (!firstCode) firstCode = code;
+      if (code === "3030") return "3030";
+    }
+    if (Array.isArray(value)) queue.push(...value);
+    else queue.push(...Object.values(value));
+  }
+  return firstCode;
 }
 
 function isCloudflarePromptRejectionCode(code: unknown) {
@@ -884,9 +894,7 @@ function isCloudflarePromptRejectionCode(code: unknown) {
 }
 
 function isCloudflarePromptRejectionError(error: any) {
-  const code = String(error?.code ?? "");
-  const message = String(error?.message ?? "");
-  return isCloudflarePromptRejectionCode(code) || /\b3030\b/.test(message);
+  return isCloudflarePromptRejectionCode(error?.code);
 }
 
 async function imagePixelCount(blob: Blob): Promise<number> {
@@ -926,10 +934,9 @@ async function fluxNeuronCost(model: string, refs: { blob: Blob; name: string }[
     for(const r of used) input += (await imagePixelCount(r.blob))/(1024*1024)*181.82;
     return Number((output+input).toFixed(2));
   }
-  // 4B: HGT outputs 512x1024, i.e. two 512x512 output tiles.
-  // Production billing measurements show each reference actually sent to
-  // FLUX is charged as one 5.37-neuron input unit, regardless of the stored
-  // reference dimensions. Up to four references are sent.
+  // 4B: cost of ONE explicit FLUX request made by this Edge Function.
+  // Keep attempts separate while tracing 3030 retries; do not hide a second
+  // request by multiplying the successful request cost by two.
   const outputTiles=Math.ceil(WIDTH/512)*Math.ceil(HEIGHT/512);
   const inputUnits=used.length;
   return Number((outputTiles*26.05 + inputUnits*5.37).toFixed(2));
@@ -947,12 +954,21 @@ async function generateFlux(
   onFluxAttempt?: (cost: number) => Promise<void>,
 ) {
   const endpoint = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/${model}`;
+  const fluxTraceId = crypto.randomUUID();
+  let fluxAttemptNumber = 0;
 
   const run = async (
     p: string,
     runSeed = seed,
     runRefs: { blob: Blob; name: string }[] = refs,
   ) => {
+    const attempt = ++fluxAttemptNumber;
+    const referenceNames = runRefs.slice(0, 4).map((ref) => ref.name);
+    console.log("FLUX_ATTEMPT_START", JSON.stringify({
+      traceId: fluxTraceId, attempt, model, seed: runSeed,
+      referenceCount: referenceNames.length, referenceNames,
+      promptLength: p.length,
+    }));
     const form = new FormData();
     form.append("prompt", p);
     form.append("width", String(WIDTH));
@@ -991,37 +1007,43 @@ async function generateFlux(
     } catch (_) {}
 
     const image = findCloudflareImage(data);
+    const code = cloudflareErrorCode(data, raw);
+    console.log("FLUX_ATTEMPT_RESPONSE", JSON.stringify({
+      traceId: fluxTraceId, attempt, httpStatus: r.status, ok: r.ok,
+      cloudflareCode: code || null, imageFound: !!image,
+      referenceCount: referenceNames.length,
+    }));
     if (r.ok && image) {
       // Record the successful inference with exactly the references it used.
       // A rejected 3030 is accounted for separately below as output-only, so a
       // 3030 + successful retry is represented as two distinct FLUX attempts.
+      const attemptCost = await fluxNeuronCost(model, runRefs);
+      console.log("FLUX_ATTEMPT_SUCCESS", JSON.stringify({
+        traceId: fluxTraceId, attempt, costRecorded: attemptCost,
+        referenceCount: referenceNames.length,
+      }));
       if (onFluxAttempt) {
-        try { await onFluxAttempt(await fluxNeuronCost(model, runRefs)); } catch (_) {}
+        try { await onFluxAttempt(attemptCost); } catch (_) {}
       }
       return { image, data, promptUsed: p, referenceCountUsed: Math.min(runRefs.length, 4) };
     }
 
-    const code = cloudflareErrorCode(data, raw);
     // Some Workers AI responses expose a wrapper error code while putting
     // the model rejection code 3030 only in the error message/raw body.
     // Retry detection already handled that case, but neuron accounting used
     // to inspect only `code`, which silently lost the 52.10-neuron rejected
     // inference. Detect 3030 from BOTH the structured code and raw response.
-    const promptRejected3030 =
-      isCloudflarePromptRejectionCode(code) || /\b3030\b/.test(raw);
+    const promptRejected3030 = isCloudflarePromptRejectionCode(code);
+    console.warn("FLUX_ATTEMPT_ERROR", JSON.stringify({
+      traceId: fluxTraceId, attempt, httpStatus: r.status,
+      cloudflareCode: code || null, promptRejected3030,
+      referenceCount: referenceNames.length,
+    }));
 
-    // Cloudflare billing observed in production: a model-level 3030 charges
-    // the 4B output inference (2 x 512x512 tiles for HGT's 512x1024 output),
-    // but not the input references from that rejected attempt. Record that
-    // output-only charge here; the successful retry is recorded separately.
-    if (promptRejected3030 && onFluxAttempt) {
-      try {
-        const rejected3030Cost = model === CF_MODEL_CHAMPION
-          ? 1363.64 + Math.max(0, (WIDTH * HEIGHT) / (1024 * 1024) - 1) * 181.82
-          : Math.ceil(WIDTH / 512) * Math.ceil(HEIGHT / 512) * 26.05;
-        await onFluxAttempt(Number(rejected3030Cost.toFixed(2)));
-      } catch (_) {}
-    }
+    // Do not add a separate neuron charge for the 3030 here. Our measured
+    // Cloudflare dashboard total for a generation is already reproduced by the
+    // successful-call billing formula above. Counting the rejected response as
+    // another 52.10 here would double-count it whenever HGT sees the 3030.
 
     const message = data?.errors?.[0]?.message || data?.error?.message || raw.slice(0, 700) || `HTTP ${r.status}`;
     const err: any = new Error(`Cloudflare ${r.status}${code ? ` code ${code}` : ""}: ${message}`);
