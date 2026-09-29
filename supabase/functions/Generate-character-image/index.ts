@@ -800,7 +800,11 @@ async function generateFlux(
 ) {
   const endpoint = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/${model}`;
 
-  const run = async (p: string, runSeed = seed, includeRefs = true) => {
+  const run = async (
+    p: string,
+    runSeed = seed,
+    runRefs: { blob: Blob; name: string }[] = refs,
+  ) => {
     const form = new FormData();
     form.append("prompt", p);
     form.append("width", String(WIDTH));
@@ -808,11 +812,9 @@ async function generateFlux(
     form.append("seed", String(runSeed));
     form.append("guidance", "4.0");
 
-    if (includeRefs) {
-  refs.slice(0, 4).forEach((ref, i) => {
-    form.append(`input_image_${i}`, ref.blob, ref.name);
-  });
-}
+    runRefs.slice(0, 4).forEach((ref, i) => {
+      form.append(`input_image_${i}`, ref.blob, ref.name);
+    });
 
     const controller = new AbortController();
     const remainingMs = deadlineAt ? deadlineAt - Date.now() : 85000;
@@ -885,11 +887,25 @@ async function generateFlux(
       referenceCount: refs.length,
     }));
 
-    // Exactly one FLUX retry after the 3030. Keep the same references.
+    // Exactly one FLUX retry after the 3030.
+    // IMPORTANT: do NOT resend the full canonical reference pack after a Gemini/local
+    // rewrite. With several input images, the rewritten prompt can make FLUX interpret
+    // those references as compositional content and produce a collage/superposition.
+    // During an iterative regeneration we keep ONLY input_image_0 (the previous portrait)
+    // so character continuity is preserved. For a fresh generation, the 3030 retry is
+    // prompt-only. Canonical race/region requirements remain encoded in the prompt/JSON
+    // and will still be checked by the mandatory QA gate afterwards.
+    const retryRefs = refs.filter((ref) => ref.name === "previous-portrait.png").slice(0, 1);
+    console.log("CLOUDFLARE_3030_RETRY_REFERENCE_POLICY", JSON.stringify({
+      originalReferenceCount: refs.length,
+      retryReferenceCount: retryRefs.length,
+      keptPreviousPortrait: retryRefs.length === 1,
+    }));
+
     // If the rewritten prompt is also rejected, return an explicit diagnostic
     // instead of making it look like the first 3030 was never handled.
     try {
-      return await run(reformulated, seed + 1, true);
+      return await run(reformulated, seed + 1, retryRefs);
     } catch (retryError: any) {
       const retryIs3030 =
         String(retryError?.code) === "3030" ||
@@ -899,7 +915,8 @@ async function generateFlux(
           source: reformulationSource,
           originalPromptLength: prompt.length,
           reformulatedPromptLength: reformulated.length,
-          referenceCount: refs.length,
+          originalReferenceCount: refs.length,
+          retryReferenceCount: retryRefs.length,
         }));
         const finalError: any = new Error(
           `Cloudflare 3030 : le prompt initial a été signalé, puis la reformulation ${reformulationSource === "gemini" ? "Gemini" : "locale"} a également été signalée lors de l'unique nouvelle tentative FLUX.`
