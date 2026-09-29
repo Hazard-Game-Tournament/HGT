@@ -879,6 +879,16 @@ function cloudflareErrorCode(data: any, raw: string) {
   return m ? "3030" : "";
 }
 
+function isCloudflarePromptRejectionCode(code: unknown) {
+  return String(code ?? "") === "3030";
+}
+
+function isCloudflarePromptRejectionError(error: any) {
+  const code = String(error?.code ?? "");
+  const message = String(error?.message ?? "");
+  return isCloudflarePromptRejectionCode(code) || /\b3030\b/.test(message);
+}
+
 async function imagePixelCount(blob: Blob): Promise<number> {
   // Read only the small header needed to recover dimensions. References used by
   // HGT are PNG/JPEG/WebP; fall back conservatively to one 512x512 tile.
@@ -992,12 +1002,19 @@ async function generateFlux(
     }
 
     const code = cloudflareErrorCode(data, raw);
+    // Some Workers AI responses expose a wrapper error code while putting
+    // the model rejection code 3030 only in the error message/raw body.
+    // Retry detection already handled that case, but neuron accounting used
+    // to inspect only `code`, which silently lost the 52.10-neuron rejected
+    // inference. Detect 3030 from BOTH the structured code and raw response.
+    const promptRejected3030 =
+      isCloudflarePromptRejectionCode(code) || /\b3030\b/.test(raw);
 
     // Cloudflare billing observed in production: a model-level 3030 charges
     // the 4B output inference (2 x 512x512 tiles for HGT's 512x1024 output),
     // but not the input references from that rejected attempt. Record that
     // output-only charge here; the successful retry is recorded separately.
-    if (String(code) === "3030" && onFluxAttempt) {
+    if (promptRejected3030 && onFluxAttempt) {
       try {
         const rejected3030Cost = model === CF_MODEL_CHAMPION
           ? 1363.64 + Math.max(0, (WIDTH * HEIGHT) / (1024 * 1024) - 1) * 181.82
@@ -1008,16 +1025,25 @@ async function generateFlux(
 
     const message = data?.errors?.[0]?.message || data?.error?.message || raw.slice(0, 700) || `HTTP ${r.status}`;
     const err: any = new Error(`Cloudflare ${r.status}${code ? ` code ${code}` : ""}: ${message}`);
-    err.code = code;
+    err.code = promptRejected3030 ? "3030" : code;
     throw err;
   };
 
+  // Deterministic first-pass wording normalization before any paid FLUX call.
+  // This costs no extra Gemini request and removes common false-positive trigger
+  // vocabulary while preserving the visual requirements of the director prompt.
+  const firstPassPrompt = localFallbackCloudflare3030(prompt);
+  if (firstPassPrompt !== prompt) {
+    console.log("CLOUDFLARE_PROMPT_PRENORMALIZED", JSON.stringify({
+      originalPromptLength: prompt.length,
+      normalizedPromptLength: firstPassPrompt.length,
+    }));
+  }
+
   try {
-    return await run(prompt);
+    return await run(firstPassPrompt);
   } catch (e: any) {
-    const is3030 =
-      String(e?.code) === "3030" ||
-      String(e?.message || "").includes("3030");
+    const is3030 = isCloudflarePromptRejectionError(e);
     if (!is3030) throw e;
 
     console.log("CLOUDFLARE_3030_REFORMULATE_WITH_GEMINI", JSON.stringify({
@@ -1030,10 +1056,10 @@ async function generateFlux(
     try {
       const remainingForRewrite = deadlineAt ? deadlineAt - Date.now() : Number.POSITIVE_INFINITY;
       if (remainingForRewrite < 45000) throw new Error("Budget restant trop court pour une reformulation Gemini avant le retry FLUX.");
-      reformulated = await reformulateCloudflare3030(geminiApiKey, prompt, deadlineAt ? deadlineAt - 15000 : undefined);
+      reformulated = await reformulateCloudflare3030(geminiApiKey, firstPassPrompt, deadlineAt ? deadlineAt - 15000 : undefined);
     } catch (rewriteError: any) {
       reformulationSource = "local_fallback";
-      reformulated = localFallbackCloudflare3030(prompt);
+      reformulated = localFallbackCloudflare3030(firstPassPrompt);
       console.warn("CLOUDFLARE_3030_GEMINI_REWRITE_FAILED", JSON.stringify({
         error: String(rewriteError?.message || rewriteError).slice(0, 500),
         fallbackPromptLength: reformulated.length,
@@ -1067,9 +1093,7 @@ async function generateFlux(
     try {
       return await run(reformulated, seed + 1, retryRefs);
     } catch (retryError: any) {
-      const retryIs3030 =
-        String(retryError?.code) === "3030" ||
-        String(retryError?.message || "").includes("3030");
+      const retryIs3030 = isCloudflarePromptRejectionError(retryError);
       if (retryIs3030) {
         console.error("CLOUDFLARE_3030_RETRY_ALSO_FLAGGED", JSON.stringify({
           source: reformulationSource,
