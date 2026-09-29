@@ -826,6 +826,56 @@ function cloudflareErrorCode(data: any, raw: string) {
   return m ? "3030" : "";
 }
 
+async function imagePixelCount(blob: Blob): Promise<number> {
+  // Read only the small header needed to recover dimensions. References used by
+  // HGT are PNG/JPEG/WebP; fall back conservatively to one 512x512 tile.
+  try {
+    const b = new Uint8Array(await blob.slice(0, 64 * 1024).arrayBuffer());
+    const u16le = (o: number) => b[o] | (b[o + 1] << 8);
+    const u24le = (o: number) => b[o] | (b[o + 1] << 8) | (b[o + 2] << 16);
+    const u32be = (o: number) => ((b[o] << 24) >>> 0) + (b[o + 1] << 16) + (b[o + 2] << 8) + b[o + 3];
+    if (b.length >= 24 && b[0]===0x89 && b[1]===0x50 && b[2]===0x4e && b[3]===0x47) {
+      return Math.max(1, u32be(16)) * Math.max(1, u32be(20));
+    }
+    if (b.length >= 30 && String.fromCharCode(...b.slice(0,4))==='RIFF' && String.fromCharCode(...b.slice(8,12))==='WEBP') {
+      const kind=String.fromCharCode(...b.slice(12,16));
+      if(kind==='VP8X') return (1+u24le(24))*(1+u24le(27));
+      if(kind==='VP8L' && b.length>=25){const bits=b[21]|(b[22]<<8)|(b[23]<<16)|(b[24]<<24);return (1+(bits&0x3fff))*(1+((bits>>14)&0x3fff));}
+      if(kind==='VP8 ' && b.length>=30) return Math.max(1,u16le(26)&0x3fff)*Math.max(1,u16le(28)&0x3fff);
+    }
+    if (b.length >= 4 && b[0]===0xff && b[1]===0xd8) {
+      let i=2;
+      while(i+9<b.length){if(b[i]!==0xff){i++;continue;}const m=b[i+1];if(m===0xd8||m===0xd9){i+=2;continue;}if(i+3>=b.length)break;const len=(b[i+2]<<8)|b[i+3];if(len<2)break;if([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf].includes(m)&&i+8<b.length){const h=(b[i+5]<<8)|b[i+6],w=(b[i+7]<<8)|b[i+8];return Math.max(1,w)*Math.max(1,h);}i+=2+len;}
+    }
+  } catch (_) {}
+  return 512 * 512;
+}
+
+async function fluxNeuronCost(model: string, refs: { blob: Blob; name: string }[]): Promise<number> {
+  const used=refs.slice(0,4);
+  if(model===CF_MODEL_CHAMPION){
+    // 9B: 1363.64 neurons for the first output MP, 181.82 for each subsequent
+    // output MP, and 181.82 per input-image MP. Cloudflare's first-MP output
+    // tier applies even though HGT outputs 512x1024 (0.5 MP).
+    const outMP=(WIDTH*HEIGHT)/(1024*1024);
+    const output=1363.64 + Math.max(0,outMP-1)*181.82;
+    let input=0;
+    for(const r of used) input += (await imagePixelCount(r.blob))/(1024*1024)*181.82;
+    return Number((output+input).toFixed(2));
+  }
+  // 4B: 26.05 neurons per output 512x512 tile and 5.37 per input 512x512 tile.
+  const outputTiles=Math.ceil(WIDTH/512)*Math.ceil(HEIGHT/512);
+  let inputTiles=0;
+  for(const r of used){
+    const px=await imagePixelCount(r.blob);
+    // Cloudflare bills input by 512x512 tile. Reference images accepted by
+    // Klein are <512x512 in the current API, but use ceil(pixel area/tile area)
+    // so accounting remains correct if HGT's reference preparation changes.
+    inputTiles += Math.max(1,Math.ceil(px/(512*512)));
+  }
+  return Number((outputTiles*26.05 + inputTiles*5.37).toFixed(2));
+}
+
 async function generateFlux(
   cfAccountId: string,
   cfToken: string,
@@ -835,6 +885,7 @@ async function generateFlux(
   seed: number,
   refs: { blob: Blob; name: string }[],
   deadlineAt?: number,
+  onFluxAttempt?: (cost: number) => Promise<void>,
 ) {
   const endpoint = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/${model}`;
 
@@ -874,6 +925,13 @@ async function generateFlux(
       clearTimeout(fluxTimer);
     }
 
+    // Workers AI charges per inference attempt. Account for this request even if
+    // Cloudflare rejects it with a model-level 3030 and HGT performs its one retry.
+    // Transport failures before a response are not recorded here.
+    if (onFluxAttempt) {
+      try { await onFluxAttempt(await fluxNeuronCost(model, runRefs)); } catch (_) {}
+    }
+
     const raw = await r.text();
     let data: any = null;
     try {
@@ -881,7 +939,7 @@ async function generateFlux(
     } catch (_) {}
 
     const image = findCloudflareImage(data);
-    if (r.ok && image) return { image, data, promptUsed: p };
+    if (r.ok && image) return { image, data, promptUsed: p, referenceCountUsed: Math.min(runRefs.length, 4) };
 
     const code = cloudflareErrorCode(data, raw);
     const message = data?.errors?.[0]?.message || data?.error?.message || raw.slice(0, 700) || `HTTP ${r.status}`;
@@ -1149,25 +1207,18 @@ The region reference guides environmental vocabulary: characteristic terrain, ma
 Keep the final image recognizably consistent with the canonical identities while giving this character a distinct composition.`;
     }
 
-    const first = await generateFlux(CF_ACCOUNT_ID, CF_TOKEN, GEMINI_API_KEY, model, fluxPrompt, seed, refs, generationDeadlineAt);
-
-    // Count neurons immediately after FLUX succeeds. This remains accurate even if
-    // the browser disconnects or the optional Gemini QA step later times out.
-    try {
-      // FLUX.2 Klein 9B (portraits Champion) has a much higher neuron cost than 4B.
-      // Record it separately so the global daily counter includes Champion generations.
-      // Champion 9B: use the observed real consumption for the current Champion pipeline.
-      // The normal 4B portrait path keeps its existing accounting.
-      const neuronsUsed = generationMode === "champion" ? 1450 : 114.93;
+    const recordFluxAttempt = async (neuronsUsed: number) => {
       const { error: neuronError } = await admin.from("neuron_usage").insert({
         user_id: user.id,
         character_id: displayCharacterId,
-        neurons: neuronsUsed,
+        neurons: Number(neuronsUsed.toFixed(2)),
       });
       if (neuronError) warnings.push(`Neuron usage not recorded: ${neuronError.message}`);
-    } catch (e: any) {
-      warnings.push(`Neuron usage not recorded: ${String(e?.message || e).slice(0, 220)}`);
-    }
+    };
+
+    const first = await generateFlux(
+      CF_ACCOUNT_ID, CF_TOKEN, GEMINI_API_KEY, model, fluxPrompt, seed, refs, generationDeadlineAt, recordFluxAttempt
+    );
 
     let chosen = first;
     let chosenPrompt = first.promptUsed;
