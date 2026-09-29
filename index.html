@@ -1477,6 +1477,15 @@ function saveCurrentCharacter(){
   ensureCharacterInstanceId(state);
   ensureGenealogyShape(state);
   const roster=loadRoster();
+  // Ne jamais écraser silencieusement un combattant déjà matérialisé (notamment un
+  // descendant sélectionné) avec un nouveau brouillon qui porte momentanément le même ID.
+  // Cela pouvait arriver au début d'une saison : le curseur restait sur Sx-001 alors que
+  // Sx-001 était déjà occupé par un descendant, puis le premier tirage normal le remplaçait.
+  const existing=roster[state.id];
+  if(existing && existing.instanceId && state.instanceId && existing.instanceId!==state.instanceId && existing._generationComplete){
+    console.warn('Sauvegarde ignorée : ID déjà occupé par un combattant terminé',state.id);
+    return;
+  }
   roster[state.id]=JSON.parse(JSON.stringify(state));
   saveRoster(roster);
   renderRoster();
@@ -2549,6 +2558,18 @@ function selectDescendantsForNextSeason(){
   }
   meta.selectedBySeason[target]=selected.map(x=>x.id);
   saveRoster(roster);saveStore(STORAGE_DESC,d);saveStore(STORAGE_META,meta);
+
+  // Les descendants occupent de vrais emplacements Sx-xxx. Si la saison cible est la
+  // saison courante, placer immédiatement la roue sur le PREMIER emplacement encore libre
+  // afin qu'un personnage normal ne puisse jamais reprendre l'ID d'un descendant.
+  if(Number(target)===Number(seasonNumber)){
+    const nextFree=firstEmptyCharacterNumber(target,roster);
+    if(nextFree!=null){
+      characterNumber=nextFree;
+      localStorage.setItem(STORAGE_CURRENT,String(characterNumber));
+      newCharacterAtCurrentId();
+    }
+  }
   renderRoster();renderGenealogy();
   // L'image n'est demandée qu'une fois le descendant devenu combattant.
   for(const fid of portraits)setTimeout(()=>invokeCharacterImageGeneration(fid).catch(console.error),200);
