@@ -604,7 +604,7 @@ html[data-region-theme] canvas{filter:saturate(.78) brightness(.88) contrast(1.0
     <div class="hgt-entry-message" id="hgtEntryMessage"></div>
   </div>
 </div>
-<header><div><h1>⚔️ Hazard Game Tournament</h1><div class="muted">Chaque donnée aléatoire affichée provient de la roue que tu vois tourner.</div></div><div class="pill" id="charId">S1-001</div></header>
+<header><div><h1>⚔️ Hazard Game Tournament</h1><div class="muted">Chaque donnée aléatoire affichée provient de la roue que tu vois tourner.</div></div><div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap"><div class="pill" id="neuronRemaining" title="Quota global Cloudflare Workers AI">⚡ Chargement…</div><div class="pill" id="charId">S1-001</div></div></header>
 
 <div class="cloud-bar">
   <span id="playerPseudo" class="hgt-player-chip" hidden><span class="player-avatar" id="playerAvatar">👤</span><span id="playerPseudoText">—</span><span id="cloudStatus" class="cloud-status" title="Mode local"><span class="sync-dot">●</span></span></span>
@@ -5471,7 +5471,15 @@ function recordRegeneration(c){
 }
 async function refreshNeuronStatus(){
   const el=document.getElementById('neuronRemaining');if(!el)return;
-  try{const u=await getGlobalNeuronUsage();if(u)el.textContent=`${Number(u.neurons_used||0).toLocaleString('fr-FR',{maximumFractionDigits:2})} / ${Number(u.neurons_limit||10000).toLocaleString('fr-FR')} neurons`;}catch(_){el.textContent='Compteur indisponible';}
+  try{
+    const u=await getGlobalNeuronUsage();
+    if(!u){el.textContent='⚡ Compteur indisponible';return;}
+    const used=Number(u.neurons_used||0),limit=Number(u.neurons_limit||10000),remaining=Number(u.neurons_remaining??Math.max(0,limit-used));
+    // Estimation en portraits normaux 4B (114,93 neurons/image). Les portraits Champion 9B coûtent 1450 neurons.
+    const normalCost=114.93,imagesRemaining=Math.max(0,Math.floor(remaining/normalCost));
+    el.textContent=`⚡ ${remaining.toLocaleString('fr-FR',{maximumFractionDigits:2})} neurons · ≈ ${imagesRemaining} image${imagesRemaining>1?'s':''} restante${imagesRemaining>1?'s':''}`;
+    el.title=`${used.toLocaleString('fr-FR',{maximumFractionDigits:2})} / ${limit.toLocaleString('fr-FR')} neurons utilisés · estimation basée sur un portrait normal 4B à ${normalCost.toLocaleString('fr-FR')} neurons (Champion 9B : 1 450)`;
+  }catch(_){el.textContent='⚡ Compteur indisponible';}
 }
 refreshNeuronStatus();
 async function ensureCloudGameForImageGeneration(){
