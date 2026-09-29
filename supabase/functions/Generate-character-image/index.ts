@@ -419,6 +419,9 @@ Your job is to convert raw character JSON into a concise, highly effective Engli
 
 The system generates many radically different characters. Apply every rule GENERICALLY from the supplied JSON. Never assume that examples or characteristics mentioned here are present unless they actually appear in the current character data.
 
+CLOUDFLARE 3030 PREVENTION — FIRST-PASS PROMPT
+The prompt you produce will be sent directly to FLUX.2 Klein 4B. Write it from the outset in neutral, concrete visual language designed to avoid false-positive moderation triggers while preserving 100% of the required visual canon. Never describe gore, explicit wounds, exposed organs, dismemberment, sexual content, nudity, or harm being inflicted on a body. When the source contains dark, violent, cursed, undead, predatory, weapon-related or battle-related concepts, preserve their DRAWABLE appearance using non-graphic design language: materials, silhouette, posture, wear, supernatural effects, dark-red coloration where canonically required, weapon shape, energy, atmosphere, and cinematic tension. Prefer static appearance and combat-ready posing over verbs describing attacks, killing, injury or bodily damage. Do not mention moderation, filtering, safety, Cloudflare, rejection or policy in flux_prompt. This is wording normalization only: NEVER remove, weaken, replace or invent a canonical anatomy, race trait, weapon, power, transformation, curse, environment or other CRITICAL visual requirement.
+
 CORE PRINCIPLE — SHOW, DON'T LABEL
 FLUX must be told what to DRAW, not merely what a concept is called. For every important visually representable fact: identify the exact source fact; determine what a viewer could actually see; translate it into concrete visual manifestations; and include those manifestations in the FLUX prompt if the fact is CRITICAL. Examples illustrate reasoning only and must never be copied unless supported by the current JSON.
 
@@ -774,10 +777,46 @@ function requestedRaceReferences(character: any): string[] {
   return uniqueStrings([...main, ...secondary]).slice(0, 3);
 }
 
+async function normalizeReferenceBlob(blob: Blob, requestedName: string) {
+  // GitHub assets in this project can carry a .webp filename while their actual
+  // bytes are JPEG. Send FLUX a filename and MIME type matching the real bytes
+  // instead of relying on content-type/extension tolerance downstream.
+  const head = new Uint8Array(await blob.slice(0, 32).arrayBuffer());
+  let mime = String(blob.type || "").toLowerCase();
+  let ext = "";
+
+  if (head.length >= 3 && head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) {
+    mime = "image/jpeg";
+    ext = ".jpg";
+  } else if (head.length >= 8 && head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) {
+    mime = "image/png";
+    ext = ".png";
+  } else if (head.length >= 12 && String.fromCharCode(...head.slice(0, 4)) === "RIFF" && String.fromCharCode(...head.slice(8, 12)) === "WEBP") {
+    mime = "image/webp";
+    ext = ".webp";
+  }
+
+  // Keep unknown formats untouched; for known formats, rebuild the Blob so the
+  // multipart Content-Type is authoritative and normalize the filename suffix.
+  if (!ext) return { blob, name: requestedName };
+  const base = requestedName.replace(/\.(?:webp|png|jpe?g)$/i, "");
+  return {
+    blob: new Blob([await blob.arrayBuffer()], { type: mime }),
+    name: `${base}${ext}`,
+  };
+}
+
 async function fetchReference(url: string, name: string) {
-  const r = await fetch(url, { headers: { Accept: "image/webp,image/*" } });
+  const r = await fetch(url, { headers: { Accept: "image/webp,image/jpeg,image/png,image/*" } });
   if (!r.ok) throw new Error(`${name} (${r.status})`);
-  return { blob: await r.blob(), name };
+  const normalized = await normalizeReferenceBlob(await r.blob(), name);
+  console.log("FLUX_REFERENCE_NORMALIZED", JSON.stringify({
+    sourceName: name,
+    sentName: normalized.name,
+    mime: normalized.blob.type || "unknown",
+    bytes: normalized.blob.size,
+  }));
+  return normalized;
 }
 
 async function loadCharacterReferences(character: any, warnings: string[]) {
@@ -877,17 +916,13 @@ async function fluxNeuronCost(model: string, refs: { blob: Blob; name: string }[
     for(const r of used) input += (await imagePixelCount(r.blob))/(1024*1024)*181.82;
     return Number((output+input).toFixed(2));
   }
-  // 4B: 26.05 neurons per output 512x512 tile and 5.37 per input 512x512 tile.
+  // 4B: HGT outputs 512x1024, i.e. two 512x512 output tiles.
+  // Production billing measurements show each reference actually sent to
+  // FLUX is charged as one 5.37-neuron input unit, regardless of the stored
+  // reference dimensions. Up to four references are sent.
   const outputTiles=Math.ceil(WIDTH/512)*Math.ceil(HEIGHT/512);
-  let inputTiles=0;
-  for(const r of used){
-    const px=await imagePixelCount(r.blob);
-    // Cloudflare bills input by 512x512 tile. Reference images accepted by
-    // Klein are <512x512 in the current API, but use ceil(pixel area/tile area)
-    // so accounting remains correct if HGT's reference preparation changes.
-    inputTiles += Math.max(1,Math.ceil(px/(512*512)));
-  }
-  return Number((outputTiles*26.05 + inputTiles*5.37).toFixed(2));
+  const inputUnits=used.length;
+  return Number((outputTiles*26.05 + inputUnits*5.37).toFixed(2));
 }
 
 async function generateFlux(
@@ -947,9 +982,9 @@ async function generateFlux(
 
     const image = findCloudflareImage(data);
     if (r.ok && image) {
-      // Record only an inference that actually produced an image. In particular, a
-      // model-level 3030 rejected request is not added to HGT's neuron counter; its
-      // successful retry is recorded independently with the references it really used.
+      // Record the successful inference with exactly the references it used.
+      // A rejected 3030 is accounted for separately below as output-only, so a
+      // 3030 + successful retry is represented as two distinct FLUX attempts.
       if (onFluxAttempt) {
         try { await onFluxAttempt(await fluxNeuronCost(model, runRefs)); } catch (_) {}
       }
@@ -957,6 +992,20 @@ async function generateFlux(
     }
 
     const code = cloudflareErrorCode(data, raw);
+
+    // Cloudflare billing observed in production: a model-level 3030 charges
+    // the 4B output inference (2 x 512x512 tiles for HGT's 512x1024 output),
+    // but not the input references from that rejected attempt. Record that
+    // output-only charge here; the successful retry is recorded separately.
+    if (String(code) === "3030" && onFluxAttempt) {
+      try {
+        const rejected3030Cost = model === CF_MODEL_CHAMPION
+          ? 1363.64 + Math.max(0, (WIDTH * HEIGHT) / (1024 * 1024) - 1) * 181.82
+          : Math.ceil(WIDTH / 512) * Math.ceil(HEIGHT / 512) * 26.05;
+        await onFluxAttempt(Number(rejected3030Cost.toFixed(2)));
+      } catch (_) {}
+    }
+
     const message = data?.errors?.[0]?.message || data?.error?.message || raw.slice(0, 700) || `HTTP ${r.status}`;
     const err: any = new Error(`Cloudflare ${r.status}${code ? ` code ${code}` : ""}: ${message}`);
     err.code = code;
