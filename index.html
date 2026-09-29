@@ -5481,7 +5481,7 @@ async function refreshNeuronStatus(){
     el.title=`${used.toLocaleString('fr-FR',{maximumFractionDigits:2})} / ${limit.toLocaleString('fr-FR')} neurons utilisés · estimation basée sur un portrait normal 4B à ${normalCost.toLocaleString('fr-FR')} neurons (Champion 9B : 1 450)`;
   }catch(_){el.textContent='⚡ Compteur indisponible';}
 }
-refreshNeuronStatus();
+const __neuronStatusEl=document.getElementById('neuronRemaining');if(__neuronStatusEl)__neuronStatusEl.textContent='⚡ Chargement…';
 async function ensureCloudGameForImageGeneration(){
   if(cloudReady())return true;
   if(!cloudClient||!cloudUser)return false;
@@ -5653,6 +5653,7 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
       const rr=loadRoster();rr[c.id]=JSON.parse(JSON.stringify(c));saveRoster(rr);if(typeof queueCloudCharacterSave==='function')queueCloudCharacterSave(c);
       await refreshIllustrationFor(characterId);setTimeout(()=>refreshIllustrationThumbsFor(characterId),0);
       illustrationStatus(characterId,'🏆 Portrait champion 9B généré et défini comme portrait principal');
+      await refreshNeuronStatus();
       return true;
     }
     const db=await openIllustrationDB();await new Promise((resolve,reject)=>{const tx=db.transaction(ILLUSTRATION_STORE,'readwrite');tx.objectStore(ILLUSTRATION_STORE).put(remote,characterImageIdentity(characterId));tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error)});
@@ -5668,7 +5669,7 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
     if(regenerate)recordRegeneration(c);
     else c.imageGeneration.initialGeneratedAt=c.imageGeneration.initialGeneratedAt||new Date().toISOString();
     const rr=loadRoster();rr[c.id]=JSON.parse(JSON.stringify(c));saveRoster(rr);queueCloudCharacterSave(c);
-    await refreshIllustrationFor(characterId);setTimeout(()=>refreshIllustrationThumbsFor(characterId),0);illustrationStatus(characterId,regenerate?`✅ Image régénérée • ${regenCounterFor(c)}/5 aujourd’hui`:'✅ Illustration générée automatiquement');return true;
+    await refreshIllustrationFor(characterId);setTimeout(()=>refreshIllustrationThumbsFor(characterId),0);illustrationStatus(characterId,regenerate?`✅ Image régénérée • ${regenCounterFor(c)}/5 aujourd’hui`:'✅ Illustration générée automatiquement');await refreshNeuronStatus();return true;
   }catch(e){console.error('Génération illustration',e);const msg=e?.message||String(e);illustrationStatus(characterId,`⚠️ Génération impossible : ${msg.slice(0,220)}`);return false}
   finally{__imageGenerationBusy.delete(busyKey)}
 }
@@ -5750,8 +5751,10 @@ async function initCloud(){
   }
   cloudUpdateTopStatus();
   renderEntryGate();
+  // Le compteur dépend de cloudClient + cloudUser : le charger seulement après restauration de session.
+  await refreshNeuronStatus();
   if(cloudReady()) setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1800);
-  cloudClient.auth.onAuthStateChange(async(_event,session)=>{if(_event==='PASSWORD_RECOVERY')hgtPasswordRecovery=true;cloudUser=session?.user||null;if(cloudUser&&!hgtPasswordRecovery){try{await loadCloudProfile();await startHgtPresence();await loadHgtFriends();await startHgtInviteRealtime();await startCommunityRealtime();await cloudRefreshGames();if(cloudReady())setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1200)}catch(e){cloudSyncError(e)}}else if(!cloudUser){cloudGames=[];cloudCurrentGame=null;cloudProfile=null}cloudUpdateTopStatus();renderEntryGate();renderCloudModal()});
+  cloudClient.auth.onAuthStateChange(async(_event,session)=>{if(_event==='PASSWORD_RECOVERY')hgtPasswordRecovery=true;cloudUser=session?.user||null;if(cloudUser&&!hgtPasswordRecovery){try{await loadCloudProfile();await startHgtPresence();await loadHgtFriends();await startHgtInviteRealtime();await startCommunityRealtime();await cloudRefreshGames();if(cloudReady())setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1200)}catch(e){cloudSyncError(e)}}else if(!cloudUser){cloudGames=[];cloudCurrentGame=null;cloudProfile=null}cloudUpdateTopStatus();renderEntryGate();renderCloudModal();await refreshNeuronStatus()});
 }
 const cloudAccountBtn=document.getElementById('cloudAccountBtn');if(cloudAccountBtn)cloudAccountBtn.onclick=()=>cloudUser?openProfileModal():openCloudModal();
 document.getElementById('cloudCloseBtn').onclick=closeCloudModal;
