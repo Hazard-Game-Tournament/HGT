@@ -1286,18 +1286,48 @@ The region reference guides environmental vocabulary: characteristic terrain, ma
 Keep the final image recognizably consistent with the canonical identities while giving this character a distinct composition.`;
     }
 
+    // Accumulate every FLUX charge for this click in memory, then persist it as
+    // ONE neuron_usage row. This avoids losing the 3030 charge if multiple
+    // inserts for the same character/click are rejected or collapsed by the DB.
+    let pendingFluxNeurons = 0;
     const recordFluxAttempt = async (neuronsUsed: number) => {
+      const n = Number(neuronsUsed);
+      if (Number.isFinite(n) && n > 0) pendingFluxNeurons += n;
+    };
+
+    const flushFluxNeurons = async () => {
+      if (!(pendingFluxNeurons > 0)) return;
+      const total = Number(pendingFluxNeurons.toFixed(2));
+      pendingFluxNeurons = 0;
       const { error: neuronError } = await admin.from("neuron_usage").insert({
         user_id: user.id,
         character_id: displayCharacterId,
-        neurons: Number(neuronsUsed.toFixed(2)),
+        neurons: total,
       });
-      if (neuronError) warnings.push(`Neuron usage not recorded: ${neuronError.message}`);
+      if (neuronError) {
+        // Restore the amount locally so the log reflects what failed to persist.
+        pendingFluxNeurons = total;
+        warnings.push(`Neuron usage not recorded: ${neuronError.message}`);
+        console.error("NEURON_USAGE_INSERT_FAILED", JSON.stringify({
+          characterId: displayCharacterId, neurons: total, error: neuronError.message
+        }));
+      } else {
+        console.log("NEURON_USAGE_RECORDED", JSON.stringify({
+          characterId: displayCharacterId, neurons: total
+        }));
+      }
     };
 
-    const first = await generateFlux(
-      CF_ACCOUNT_ID, CF_TOKEN, GEMINI_API_KEY, model, fluxPrompt, seed, refs, generationDeadlineAt, recordFluxAttempt
-    );
+    let first: any;
+    try {
+      first = await generateFlux(
+        CF_ACCOUNT_ID, CF_TOKEN, GEMINI_API_KEY, model, fluxPrompt, seed, refs, generationDeadlineAt, recordFluxAttempt
+      );
+    } catch (fluxError) {
+      await flushFluxNeurons();
+      throw fluxError;
+    }
+    await flushFluxNeurons();
 
     let chosen = first;
     let chosenPrompt = first.promptUsed;
