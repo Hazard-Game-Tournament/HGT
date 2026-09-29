@@ -1,10 +1,14 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+const ALLOWED_ORIGIN = "https://hazard-game-tournament.github.io";
 const CORS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
 };
+const MAX_REQUEST_BYTES = 2 * 1024 * 1024; // 2 MiB: HGT sends JSON metadata, never image binaries here.
+const MAX_CORRECTION_PROMPT_CHARS = 24000;
 
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
 const CF_MODEL_NORMAL = "@cf/black-forest-labs/flux-2-klein-4b";
@@ -217,7 +221,17 @@ function clampInt(value: unknown, min: number, max: number, fallback: number) {
 
 function cleanId(value: unknown, fallback: string) {
   const s = String(value ?? fallback).trim();
-  return (s || fallback).replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 180);
+  // IDs become storage-path components: dots are unnecessary and make traversal-like
+  // values harder to reason about. Keep only the characters HGT IDs actually use.
+  return (s || fallback).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 180);
+}
+
+function isSafeUserCharacterPath(path: string, userId: string) {
+  if (!path || path.includes("..") || path.includes("\\") || path.includes("//")) return false;
+  const prefix = `${userId}/characters/`;
+  if (!path.startsWith(prefix)) return false;
+  const rest = path.slice(prefix.length);
+  return !!rest && rest.split("/").every((part) => !!part && part !== "." && part !== "..");
 }
 
 function stripDataUri(base64: string) {
@@ -925,13 +939,6 @@ async function generateFlux(
       clearTimeout(fluxTimer);
     }
 
-    // Workers AI charges per inference attempt. Account for this request even if
-    // Cloudflare rejects it with a model-level 3030 and HGT performs its one retry.
-    // Transport failures before a response are not recorded here.
-    if (onFluxAttempt) {
-      try { await onFluxAttempt(await fluxNeuronCost(model, runRefs)); } catch (_) {}
-    }
-
     const raw = await r.text();
     let data: any = null;
     try {
@@ -939,7 +946,15 @@ async function generateFlux(
     } catch (_) {}
 
     const image = findCloudflareImage(data);
-    if (r.ok && image) return { image, data, promptUsed: p, referenceCountUsed: Math.min(runRefs.length, 4) };
+    if (r.ok && image) {
+      // Record only an inference that actually produced an image. In particular, a
+      // model-level 3030 rejected request is not added to HGT's neuron counter; its
+      // successful retry is recorded independently with the references it really used.
+      if (onFluxAttempt) {
+        try { await onFluxAttempt(await fluxNeuronCost(model, runRefs)); } catch (_) {}
+      }
+      return { image, data, promptUsed: p, referenceCountUsed: Math.min(runRefs.length, 4) };
+    }
 
     const code = cloudflareErrorCode(data, raw);
     const message = data?.errors?.[0]?.message || data?.error?.message || raw.slice(0, 700) || `HTTP ${r.status}`;
@@ -1068,7 +1083,17 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    const body = await req.json();
+    const declaredLength = Number(req.headers.get("content-length") || 0);
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
+      return jsonResponse({ success: false, error: "Request body too large" }, 413);
+    }
+    const rawBody = await req.text();
+    if (new TextEncoder().encode(rawBody).byteLength > MAX_REQUEST_BYTES) {
+      return jsonResponse({ success: false, error: "Request body too large" }, 413);
+    }
+    let body: any;
+    try { body = JSON.parse(rawBody); }
+    catch (_) { return jsonResponse({ success: false, error: "Invalid JSON body" }, 400); }
     const action = String(body?.action || "generate");
 
     // Validation is deliberately a separate request from FLUX generation.
@@ -1083,9 +1108,8 @@ Deno.serve(async (req) => {
       if (!character || !imagePath) {
         return jsonResponse({ success: false, error: "Character JSON and imagePath required for validation" }, 400);
       }
-      const allowedPrefix = `${user.id}/characters/`;
-      if (!imagePath.startsWith(allowedPrefix)) {
-        return jsonResponse({ success: false, error: "Validation path outside authenticated user directory" }, 403);
+      if (!isSafeUserCharacterPath(imagePath, user.id)) {
+        return jsonResponse({ success: false, error: "Invalid validation image path" }, 403);
       }
       const { data: blob, error: downloadError } = await admin.storage.from(BUCKET).download(imagePath);
       if (downloadError || !blob) throw new Error(`Validation image download: ${downloadError?.message || "failed"}`);
@@ -1125,7 +1149,14 @@ Deno.serve(async (req) => {
     const correctionMode = body?.correctionMode === true;
     const previousValidationScore = Number(body?.previousValidationScore ?? -1);
     const previousCriticalPass = body?.previousCriticalPass === true;
-    const incomingCorrectionPrompt = String(body?.correctionPrompt || "").trim();
+    const rawCorrectionPrompt = body?.correctionPrompt;
+    if (rawCorrectionPrompt != null && typeof rawCorrectionPrompt !== "string") {
+      return jsonResponse({ success: false, error: "correctionPrompt must be a string" }, 400);
+    }
+    const incomingCorrectionPrompt = String(rawCorrectionPrompt || "").trim();
+    if (incomingCorrectionPrompt.length > MAX_CORRECTION_PROMPT_CHARS) {
+      return jsonResponse({ success: false, error: `correctionPrompt too long (max ${MAX_CORRECTION_PROMPT_CHARS} characters)` }, 400);
+    }
     const previousPortraitPath = String(body?.previousPortraitPath || "").trim();
     const regenerationMode = body?.regenerationMode === true || !!previousPortraitPath;
     const storageCharacterId = cleanId(body?.characterId, "character");
@@ -1167,9 +1198,8 @@ Deno.serve(async (req) => {
     // than a fresh random redraw. The path is restricted to the authenticated user's
     // own character-images directory.
     if (regenerationMode && previousPortraitPath) {
-      const allowedPrefix = `${user.id}/characters/`;
-      if (!previousPortraitPath.startsWith(allowedPrefix)) {
-        warnings.push("Previous portrait ignored: path is outside the authenticated user's character directory.");
+      if (!isSafeUserCharacterPath(previousPortraitPath, user.id)) {
+        warnings.push("Previous portrait ignored: invalid or outside the authenticated user's character directory.");
       } else {
         const { data: previousBlob, error: previousBlobError } = await admin.storage
           .from(BUCKET)
