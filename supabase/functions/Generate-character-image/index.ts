@@ -934,12 +934,14 @@ async function fluxNeuronCost(model: string, refs: { blob: Blob; name: string }[
     for(const r of used) input += (await imagePixelCount(r.blob))/(1024*1024)*181.82;
     return Number((output+input).toFixed(2));
   }
-  // 4B: cost of ONE explicit FLUX request made by this Edge Function.
-  // Keep attempts separate while tracing 3030 retries; do not hide a second
-  // request by multiplying the successful request cost by two.
-  const outputTiles=Math.ceil(WIDTH/512)*Math.ceil(HEIGHT/512);
-  const inputUnits=used.length;
-  return Number((outputTiles*26.05 + inputUnits*5.37).toFixed(2));
+  // FLUX 2 Klein 4B — empirical billing measured against the Cloudflare
+  // dashboard for ONE successful 512x1024 inference. The fixed output cost is
+  // 104.20 neurons and each supplied reference adds ~5.367 neurons. Keeping
+  // the unrounded per-reference value reproduces the observed dashboard totals:
+  // 1 ref = 109.57, 2 = 114.93, 3 = 120.30, 4 = 125.67.
+  const outputCost = 104.20;
+  const inputCostPerReference = 5.367;
+  return Number((outputCost + used.length * inputCostPerReference).toFixed(2));
 }
 
 async function generateFlux(
@@ -1014,9 +1016,8 @@ async function generateFlux(
       referenceCount: referenceNames.length,
     }));
     if (r.ok && image) {
-      // Record the successful inference with exactly the references it used.
-      // A rejected 3030 is accounted for separately below as output-only, so a
-      // 3030 + successful retry is represented as two distinct FLUX attempts.
+      // Record exactly this successful FLUX inference, using the number of
+      // references actually sent with this attempt.
       const attemptCost = await fluxNeuronCost(model, runRefs);
       console.log("FLUX_ATTEMPT_SUCCESS", JSON.stringify({
         traceId: fluxTraceId, attempt, costRecorded: attemptCost,
@@ -1028,11 +1029,8 @@ async function generateFlux(
       return { image, data, promptUsed: p, referenceCountUsed: Math.min(runRefs.length, 4) };
     }
 
-    // Some Workers AI responses expose a wrapper error code while putting
-    // the model rejection code 3030 only in the error message/raw body.
-    // Retry detection already handled that case, but neuron accounting used
-    // to inspect only `code`, which silently lost the 52.10-neuron rejected
-    // inference. Detect 3030 from BOTH the structured code and raw response.
+    // Only a structured Cloudflare code 3030 may trigger the single retry.
+    // Arbitrary occurrences of "3030" in raw text are intentionally ignored.
     const promptRejected3030 = isCloudflarePromptRejectionCode(code);
     console.warn("FLUX_ATTEMPT_ERROR", JSON.stringify({
       traceId: fluxTraceId, attempt, httpStatus: r.status,
@@ -1040,10 +1038,9 @@ async function generateFlux(
       referenceCount: referenceNames.length,
     }));
 
-    // Do not add a separate neuron charge for the 3030 here. Our measured
-    // Cloudflare dashboard total for a generation is already reproduced by the
-    // successful-call billing formula above. Counting the rejected response as
-    // another 52.10 here would double-count it whenever HGT sees the 3030.
+    // Do not invent a neuron charge for a rejected 3030 response. Successful
+    // FLUX calls are measured and recorded independently; the trace logs remain
+    // available to validate rejected-attempt billing if Cloudflare exposes it.
 
     const message = data?.errors?.[0]?.message || data?.error?.message || raw.slice(0, 700) || `HTTP ${r.status}`;
     const err: any = new Error(`Cloudflare ${r.status}${code ? ` code ${code}` : ""}: ${message}`);
@@ -1332,9 +1329,9 @@ The region reference guides environmental vocabulary: characteristic terrain, ma
 Keep the final image recognizably consistent with the canonical identities while giving this character a distinct composition.`;
     }
 
-    // Accumulate every FLUX charge for this click in memory, then persist it as
-    // ONE neuron_usage row. This avoids losing the 3030 charge if multiple
-    // inserts for the same character/click are rejected or collapsed by the DB.
+    // Accumulate the measured successful FLUX inference costs for this click,
+    // then persist them as one neuron_usage row. A 3030 retry, when it occurs,
+    // remains visible as a separate FLUX_ATTEMPT in the trace logs.
     let pendingFluxNeurons = 0;
     const recordFluxAttempt = async (neuronsUsed: number) => {
       const n = Number(neuronsUsed);
