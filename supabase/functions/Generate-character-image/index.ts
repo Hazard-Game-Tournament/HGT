@@ -1154,10 +1154,15 @@ Keep the final image recognizably consistent with the canonical identities while
     // Count neurons immediately after FLUX succeeds. This remains accurate even if
     // the browser disconnects or the optional Gemini QA step later times out.
     try {
+      // FLUX.2 Klein 9B (portraits Champion) has a much higher neuron cost than 4B.
+      // Record it separately so the global daily counter includes Champion generations.
+      // Champion 9B: use the observed real consumption for the current Champion pipeline.
+      // The normal 4B portrait path keeps its existing accounting.
+      const neuronsUsed = generationMode === "champion" ? 1450 : 114.93;
       const { error: neuronError } = await admin.from("neuron_usage").insert({
         user_id: user.id,
         character_id: displayCharacterId,
-        neurons: 114.93,
+        neurons: neuronsUsed,
       });
       if (neuronError) warnings.push(`Neuron usage not recorded: ${neuronError.message}`);
     } catch (e: any) {
