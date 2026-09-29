@@ -52,6 +52,34 @@ const REGION_FILE_MAP: Record<string, string> = {
 };
 
 
+
+function enrichSpiritRacialVisualTraits(character: any): void {
+  if (!character || typeof character !== "object") return;
+  const race = String(character?.race || "").trim();
+  const parts = Array.isArray(character?.raceParts) ? character.raceParts.map((x: any) => String(x ?? "").trim()) : [];
+  const isSpirit = race === "Esprit" || parts.includes("Esprit");
+  if (!isSpirit) return;
+
+  const existing = Array.isArray(character.racialVisualTraits)
+    ? character.racialVisualTraits.map((x: any) => String(x))
+    : [];
+  const add = (trait: string) => {
+    if (!existing.includes(trait)) existing.push(trait);
+  };
+
+  add("ESPRIT — ANATOMIE FANTOMATIQUE OBLIGATOIRE : les avant-bras et les mains, ainsi que le bas des jambes et les pieds, sont eux-mêmes immatériels, fantomatiques, spectraux et translucides. La matière corporelle doit visiblement se transformer puis se dissiper en volutes éthérées sur ces zones. Ce n'est PAS une aura autour de membres humains normaux, PAS des gants ou bottes transparents, PAS un simple effet de lumière. Si les avant-bras/mains ou les bas de jambes/pieds paraissent en chair solide ordinaire, le trait racial est absent.");
+
+  const lineage = character?.lineage && typeof character.lineage === "object" ? character.lineage : {};
+  const origin = String(lineage?.spiritOrigin || "").trim();
+  const essence = String(lineage?.spiritEssence || "").trim();
+  if (/^Naturel$/i.test(origin)) {
+    const element = essence || "élément naturel généré";
+    add(`ESPRIT NATUREL — INCARNATION ÉLÉMENTAIRE OBLIGATOIRE : l'élément « ${element} » doit être physiquement incorporé dans la matière fantomatique des avant-bras, mains, bas des jambes et pieds : il compose, traverse ou dissout visiblement ces parties spectrales. Une manifestation secondaire autour du corps est permise, mais l'élément ne peut PAS être seulement dans le décor, la météo, une aura ou un sort autour de membres humains.`);
+  }
+
+  character.racialVisualTraits = existing;
+}
+
 function superiorCanonVisualContract(character: any): string[] {
   const race = String(character?.race || "").trim();
   const parts = Array.isArray(character?.raceParts) ? character.raceParts.map((x: any) => String(x ?? "").trim()) : [];
@@ -99,6 +127,16 @@ function superiorCanonVisualContract(character: any): string[] {
   }
   if (/Dragon humanoïde/i.test(haystack) && !/Dragon ancestral|Dragon originel/i.test(haystack)) {
     rules.push(`HUMANOID DRAGON — keep the body primarily humanoid while visibly preserving genuine draconic biological traits supported by the character data/reference. Do not silently convert it into a full dragon.`);
+  }
+
+  if (/(^|\b)Esprit(\b|$)/i.test(haystack)) {
+    const spiritOrigin = String(lineage?.spiritOrigin || "").trim();
+    const spiritEssence = String(lineage?.spiritEssence || "").trim();
+    rules.push(`SPIRIT — mandatory spectral anatomy for ALL spirits: the forearms and hands AND the lower legs and feet are physically incorporeal, ghostly and spectral. These body parts themselves must visibly transition from the material body into translucent ethereal substance and partially dissipate into supernatural wisps. This is NOT an aura around normal flesh, NOT transparent gloves/boots, and NOT merely lighting or motion blur. The upper arms, torso and upper legs may remain materially humanoid. If the forearms/hands or lower legs/feet read as ordinary solid flesh, the racial anatomy is wrong.`);
+    if (/^Naturel$/i.test(spiritOrigin)) {
+      const essence = spiritEssence || "the generated natural element";
+      rules.push(`NATURAL SPIRIT — mandatory elemental embodiment: this spirit's natural essence is “${essence}”. Incorporate ${essence} directly INTO the ghostly/incorporeal substance of the forearms, hands, lower legs and feet, so the element visibly composes, traverses or dissolves those spectral body parts. Also allow a restrained surrounding manifestation of the same element where useful. The element must be physically readable as part of the spirit's body, not merely as background weather, scenery, an aura, clothing decoration or a spell held near otherwise-human limbs.`);
+    }
   }
 
   if (/Neoxus/i.test(haystack) && !/N\\.E\\.X\\.U\\.S/i.test(haystack)) {
@@ -980,6 +1018,7 @@ Deno.serve(async (req) => {
     // already-successful image generation request.
     if (action === "validate") {
       const character = body?.character && typeof body.character === "object" ? body.character : null;
+      if (character) enrichSpiritRacialVisualTraits(character);
       const imagePath = String(body?.imagePath || "").trim();
       const currentPrompt = String(body?.currentPrompt || "").trim();
       const critical = Array.isArray(body?.critical) ? body.critical : [];
@@ -1039,6 +1078,7 @@ Deno.serve(async (req) => {
     const championSeason = body?.championSeason ?? null;
     const seed = clampInt(body?.seed, 1, 2147483646, Math.floor(Math.random() * 2147483646) + 1);
     const character = body?.character && typeof body.character === "object" ? body.character : null;
+    if (character) enrichSpiritRacialVisualTraits(character);
     const legacyPrompt = String(body?.prompt || "").trim();
 
     if (!character && !legacyPrompt) {
