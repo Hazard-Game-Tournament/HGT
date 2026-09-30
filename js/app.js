@@ -1683,29 +1683,48 @@ function createChild(pa,pb,origin,event,meta,descStore){
   descStore[id]=child;return child;
 }
 function cleanupPrematureBirths(){
-  const roster=loadRoster(), d=descendants();
-  let removed=0,changed=false;
-  for(const pa of Object.values(roster||{})){
-    if(!pa)continue;ensureGenealogyShape(pa);
-    for(const ev of (pa.extraDetail||[])){
-      if(ev?.kind!=='Enfant')continue;
-      const bs=Number(ev.birthSeason||characterSeasonFromId(pa,seasonNumber));
-      if(seasonCompleted(bs)&&tournamentChampionForSeason(bs))continue;
-      const ids=birthEventChildIds(ev);
-      const premature=ids.filter(id=>{
-        const child=d[id];
-        return child && Number(child.birthSeason)===bs && Number(child.eligibleSeason)===bs+1 && child.selectedForSeason==null;
-      });
-      if(!premature.length)continue;
-      for(const id of premature){delete d[id];removed++}
-      ev.childIds=ids.filter(id=>!premature.includes(id));delete ev.childId;
-      ev.status=ev.childIds.length?`${ev.childIds.length} naissance${ev.childIds.length>1?'s':''} résolue${ev.childIds.length>1?'s':''}`:'Naissance en attente de résolution';
-      pa.genealogy.children=(pa.genealogy.children||[]).filter(id=>!premature.includes(id));
-      roster[pa.id]=pa;changed=true;
-    }
+  const roster=loadRoster(), d=descendants(), npcStore=npcs();
+  const removedIds=new Set();
+  // Cible uniquement les enfants créés par l'ancien bug :
+  // naissance issue d'une saison qui n'est PAS encore officiellement arrivée à sa transition.
+  for(const child of Object.values(d||{})){
+    if(!child||child.selectedForSeason!=null)continue;
+    const bs=Number(child.birthSeason);
+    if(!Number.isFinite(bs))continue;
+    if(seasonCompleted(bs)&&tournamentChampionForSeason(bs))continue;
+    if(Number(child.eligibleSeason)!==bs+1)continue;
+    removedIds.add(child.id);
   }
-  if(changed){saveRoster(roster);saveStore(STORAGE_DESC,d);if(typeof saveEmergencyLocalBackup==='function')saveEmergencyLocalBackup()}
-  return removed;
+  if(!removedIds.size)return 0;
+
+  for(const id of removedIds)delete d[id];
+
+  // Nettoie toutes les références laissées dans les combattants et PNJ parents.
+  const cleanPerson=p=>{
+    if(!p)return;
+    ensureGenealogyShape(p);
+    p.genealogy.children=(p.genealogy.children||[]).filter(id=>!removedIds.has(id));
+    p.genealogy.siblings=(p.genealogy.siblings||[]).filter(id=>!removedIds.has(id));
+    for(const ev of (p.extraDetail||[])){
+      if(ev?.kind!=='Enfant')continue;
+      const kept=birthEventChildIds(ev).filter(id=>!removedIds.has(id));
+      ev.childIds=kept;delete ev.childId;
+      if(!kept.length){
+        ev.status='Naissance en attente de résolution';
+        // Conserver birthSeason/eligibleSeason : l'événement devra être résolu
+        // normalement à la fin de SA saison.
+      }else{
+        ev.status=`${kept.length} naissance${kept.length>1?'s':''} résolue${kept.length>1?'s':''}`;
+      }
+    }
+  };
+  Object.values(roster||{}).forEach(cleanPerson);
+  Object.values(npcStore||{}).forEach(cleanPerson);
+  Object.values(d||{}).forEach(cleanPerson);
+
+  saveRoster(roster);saveStore(STORAGE_DESC,d);saveStore(STORAGE_NPCS,npcStore);
+  if(typeof saveEmergencyLocalBackup==='function')saveEmergencyLocalBackup();
+  return removedIds.size;
 }
 async function resolveBirthEvents(){
   saveCurrentCharacter();
@@ -2032,6 +2051,10 @@ function addGenealogyPath(d){
 }
 
 function renderGenealogy(){
+  try{
+    const removed=cleanupPrematureBirths();
+    if(removed)console.info(`[HGT] ${removed} descendant(s) prématuré(s) retiré(s) de la généalogie.`);
+  }catch(e){console.warn('Nettoyage généalogie',e)}
   const roster=loadRoster(), d=descendants(), n=npcs();
   const ds=Object.values(d).sort((a,b)=>a.id.localeCompare(b.id));
   const ns=Object.values(n).sort((a,b)=>a.id.localeCompare(b.id));
