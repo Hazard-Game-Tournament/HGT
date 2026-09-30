@@ -2084,3 +2084,67 @@ body::-webkit-scrollbar{
     font-size:20px!important;max-width:14ch!important;
   }
 }
+
+/* ============================================================
+   HGT V13 — AJUSTEMENTS ACCUEIL + CODEX
+   - carte de bienvenue légèrement plus compacte
+   - pseudo mis en avant avec la palette régionale
+   - bouton Importer JSON maintenu à l'intérieur du cadre
+   ============================================================ */
+
+/* Accueil : conserve la composition V12 mais réduit l'encombrement vertical. */
+.hgt-entry-card:has(#entryPlay){
+  width:min(480px,calc(100vw - 38px))!important;
+  min-height:min(610px,calc(100dvh - 175px))!important;
+  padding:clamp(26px,4vw,38px) clamp(22px,4.5vw,36px)!important;
+}
+.hgt-entry-card:has(#entryPlay) .hgt-entry-art{
+  width:clamp(140px,34vw,188px)!important;
+  height:clamp(140px,34vw,188px)!important;
+  margin:19px auto 22px!important;
+}
+.hgt-entry-card:has(#entryPlay) .hgt-entry-sub{
+  margin:11px 0 0!important;
+  font-size:clamp(14px,1.9vw,16px)!important;
+}
+.hgt-entry-user{
+  display:inline-block;
+  margin-left:.16em;
+  font-family:"Cinzel",Georgia,serif!important;
+  font-size:1.12em!important;
+  font-weight:800!important;
+  letter-spacing:.035em!important;
+  color:var(--theme-accent,var(--artifact-gold,#d7ad55))!important;
+  text-shadow:0 0 12px var(--theme-glow,rgba(215,173,85,.24)),0 1px 0 #000!important;
+}
+
+/* Codex : le bouton reste dans le cadre, y compris sur écran étroit. */
+#listTab .roster-page>.panel:first-child .roster-export-bar{
+  width:100%!important;
+  box-sizing:border-box!important;
+  padding:0 12px!important;
+  margin:14px 0 16px!important;
+  justify-content:flex-end!important;
+}
+#listTab .roster-page>.panel:first-child .roster-export-bar .smallbtn{
+  width:auto!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+  margin:0!important;
+}
+
+@media(max-width:600px){
+  .hgt-entry-card:has(#entryPlay){
+    width:calc(100vw - 38px)!important;
+    min-height:min(590px,calc(100dvh - 155px))!important;
+    padding:24px 20px!important;
+  }
+  .hgt-entry-card:has(#entryPlay) .hgt-entry-art{
+    width:145px!important;
+    height:145px!important;
+    margin:18px auto 20px!important;
+  }
+  #listTab .roster-page>.panel:first-child .roster-export-bar{
+    padding:0 14px!important;
+  }
+}
