@@ -1,4 +1,4 @@
-const CACHE = 'hgt-shell-v2';
+const CACHE = 'hgt-shell-v3';
 const SHELL = [
   './',
   './index.html',
@@ -35,7 +35,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-store' })
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
