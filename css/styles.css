@@ -571,524 +571,274 @@ body{font-family:system-ui;background:radial-gradient(circle at top,#24161f,#0c0
 .illustration-frame .character-illustration{display:block;width:100%;height:100%;max-width:none;max-height:none!important;object-fit:cover;object-position:center;margin:0}
 
 
-/* ==========================================================
-   HGT — INTERFACE ARTEFACT / ARENE V1
-   Couleurs régionales existantes conservées : cette couche
-   ne remplace pas la logique JS de palette.
-   ========================================================== */
+/* ============================================================
+   HGT V3 — INTERFACE ARTEFACT / ARENE — MAQUETTE FIDELE
+   Reconstruction visuelle, sans modifier les couleurs régionales.
+   ============================================================ */
+html,body{max-width:100%;overflow-x:hidden!important}
+body{--artifact-gold:#d7ad55;--artifact-gold-hi:#ffe4a0;--artifact-gold-lo:#6e4818;--artifact-ink:#06090a}
+body:not(.hgt-gated){background-attachment:fixed}
 
-:root{
-  --hgt-metal:#c9a75a;
-  --hgt-metal-hi:#f0d48a;
-  --hgt-metal-dark:#5f451f;
-  --hgt-void:rgba(5,8,9,.90);
-  --hgt-glass:rgba(8,15,15,.78);
-  --hgt-line:rgba(213,178,91,.48);
-  --hgt-line-soft:rgba(213,178,91,.20);
-}
-
-/* Fond plus profond, sans changer la teinte régionale injectée ailleurs. */
-body:not(.hgt-gated){
-  background-image:
-    radial-gradient(circle at 50% -15%,rgba(255,255,255,.045),transparent 34%),
-    linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.24));
-}
-
-/* Header : une seule armature plutôt que plusieurs capsules indépendantes. */
-body:not(.hgt-gated)>header{
+/* Cadre ornemental générique, inspiré du châssis de la roue. */
+.hgt-artifact-header,.tabs,.panel,.cloud-card{
+  --orn:var(--artifact-gold);
   position:relative;
-  margin:14px 18px 0;
-  padding:20px 20px 18px;
-  border:1px solid var(--hgt-line);
-  border-radius:4px;
+  border:1px solid rgba(215,173,85,.74)!important;
+  border-radius:0!important;
   background:
-    linear-gradient(135deg,rgba(255,255,255,.035),transparent 26%),
-    linear-gradient(180deg,rgba(10,15,14,.94),rgba(5,9,9,.88));
+    linear-gradient(135deg,rgba(255,255,255,.035),transparent 17%),
+    linear-gradient(180deg,rgba(5,15,17,.95),rgba(3,8,10,.96))!important;
   box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.75),
-    inset 0 0 26px rgba(255,255,255,.025),
-    0 12px 30px rgba(0,0,0,.34);
+    inset 0 0 0 2px #050606,
+    inset 0 0 0 3px rgba(215,173,85,.18),
+    inset 0 0 30px rgba(255,255,255,.018),
+    0 12px 28px rgba(0,0,0,.36)!important;
 }
-body:not(.hgt-gated)>header::before,
-body:not(.hgt-gated)>header::after{
-  content:"◆";
-  position:absolute;top:50%;transform:translateY(-50%) rotate(45deg);
-  width:18px;height:18px;display:grid;place-items:center;
-  color:var(--hgt-metal-hi);font-size:10px;
-  background:#0a0c0b;border:1px solid var(--hgt-metal);
-  box-shadow:0 0 12px rgba(255,255,255,.06);
+.hgt-artifact-header:after,.panel:after,.cloud-card:after{
+  content:"";position:absolute;inset:8px;pointer-events:none;z-index:0;
+  border:1px solid rgba(215,173,85,.25);
+  clip-path:polygon(0 18px,18px 0,calc(100% - 18px) 0,100% 18px,100% calc(100% - 18px),calc(100% - 18px) 100%,18px 100%,0 calc(100% - 18px));
 }
-body:not(.hgt-gated)>header::before{left:-10px}
-body:not(.hgt-gated)>header::after{right:-10px}
-body:not(.hgt-gated)>header h1{
-  text-shadow:0 2px 0 #000,0 0 16px rgba(255,255,255,.06);
-  letter-spacing:.045em;
+.hgt-artifact-header>* ,.panel>* ,.cloud-card>*{position:relative;z-index:1}
+
+/* HEADER — composition de la maquette */
+.hgt-artifact-header{
+  width:min(1440px,calc(100% - 28px));margin:14px auto 0!important;padding:18px 22px!important;
+  display:flex!important;align-items:center;justify-content:space-between;gap:18px;
+  min-height:154px;
+  clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px);
 }
-body:not(.hgt-gated)>header .pill{
-  border-radius:2px;
-  border:1px solid var(--hgt-line);
-  clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%);
-  padding-inline:18px;
+.hgt-artifact-header:before{
+  content:"";position:absolute;inset:3px;pointer-events:none;
+  background:
+    linear-gradient(90deg,transparent 2%,var(--artifact-gold) 10%,transparent 28%,transparent 72%,var(--artifact-gold) 90%,transparent 98%) top/100% 2px no-repeat,
+    linear-gradient(90deg,transparent 2%,var(--artifact-gold-lo) 12%,transparent 35%,transparent 65%,var(--artifact-gold-lo) 88%,transparent 98%) bottom/100% 2px no-repeat;
+}
+.hgt-brand{display:flex;align-items:center;gap:15px;min-width:0}
+.hgt-brand-sigil{
+  width:86px;height:86px;flex:0 0 86px;display:grid;place-items:center;position:relative;
+  border:2px solid var(--artifact-gold);transform:rotate(45deg);
+  background:radial-gradient(circle,rgba(255,255,255,.96) 0 4%,currentColor 6% 14%,rgba(0,0,0,.9) 16% 39%,rgba(215,173,85,.75) 41% 44%,transparent 46%);
+  color:var(--accent);box-shadow:0 0 18px currentColor,inset 0 0 15px rgba(255,255,255,.08)
+}
+.hgt-brand-sigil:before,.hgt-brand-sigil:after{content:"";position:absolute;background:var(--artifact-gold)}
+.hgt-brand-sigil:before{width:120%;height:2px}.hgt-brand-sigil:after{height:120%;width:2px}
+.hgt-brand-sigil span{transform:rotate(-45deg);font-size:38px;color:var(--artifact-gold-hi);text-shadow:0 0 10px currentColor}
+.hgt-brand-copy h1{margin:0!important;display:flex;flex-direction:column;line-height:.9;text-transform:uppercase}
+.hgt-brand-copy h1 strong{font-size:48px;letter-spacing:.04em;color:var(--artifact-gold-hi);font-weight:600}
+.hgt-brand-copy h1 span{font-size:15px;line-height:1.02;letter-spacing:.08em;color:var(--text);margin-top:7px}
+.hgt-brand-copy .muted{margin-top:10px;max-width:390px;font-size:13px}
+.hgt-header-status{display:flex;flex-direction:column;align-items:flex-end;gap:12px;min-width:300px}
+.hgt-neuron-plaque,.hgt-id-plaque{
+  border:1px solid var(--artifact-gold)!important;border-radius:0!important;
+  clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,12px 100%,0 50%);
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(0,0,0,.15)),var(--soft)!important;
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.5),inset 0 0 18px rgba(255,255,255,.035)!important;
+}
+.hgt-neuron-plaque{padding:14px 28px!important;min-width:270px;text-align:center}
+.hgt-id-plaque{padding:10px 24px!important;min-width:110px;text-align:center}
+.hgt-header-actions{display:flex;gap:10px;align-items:center}
+.hgt-fullscreen-btn{
+  border-radius:0!important;border:1px solid var(--artifact-gold)!important;
+  width:52px;height:48px!important;clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px);
 }
 
-/* Barre compte / profil raccordée au header. */
+/* Profil sous le header : discret, comme barre de service */
 .cloud-bar{
-  margin:0 18px;
-  min-height:12px;
-  border-left:1px solid var(--hgt-line-soft);
-  border-right:1px solid var(--hgt-line-soft);
+ width:min(1440px,calc(100% - 28px));margin:0 auto!important;padding:7px 10px!important;
+ border-left:1px solid rgba(215,173,85,.38);border-right:1px solid rgba(215,173,85,.38);border-bottom:1px solid rgba(215,173,85,.22);
+ background:rgba(3,7,8,.86);
 }
-.hgt-player-chip,.cloud-status,.account-actions button{
-  border-radius:3px!important;
-}
+.hgt-player-chip{border-radius:0!important;border:1px solid rgba(215,173,85,.45)!important}
+.cloud-bar .account-actions .tabbtn{min-width:50px!important}
 
-/* Navigation : onglets enchâssés dans une barre métallique. */
-.tabs{
-  position:relative;
-  margin:0 18px 18px;
-  padding:8px 7px 10px;
-  gap:5px;
-  border:1px solid var(--hgt-line);
-  border-radius:3px;
-  background:
-    linear-gradient(180deg,rgba(255,255,255,.035),transparent 42%),
-    rgba(4,8,8,.88);
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.7),0 9px 22px rgba(0,0,0,.28);
+/* NAVIGATION — chaque onglet est une pièce d'artefact indépendante */
+.tabs.hgt-artifact-tabs{
+ width:min(1440px,calc(100% - 28px));max-width:none!important;margin:0 auto 18px!important;padding:0!important;
+ display:flex;gap:3px!important;overflow-x:auto!important;overflow-y:hidden!important;
+ border:1px solid var(--artifact-gold)!important;
+ background:#05090a!important;scrollbar-width:thin;overscroll-behavior-x:contain;
+ box-shadow:inset 0 0 0 2px #020303,0 9px 22px rgba(0,0,0,.38)!important;
 }
-.tabs::before,.tabs::after{
-  content:"◆";position:absolute;top:50%;transform:translateY(-50%) rotate(45deg);
-  width:13px;height:13px;display:grid;place-items:center;font-size:7px;
-  color:var(--hgt-metal-hi);background:#090b0a;border:1px solid var(--hgt-metal);
-}
-.tabs::before{left:-8px}.tabs::after{right:-8px}
-.tabbtn,.arena-item{
-  position:relative;
-  border-radius:2px!important;
-  border:1px solid rgba(203,168,85,.38)!important;
-  background:
-    linear-gradient(180deg,rgba(255,255,255,.045),rgba(0,0,0,.12)),
-    rgba(7,12,12,.72)!important;
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.48)!important;
-}
-.tabbtn.active{
-  box-shadow:
-    inset 0 -3px 0 rgba(255,255,255,.12),
-    inset 0 0 22px rgba(255,255,255,.06),
-    0 0 14px rgba(255,255,255,.035)!important;
-}
-.tabbtn.active::after{
-  content:"◆";position:absolute;left:50%;bottom:-8px;transform:translateX(-50%) rotate(45deg);
-  width:11px;height:11px;background:currentColor;border:1px solid var(--hgt-metal-hi);
-  box-shadow:0 0 11px currentColor;
-}
-
-/* Sections : coins d'artefact, moins de gros arrondis web. */
-.panel,.card,.cloud-card,.profile-card,.tournament-card,.hall-card,
-.genealogy-card,.universe-card,.race-card,.duel-card,.multiplayer-card,
-.shared-detail-sheet,.combat-card{
-  position:relative;
-  border-radius:4px!important;
-  border:1px solid var(--hgt-line)!important;
-  background:
-    linear-gradient(135deg,rgba(255,255,255,.025),transparent 20%),
-    linear-gradient(180deg,rgba(9,13,12,.91),rgba(4,7,7,.88))!important;
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.62),
-    inset 0 0 32px rgba(255,255,255,.018),
-    0 10px 28px rgba(0,0,0,.25)!important;
-}
-.panel::before,.card::before,.cloud-card::before{
-  content:"";position:absolute;pointer-events:none;inset:7px;
-  border:1px solid var(--hgt-line-soft);
-  clip-path:polygon(0 14px,14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px));
-}
-
-/* Titres de sections et compteurs : plaques serties. */
-.top{
-  position:relative;
-  padding-bottom:10px;
-  border-bottom:1px solid var(--hgt-line-soft);
-}
-.title{
-  letter-spacing:.055em;
-  text-shadow:0 2px 0 #000;
-}
-.top .pill,#count,.pill{
-  border-radius:3px;
-  border:1px solid var(--hgt-line-soft);
-  box-shadow:inset 0 0 12px rgba(255,255,255,.025);
-}
-
-/* La roue est intégrée au panneau plutôt que posée dans une carte web. */
-.wheelwrap{
-  position:relative;
-  padding:16px 5px 6px;
-  isolation:isolate;
-}
-.wheelwrap::before{
-  content:"";position:absolute;inset:5% 4%;
-  border-radius:50%;
-  border:1px solid var(--hgt-line-soft);
-  box-shadow:0 0 35px rgba(0,0,0,.48),inset 0 0 45px rgba(0,0,0,.25);
-  pointer-events:none;z-index:-1;
-}
-.pointer{
-  filter:drop-shadow(0 4px 4px rgba(0,0,0,.7)) drop-shadow(0 0 7px rgba(255,255,255,.10));
-}
-
-/* Résultat : moins de boîte, davantage d'inscription de panneau. */
-.result{
-  border-top:1px solid var(--hgt-line-soft);
-  border-bottom:1px solid var(--hgt-line-soft);
-  padding:17px 12px 15px;
-  margin-top:8px;
-  text-shadow:0 2px 0 #000;
-}
-
-/* Boutons principaux : plaques d'artefact angulaires. */
-button:not(.tabbtn):not(.arena-item):not(.cloud-close):not(.hgt-entry-sound),
-.button,.btn{
-  border-radius:3px!important;
-}
-#spinBtn,#autoBtn,#newCharacterBtn,.primary,.btn-primary{
-  position:relative;
-  min-height:54px;
-  border:1px solid var(--hgt-metal)!important;
-  clip-path:polygon(18px 0,calc(100% - 18px) 0,100% 50%,calc(100% - 18px) 100%,18px 100%,0 50%);
-  box-shadow:
-    inset 0 0 0 2px rgba(0,0,0,.38),
-    inset 0 0 18px rgba(255,255,255,.055),
-    0 7px 18px rgba(0,0,0,.32)!important;
-  letter-spacing:.055em;
-}
-#spinBtn::before,#spinBtn::after,#autoBtn::before,#autoBtn::after,
-#newCharacterBtn::before,#newCharacterBtn::after{
-  content:"◆";position:absolute;top:50%;transform:translateY(-50%) rotate(45deg);
-  font-size:9px;color:var(--hgt-metal-hi);text-shadow:0 0 8px currentColor;
-}
-#spinBtn::before,#autoBtn::before,#newCharacterBtn::before{left:14px}
-#spinBtn::after,#autoBtn::after,#newCharacterBtn::after{right:14px}
-
-/* Inputs, recherche et sélecteurs : même langage que les plaques. */
-input,select,textarea{
-  border-radius:2px!important;
-  border-color:var(--hgt-line)!important;
-  box-shadow:inset 0 0 12px rgba(0,0,0,.35);
-}
-
-/* Portraits : cadre serti sans toucher au ratio 512×1024. */
-.illustration-frame{
-  position:relative;
-  border-radius:4px!important;
-  border:2px solid var(--hgt-metal)!important;
-  box-shadow:
-    0 0 0 1px #21170c,
-    0 0 0 3px rgba(205,168,81,.22),
-    0 13px 32px rgba(0,0,0,.42)!important;
-}
-.illustration-frame::after{
-  content:"";position:absolute;inset:7px;pointer-events:none;
-  border:1px solid rgba(238,207,126,.28);
-  clip-path:polygon(0 16px,16px 0,calc(100% - 16px) 0,100% 16px,100% calc(100% - 16px),calc(100% - 16px) 100%,16px 100%,0 calc(100% - 16px));
-}
-
-/* Listes personnages : cartes plus proches de fiches de tournoi. */
-.character-card,.roster-card,.character-item{
-  position:relative;
-  border-radius:3px!important;
-  border:1px solid var(--hgt-line)!important;
-  overflow:hidden;
-  box-shadow:0 8px 20px rgba(0,0,0,.27),inset 0 0 0 1px rgba(0,0,0,.5)!important;
-}
-.character-card::after,.roster-card::after,.character-item::after{
-  content:"";position:absolute;inset:5px;pointer-events:none;
-  border:1px solid var(--hgt-line-soft);
-}
-
-/* Modales et menus : disparition de l'aspect capsule. */
-.cloud-modal{backdrop-filter:blur(7px)}
-.arena-menu{
-  border-radius:3px!important;
-  border:1px solid var(--hgt-line)!important;
-  box-shadow:0 14px 32px rgba(0,0,0,.48)!important;
-}
-
-/* Desktop : interface plus cadrée, sans devenir gigantesque. */
-@media(min-width:900px){
-  body:not(.hgt-gated)>header,.cloud-bar,.tabs{max-width:1380px;margin-left:auto;margin-right:auto}
-  .tabpage{max-width:1380px;margin-left:auto;margin-right:auto}
-}
-
-/* Mobile : conserver la lisibilité et éviter que les ornements mangent l'espace. */
-@media(max-width:600px){
-  body:not(.hgt-gated)>header{margin:8px 10px 0;padding:15px 14px}
-  .cloud-bar{margin:0 10px}
-  .tabs{margin:0 10px 12px;padding:6px 5px 8px;gap:4px}
-  .tabbtn{min-height:52px;padding:9px 11px!important}
-  .panel{border-radius:3px!important}
-  .panel::before,.card::before,.cloud-card::before{inset:5px}
-  .wheelwrap{padding-top:8px}
-  #spinBtn,#autoBtn,#newCharacterBtn{min-height:52px}
-}
-
-
-/* ==========================================================
-   HGT — ARTEFACT × ARENE V2 "MAQUETTE FIDELE"
-   Couche purement visuelle. Les couleurs fonctionnelles/régionales
-   existantes restent pilotées par l'application.
-   ========================================================== */
-
-/* Métal multicouche commun */
-:root{
- --hgt-gold-0:#fff0b1;
- --hgt-gold-1:#e4bd63;
- --hgt-gold-2:#9b6b27;
- --hgt-gold-3:#3d2911;
- --hgt-blackmetal:#080b0b;
- --hgt-engrave:rgba(237,203,118,.16);
- --hgt-jewel-glow:currentColor;
-}
-
-/* Motif gravé discret : aucun asset supplémentaire */
-body:not(.hgt-gated)::before{
- content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.22;
+.hgt-artifact-tabs:before,.hgt-artifact-tabs:after{display:none!important}
+.hgt-artifact-tabs>.tabbtn,.hgt-artifact-tabs>.arena-nav>.tabbtn{
+ flex:1 0 150px;width:auto!important;min-width:150px;min-height:92px;margin:0!important;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+ border:0!important;border-left:1px solid rgba(215,173,85,.45)!important;border-right:1px solid rgba(215,173,85,.45)!important;
+ border-radius:0!important;clip-path:none!important;
  background:
-  repeating-linear-gradient(120deg,transparent 0 34px,rgba(255,255,255,.012) 35px,transparent 36px 70px),
-  radial-gradient(circle at 20% 20%,rgba(255,255,255,.025),transparent 18%),
-  radial-gradient(circle at 80% 65%,rgba(255,255,255,.02),transparent 22%);
+   linear-gradient(180deg,rgba(255,255,255,.035),transparent 34%),
+   radial-gradient(circle at 50% 110%,rgba(255,255,255,.035),transparent 48%),
+   #071012!important;
+ color:var(--text)!important;box-shadow:inset 0 0 0 2px #020405!important;
+ text-transform:uppercase;letter-spacing:.045em;
 }
-
-/* HEADER : plaque monumentale avec doubles rails et coins */
-body:not(.hgt-gated)>header{
- overflow:visible!important;
- border:2px solid var(--hgt-gold-2)!important;
- box-shadow:
-  inset 0 0 0 1px #050606,
-  inset 0 0 0 4px rgba(229,188,94,.12),
-  inset 0 0 42px rgba(255,255,255,.025),
-  0 0 0 1px rgba(240,205,116,.22),
-  0 16px 34px rgba(0,0,0,.42)!important;
- clip-path:polygon(16px 0,calc(100% - 16px) 0,100% 16px,100% calc(100% - 16px),calc(100% - 16px) 100%,16px 100%,0 calc(100% - 16px),0 16px);
-}
-body:not(.hgt-gated)>header::before,
-body:not(.hgt-gated)>header::after{
- width:25px;height:25px!important;
- color:var(--hgt-gold-0)!important;
- border:2px solid var(--hgt-gold-1)!important;
+.hgt-artifact-tabs>.arena-nav{display:flex;flex:1 0 150px;position:relative}
+.hgt-artifact-tabs>.arena-nav>.tabbtn{flex:1}
+.hgt-tab-icon{font-size:28px;line-height:1;color:var(--artifact-gold-hi);filter:drop-shadow(0 2px 2px #000)}
+.hgt-tab-caret{position:absolute;right:10px;bottom:9px}
+.hgt-artifact-tabs .tabbtn.active{
+ color:#fff!important;
  background:
-   radial-gradient(circle,#fff7ce 0 12%,currentColor 14% 32%,#152021 34% 58%,#8b6228 60% 74%,#080a09 76%)!important;
- box-shadow:0 0 10px currentColor,0 0 22px rgba(255,255,255,.10)!important;
+   radial-gradient(circle at 50% 70%,color-mix(in srgb,currentColor 22%,transparent),transparent 54%),
+   linear-gradient(180deg,rgba(255,255,255,.08),rgba(0,0,0,.12)),
+   var(--soft)!important;
+ box-shadow:inset 0 0 0 2px var(--artifact-gold),inset 0 0 24px currentColor,0 0 14px currentColor!important;
 }
-body:not(.hgt-gated)>header h1{
- position:relative;
- filter:drop-shadow(0 3px 2px #000);
+.hgt-artifact-tabs .tabbtn.active:before{
+ content:"";position:absolute;left:50%;bottom:3px;transform:translateX(-50%) rotate(45deg);
+ width:16px;height:16px;background:radial-gradient(circle,#fff 0 13%,currentColor 17% 48%,#091011 51% 68%,var(--artifact-gold) 71%);
+ border:1px solid var(--artifact-gold-hi);box-shadow:0 0 12px currentColor;
 }
-body:not(.hgt-gated)>header h1::after{
- content:"";display:block;width:74%;height:8px;margin-top:8px;
- background:linear-gradient(90deg,transparent,var(--hgt-gold-2),var(--hgt-gold-0),var(--hgt-gold-2),transparent);
- clip-path:polygon(0 45%,42% 45%,46% 0,50% 45%,54% 0,58% 45%,100% 45%,100% 55%,58% 55%,54% 100%,50% 55%,46% 100%,42% 55%,0 55%);
-}
+.hgt-artifact-tabs .tabbtn.active:after{display:none!important}
 
-/* Capsules deviennent des plaques serties */
-body:not(.hgt-gated)>header .pill,.hgt-player-chip,.cloud-status{
- border:1px solid var(--hgt-gold-2)!important;
- box-shadow:
-  inset 0 0 0 2px rgba(0,0,0,.34),
-  inset 0 0 18px rgba(255,255,255,.04),
-  0 0 0 1px rgba(230,190,96,.12)!important;
-}
+/* PAGE : aucun élément décoratif ne peut agrandir le viewport */
+.tabpage,.layout,.panel,.roster-shell,.genealogy-shell,.tournament-shell,.hall-shell{min-width:0!important;max-width:100%}
+.tabpage{overflow:visible}
+.layout{width:min(1440px,calc(100% - 28px));margin-left:auto!important;margin-right:auto!important}
 
-/* NAV : vraie traverse métallique */
-.tabs{
- overflow:visible!important;
- border:2px solid var(--hgt-gold-2)!important;
- box-shadow:
-   inset 0 2px 0 rgba(255,236,176,.16),
-   inset 0 -3px 0 rgba(45,28,10,.8),
-   inset 0 0 0 4px rgba(224,181,82,.08),
-   0 10px 24px rgba(0,0,0,.38)!important;
+/* PANNEAUX — cadres réellement multicouches */
+.panel{
+ border:1px solid var(--artifact-gold)!important;
+ clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px);
+ padding:18px!important;
 }
-.tabs::before,.tabs::after{
- width:20px!important;height:20px!important;
- background:radial-gradient(circle,#fff7cf 0 10%,currentColor 13% 34%,#071010 37% 61%,#a6752b 64% 78%,#070908 80%)!important;
- box-shadow:0 0 13px currentColor!important;
+.panel:before{
+ content:""!important;position:absolute!important;inset:4px!important;pointer-events:none!important;
+ border:1px solid rgba(215,173,85,.42)!important;
+ background:
+  linear-gradient(90deg,var(--artifact-gold),var(--artifact-gold)) left top/48px 2px no-repeat,
+  linear-gradient(180deg,var(--artifact-gold),var(--artifact-gold)) left top/2px 48px no-repeat,
+  linear-gradient(90deg,var(--artifact-gold),var(--artifact-gold)) right top/48px 2px no-repeat,
+  linear-gradient(180deg,var(--artifact-gold),var(--artifact-gold)) right top/2px 48px no-repeat,
+  linear-gradient(90deg,var(--artifact-gold),var(--artifact-gold)) left bottom/48px 2px no-repeat,
+  linear-gradient(180deg,var(--artifact-gold),var(--artifact-gold)) left bottom/2px 48px no-repeat,
+  linear-gradient(90deg,var(--artifact-gold),var(--artifact-gold)) right bottom/48px 2px no-repeat,
+  linear-gradient(180deg,var(--artifact-gold),var(--artifact-gold)) right bottom/2px 48px no-repeat!important;
 }
-.tabbtn{
- clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px);
- border:1px solid var(--hgt-gold-2)!important;
- box-shadow:
-  inset 0 0 0 2px rgba(0,0,0,.48),
-  inset 0 2px 0 rgba(255,255,255,.10),
-  inset 0 -5px 14px rgba(0,0,0,.22)!important;
-}
-.tabbtn.active{
- transform:translateY(-2px);
- border-color:var(--hgt-gold-0)!important;
- box-shadow:
-  inset 0 0 0 2px rgba(0,0,0,.42),
-  inset 0 0 24px rgba(255,255,255,.10),
-  0 0 12px currentColor,0 6px 14px rgba(0,0,0,.35)!important;
-}
-.tabbtn.active::after{
- width:15px!important;height:15px!important;bottom:-10px!important;
- background:radial-gradient(circle,#fff 0 12%,currentColor 16% 46%,#111 49% 65%,var(--hgt-gold-1) 68%)!important;
-}
+.panel:after{inset:10px!important;border-color:rgba(215,173,85,.16)!important}
+.panel.left{padding-top:16px!important}
 
-/* PANNEAUX : triple cadre + coins taillés */
-.panel,.card,.cloud-card,.profile-card,.tournament-card,.hall-card,
-.genealogy-card,.universe-card,.race-card,.duel-card,.multiplayer-card,
-.shared-detail-sheet,.combat-card{
- overflow:visible;
- border:2px solid var(--hgt-gold-2)!important;
- clip-path:polygon(13px 0,calc(100% - 13px) 0,100% 13px,100% calc(100% - 13px),calc(100% - 13px) 100%,13px 100%,0 calc(100% - 13px),0 13px);
- box-shadow:
-  inset 0 0 0 1px #030505,
-  inset 0 0 0 5px rgba(221,179,82,.075),
-  inset 0 0 36px rgba(255,255,255,.018),
-  0 0 0 1px rgba(236,199,106,.15),
-  0 12px 30px rgba(0,0,0,.36)!important;
-}
-.panel::before,.card::before,.cloud-card::before{
- inset:8px!important;
- border:1px solid rgba(234,198,107,.30)!important;
- clip-path:polygon(0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px));
-}
-
-/* Trait gravé derrière les en-têtes */
+/* En-tête de section identique à la maquette */
 .top{
- margin:0 3px 10px;
- padding:8px 6px 13px!important;
- border-bottom:0!important;
+ padding:9px 12px 16px!important;margin:0 0 10px!important;border-bottom:0!important;
+ display:flex;align-items:flex-start;gap:12px;
 }
-.top::after{
+.top:after{
  content:"";position:absolute;left:0;right:0;bottom:2px;height:7px;
- background:linear-gradient(90deg,transparent 0,var(--hgt-gold-3) 8%,var(--hgt-gold-1) 42%,var(--hgt-gold-0) 50%,var(--hgt-gold-1) 58%,var(--hgt-gold-3) 92%,transparent);
- clip-path:polygon(0 45%,45% 45%,48% 0,50% 45%,52% 0,55% 45%,100% 45%,100% 55%,55% 55%,52% 100%,50% 55%,48% 100%,45% 55%,0 55%);
- opacity:.78;
+ background:linear-gradient(90deg,transparent,var(--artifact-gold-lo) 8%,var(--artifact-gold) 42%,var(--artifact-gold-hi) 50%,var(--artifact-gold) 58%,var(--artifact-gold-lo) 92%,transparent);
+ clip-path:polygon(0 44%,45% 44%,48% 0,50% 44%,52% 0,55% 44%,100% 44%,100% 56%,55% 56%,52% 100%,50% 56%,48% 100%,45% 56%,0 56%);
 }
-.title{font-weight:800;letter-spacing:.075em!important}
-.top .pill,#count,.pill{
- clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px);
- border:1px solid var(--hgt-gold-2)!important;
-}
-
-/* ROUE : socle intégré avec quatre attaches autour du canvas */
-.wheelwrap{
- margin:4px 0 8px;
- padding:22px 8px 12px!important;
-}
-.wheelwrap::before{
- inset:3% 2%!important;
- border:2px solid rgba(216,176,79,.28)!important;
- box-shadow:
-   0 0 0 5px rgba(0,0,0,.18),
-   0 0 0 6px rgba(220,181,87,.08),
-   0 0 38px rgba(0,0,0,.62),
-   inset 0 0 55px rgba(0,0,0,.32)!important;
+.title{font-size:clamp(22px,4vw,34px)!important;letter-spacing:.055em!important;text-transform:uppercase;text-shadow:0 2px 2px #000}
+.top .pill,#count{
+ margin-left:auto;border:1px solid var(--artifact-gold)!important;border-radius:0!important;
+ clip-path:polygon(9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px),0 9px);
+ padding:10px 18px!important;box-shadow:inset 0 0 0 2px rgba(0,0,0,.42)!important;
 }
 
-/* BOUTONS : métal + biseau + gemmes latérales */
-#spinBtn,#autoBtn,#newCharacterBtn,.primary,.btn-primary,
-button.primary{
- border:2px solid var(--hgt-gold-2)!important;
- clip-path:polygon(20px 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,20px 100%,0 50%)!important;
- background-image:
-   linear-gradient(180deg,rgba(255,255,255,.13),transparent 28%,rgba(0,0,0,.20) 78%,rgba(0,0,0,.34))!important;
- box-shadow:
-   inset 0 0 0 2px rgba(0,0,0,.45),
-   inset 0 2px 0 rgba(255,242,194,.17),
-   0 0 0 1px rgba(239,203,111,.13),
-   0 8px 18px rgba(0,0,0,.38)!important;
- text-shadow:0 2px 1px #000,0 0 7px rgba(255,255,255,.12);
+/* Roue : pas de second énorme cercle, seulement des rails qui la raccordent au panneau */
+.wheelwrap{padding:18px 2px 6px!important;margin:0 auto!important}
+.wheelwrap:before{
+ content:"";position:absolute;left:4%;right:4%;top:2%;bottom:2%;pointer-events:none;border-radius:50%;
+ border:1px solid rgba(215,173,85,.18);
+ box-shadow:0 0 0 5px rgba(0,0,0,.12),0 0 0 6px rgba(215,173,85,.08),inset 0 0 40px rgba(0,0,0,.22);
 }
-#spinBtn::before,#spinBtn::after,#autoBtn::before,#autoBtn::after,
-#newCharacterBtn::before,#newCharacterBtn::after{
- font-size:13px!important;
- color:currentColor!important;
- filter:drop-shadow(0 0 4px currentColor);
-}
+#wheel{max-width:100%!important;height:auto!important;display:block;margin:auto}
 
-/* RESULTAT comme plaque gravée */
+/* Préférence sous roue */
+.wheel-pref{position:relative;margin:5px auto 8px!important;width:max-content;max-width:100%;padding:5px 18px}
+.wheel-pref:before,.wheel-pref:after{content:"◆";color:var(--artifact-gold);position:absolute;top:50%;transform:translateY(-50%)}
+.wheel-pref:before{left:0}.wheel-pref:after{right:0}
+
+/* Résultat plus proche d'une inscription, sans grosse boîte web */
 .result{
- position:relative;
- margin:14px 10px!important;
- padding:18px 24px!important;
- border:1px solid var(--hgt-gold-2)!important;
- clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px);
- background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(0,0,0,.12));
- box-shadow:inset 0 0 0 4px rgba(221,179,83,.05);
+ border:0!important;border-top:1px solid rgba(215,173,85,.38)!important;border-bottom:1px solid rgba(215,173,85,.38)!important;
+ border-radius:0!important;background:rgba(0,0,0,.12)!important;margin:10px 12px!important;padding:18px!important;
+ text-shadow:0 2px 2px #000;
 }
 
-/* LISTE : registre de tournoi plus riche */
-.character-card,.roster-card,.character-item{
- border:2px solid var(--hgt-gold-3)!important;
- clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px);
+/* BOUTONS — véritables plaques avec embouts et pseudo-joyaux */
+.controls{gap:10px!important}
+.controls button,#spinBtn,#autoBtn,#newCharacterBtn{
+ position:relative;overflow:hidden;min-height:58px;border-radius:0!important;
+ border:1px solid var(--artifact-gold)!important;
+ clip-path:polygon(24px 0,calc(100% - 24px) 0,100% 50%,calc(100% - 24px) 100%,24px 100%,0 50%);
  background-image:
-   linear-gradient(110deg,rgba(255,255,255,.045),transparent 22%),
-   linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.10))!important;
- box-shadow:
-   inset 0 0 0 1px rgba(226,187,94,.18),
-   inset 0 0 20px rgba(0,0,0,.18),
-   0 8px 20px rgba(0,0,0,.31)!important;
+  linear-gradient(180deg,rgba(255,255,255,.12),transparent 27%,rgba(0,0,0,.20) 78%),
+  radial-gradient(circle at 8% 50%,currentColor 0 2%,transparent 3%),
+  radial-gradient(circle at 92% 50%,currentColor 0 2%,transparent 3%)!important;
+ box-shadow:inset 0 0 0 3px rgba(0,0,0,.42),inset 0 0 18px rgba(255,255,255,.035),0 8px 18px rgba(0,0,0,.32)!important;
+ text-transform:uppercase;letter-spacing:.055em;text-shadow:0 2px 2px #000;
 }
-.character-card img,.roster-card img,.character-item img{
- border:2px solid var(--hgt-gold-1)!important;
- box-shadow:0 0 0 3px #171008,0 0 0 4px rgba(230,190,94,.25),0 0 14px rgba(0,0,0,.5)!important;
+#spinBtn{min-height:68px;font-size:clamp(20px,3.5vw,30px)!important}
+.controls button:before,.controls button:after{
+ content:"◆";position:absolute;top:50%;transform:translateY(-50%) rotate(45deg);width:14px;height:14px;
+ color:transparent;background:radial-gradient(circle,#fff 0 12%,currentColor 16% 46%,#071011 49% 64%,var(--artifact-gold) 67%);
+ border:1px solid var(--artifact-gold-hi);box-shadow:0 0 10px currentColor;
 }
+.controls button:before{left:13px}.controls button:after{right:13px}
 
-/* Saison accordéon = plaques de registre */
-details, .season-group{
- border-radius:3px!important;
-}
-details>summary,.season-header{
- border:1px solid var(--hgt-gold-3)!important;
- clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px);
- box-shadow:inset 0 0 0 2px rgba(224,183,90,.06),0 6px 15px rgba(0,0,0,.24);
-}
+/* Sections de fiche */
+.panel.right .section{position:relative;border:1px solid rgba(215,173,85,.23)!important;border-radius:0!important;padding:14px!important;margin-bottom:10px!important;background:rgba(0,0,0,.10)}
+.panel.right .section h3{border-bottom:1px solid rgba(215,173,85,.28);padding-bottom:7px;margin-top:0;text-transform:uppercase;letter-spacing:.045em}
 
-/* Champs de recherche : ligne de codex enchâssée */
-input,select,textarea{
- border:1px solid var(--hgt-gold-3)!important;
- background-image:linear-gradient(180deg,rgba(0,0,0,.20),rgba(255,255,255,.018))!important;
- box-shadow:inset 0 0 0 2px rgba(0,0,0,.30),inset 0 0 15px rgba(0,0,0,.25)!important;
+/* Registre personnages : cartes portrait comme la maquette */
+.season-roster-group>summary{
+ border:1px solid var(--artifact-gold-lo)!important;border-radius:0!important;
+ clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px);
+ box-shadow:inset 0 0 0 2px rgba(215,173,85,.07),0 7px 16px rgba(0,0,0,.26)!important;
 }
+.roster-card,.character-card,.character-item{
+ border:1px solid var(--artifact-gold-lo)!important;border-radius:0!important;
+ clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px);
+ box-shadow:inset 0 0 0 2px rgba(215,173,85,.06),0 7px 15px rgba(0,0,0,.28)!important;
+}
+.roster-card img,.character-card img,.character-item img{border:1px solid var(--artifact-gold)!important;box-shadow:0 0 0 2px #120d07,0 0 0 3px rgba(215,173,85,.22)!important}
 
-/* PORTRAIT : triple sertissage, ratio inchangé */
+/* Portrait 512×1024 : garde exactement le correctif fonctionnel existant, enrichit seulement le sertissage */
 .illustration-frame{
- border:3px solid var(--hgt-gold-1)!important;
- clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px);
- box-shadow:
-   0 0 0 2px #20150a,
-   0 0 0 5px rgba(222,181,84,.20),
-   0 0 0 6px rgba(0,0,0,.72),
-   0 16px 36px rgba(0,0,0,.46)!important;
+ border:2px solid var(--artifact-gold)!important;border-radius:0!important;
+ clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px);
+ box-shadow:0 0 0 2px #171006,0 0 0 4px rgba(215,173,85,.20),0 14px 32px rgba(0,0,0,.42)!important;
 }
 
-/* Badges (descendant, champion...) comme petits sceaux */
-.badge,.tag,.chip{
- border-radius:2px!important;
- border:1px solid var(--hgt-gold-2)!important;
- box-shadow:inset 0 0 0 1px rgba(0,0,0,.45),0 0 8px rgba(0,0,0,.25);
-}
+/* Modales */
+.cloud-card{max-width:min(900px,calc(100vw - 24px))!important;max-height:calc(100vh - 24px);overflow:auto}
 
-/* Boutons flottants : petites plaques verticales */
-.scroll-btn,.scroll-button,.floating-btn{
- border:1px solid var(--hgt-gold-2)!important;
- border-radius:3px!important;
- box-shadow:inset 0 0 0 2px rgba(0,0,0,.4),0 7px 18px rgba(0,0,0,.38)!important;
+/* MOBILE : la maquette devient une composition verticale, JAMAIS une page plus large que l'écran */
+@media(max-width:760px){
+ .hgt-artifact-header{width:calc(100% - 20px);margin-top:8px!important;padding:14px!important;min-height:0;gap:10px}
+ .hgt-brand{gap:10px}
+ .hgt-brand-sigil{width:58px;height:58px;flex-basis:58px}
+ .hgt-brand-sigil span{font-size:27px}
+ .hgt-brand-copy h1 strong{font-size:32px}
+ .hgt-brand-copy h1 span{font-size:10px}
+ .hgt-brand-copy .muted{display:none}
+ .hgt-header-status{min-width:0;flex:1;gap:8px}
+ .hgt-neuron-plaque{min-width:0;width:100%;padding:9px 12px!important;font-size:12px}
+ .hgt-id-plaque{min-width:82px;padding:8px 12px!important}
+ .hgt-fullscreen-btn{width:43px;height:41px!important}
+ .cloud-bar{width:calc(100% - 20px)}
+ .tabs.hgt-artifact-tabs{width:calc(100% - 20px);margin-bottom:12px!important}
+ .hgt-artifact-tabs>.tabbtn,.hgt-artifact-tabs>.arena-nav{flex:0 0 128px!important;min-width:128px!important}
+ .hgt-artifact-tabs>.tabbtn,.hgt-artifact-tabs>.arena-nav>.tabbtn{min-height:74px!important;font-size:12px!important;padding:8px 6px!important}
+ .hgt-tab-icon{font-size:23px}
+ .layout{width:calc(100% - 20px)!important}
+ .panel{padding:12px!important}
+ .panel:after{inset:7px!important}
+ .top{padding:8px 5px 14px!important}
+ .title{font-size:clamp(20px,6.5vw,28px)!important}
+ .top .pill,#count{padding:8px 11px!important;font-size:12px!important}
+ .wheelwrap{padding-top:8px!important}
+ .result{margin:8px 4px!important;padding:14px 8px!important}
+ .controls button,#spinBtn,#autoBtn,#newCharacterBtn{min-height:54px}
+ #spinBtn{min-height:60px;font-size:20px!important}
 }
-
-/* Mobile : détails conservés, mais tailles maîtrisées */
-@media(max-width:600px){
- body:not(.hgt-gated)>header{clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px)}
- body:not(.hgt-gated)>header::before,body:not(.hgt-gated)>header::after{width:20px!important;height:20px!important}
- .tabs::before,.tabs::after{width:16px!important;height:16px!important}
- .panel,.card,.cloud-card{clip-path:polygon(9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px),0 9px)}
- .top::after{left:4px;right:4px}
- .result{margin:10px 5px!important;padding:15px 14px!important}
-}
-
-/* Grand écran : un peu plus de profondeur, sans grossir les contrôles */
-@media(min-width:900px){
- .panel,.card,.cloud-card{box-shadow:inset 0 0 0 1px #030505,inset 0 0 0 6px rgba(221,179,82,.075),0 18px 42px rgba(0,0,0,.36)!important}
+@media(max-width:430px){
+ .hgt-artifact-header{align-items:stretch}
+ .hgt-brand-sigil{width:50px;height:50px;flex-basis:50px}
+ .hgt-brand-copy h1 strong{font-size:27px}
+ .hgt-header-status{max-width:48%}
+ .hgt-neuron-plaque{font-size:10.5px;padding:8px 9px!important}
+ .hgt-id-plaque{font-size:12px}
 }
