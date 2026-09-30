@@ -1768,3 +1768,106 @@ body{
   .hgt-brand-copy h1 strong{font-size:25px!important}
   .hgt-header-neurons{font-size:8.5px!important}
 }
+
+/* ============================================================
+   HGT V9 — SURFACE UNIQUE / VRAIS SELECTEURS HTML
+   Header + profil + navigation sont directement intégrés à la page.
+   Aucun changement de palette régionale.
+   ============================================================ */
+
+/* Les trois bandeaux structurants utilisent exactement la largeur de la page. */
+.hgt-artifact-header,
+.cloud-bar,
+.tabs.hgt-artifact-tabs{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  box-sizing:border-box!important;
+}
+
+/* HEADER : plus de grand cadre/carte extérieur. */
+.hgt-artifact-header{
+  margin-top:0!important;
+  padding:clamp(12px,2vw,22px) clamp(14px,3vw,34px)!important;
+  min-height:0!important;
+  border:0!important;
+  border-radius:0!important;
+  clip-path:none!important;
+  background:
+    radial-gradient(circle at 18% 45%,color-mix(in srgb,var(--accent) 8%,transparent),transparent 32%),
+    linear-gradient(180deg,rgba(4,15,19,.88),rgba(2,8,11,.90))!important;
+  box-shadow:none!important;
+}
+.hgt-artifact-header:after{display:none!important}
+.hgt-artifact-header:before{
+  inset:0!important;
+  background:
+    linear-gradient(90deg,transparent 0,var(--artifact-gold) 8%,transparent 30%,transparent 70%,var(--artifact-gold) 92%,transparent 100%) top/100% 1px no-repeat,
+    linear-gradient(90deg,transparent 0,var(--artifact-gold-lo) 8%,transparent 30%,transparent 70%,var(--artifact-gold-lo) 92%,transparent 100%) bottom/100% 1px no-repeat!important;
+  opacity:.75!important;
+}
+
+/* Profil : une ligne de service sur la surface générale, sans boîte englobante. */
+.cloud-bar{
+  min-height:68px!important;
+  padding:7px clamp(14px,3vw,34px)!important;
+  margin-top:0!important;
+  border:0!important;
+  border-bottom:1px solid rgba(215,173,85,.30)!important;
+  background:rgba(2,7,9,.76)!important;
+  box-shadow:none!important;
+}
+.cloud-bar .hgt-player-chip{
+  margin:0!important;
+}
+.cloud-bar .account-actions{
+  margin-left:auto!important;
+}
+
+/* Navigation raccordée directement à la page. */
+.tabs.hgt-artifact-tabs{
+  margin-top:0!important;
+  margin-bottom:0!important;
+  padding:0!important;
+  border:0!important;
+  border-bottom:1px solid rgba(215,173,85,.55)!important;
+  border-radius:0!important;
+  background:#02080b!important;
+  box-shadow:none!important;
+}
+.hgt-artifact-tabs>.tabbtn:first-child{border-left:0!important}
+
+/* La zone de contenu démarre sans retrait après la navigation. */
+.layout{width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+
+/* Même géométrie responsive sur téléphone et ordinateur : seules les tailles se contractent. */
+@media(max-width:760px){
+  .hgt-artifact-header{
+    padding:10px 12px!important;
+    gap:8px!important;
+  }
+  .hgt-brand{gap:9px!important}
+  .hgt-brand-sigil{width:58px!important;height:58px!important;flex:0 0 58px!important}
+  .hgt-brand-copy h1 strong{font-size:30px!important}
+  .hgt-brand-copy h1 span{font-size:9px!important}
+  .hgt-header-status{max-width:48%!important;min-width:0!important;gap:7px!important}
+  .hgt-neuron-plaque{min-width:0!important;width:100%!important;padding:8px 10px!important;font-size:10px!important}
+  .hgt-id-plaque{min-width:80px!important;padding:7px 10px!important}
+  .hgt-fullscreen-btn{width:44px!important;height:42px!important}
+
+  .cloud-bar{
+    min-height:60px!important;
+    padding:6px 10px!important;
+  }
+  .cloud-bar .hgt-player-chip{padding:5px 8px!important;min-width:0!important;max-width:58%!important}
+  .cloud-bar .account-actions{gap:7px!important}
+  .cloud-bar .account-actions .tabbtn{min-width:52px!important;min-height:52px!important;padding:7px!important}
+
+  .tabs.hgt-artifact-tabs{width:100%!important}
+}
+
+@media(min-width:761px){
+  .hgt-artifact-header{padding-left:clamp(24px,4vw,64px)!important;padding-right:clamp(24px,4vw,64px)!important}
+  .cloud-bar{padding-left:clamp(24px,4vw,64px)!important;padding-right:clamp(24px,4vw,64px)!important}
+}
