@@ -75,7 +75,22 @@
     <div class="hgt-entry-message" id="hgtEntryMessage"></div>
   </div>
 </div>
-<header><div><h1>⚔️ Hazard Game Tournament</h1><div class="muted">Chaque donnée aléatoire affichée provient de la roue que tu vois tourner.</div></div><div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap"><div class="pill" id="neuronRemaining" title="Quota global Cloudflare Workers AI">⚡ Chargement…</div><button type="button" class="hgt-fullscreen-btn" id="fullscreenBtn" aria-label="Passer en plein écran" title="Plein écran">⛶</button><div class="pill" id="charId">S1-001</div></div></header>
+<header class="hgt-artifact-header">
+  <div class="hgt-brand">
+    <div class="hgt-brand-sigil" aria-hidden="true"><span>✦</span></div>
+    <div class="hgt-brand-copy">
+      <h1><strong>HGT</strong><span>Hazard Game<br>Tournament</span></h1>
+      <div class="muted">Chaque donnée aléatoire affichée provient de la roue que tu vois tourner.</div>
+    </div>
+  </div>
+  <div class="hgt-header-status">
+    <div class="pill hgt-neuron-plaque" id="neuronRemaining" title="Quota global Cloudflare Workers AI">⚡ Chargement…</div>
+    <div class="hgt-header-actions">
+      <button type="button" class="hgt-fullscreen-btn" id="fullscreenBtn" aria-label="Passer en plein écran" title="Plein écran">⛶</button>
+      <div class="pill hgt-id-plaque" id="charId">S1-001</div>
+    </div>
+  </div>
+</header>
 
 <div class="cloud-bar">
   <span id="playerPseudo" class="hgt-player-chip" hidden><span class="player-avatar" id="playerAvatar">👤</span><span id="playerPseudoText">—</span><span id="cloudStatus" class="cloud-status" title="Mode local"><span class="sync-dot">●</span></span></span>
@@ -109,20 +124,20 @@
 <div id="avatarCropModal" class="cloud-modal" aria-hidden="true"><div class="cloud-card"><button type="button" class="secondary cloud-close" id="avatarCropClose">✕</button><h2>🖼️ Cadrer l’icône</h2><div id="avatarCropContent"></div></div></div>
 <div id="regionStyleModal" class="cloud-modal" aria-hidden="true"><div class="cloud-card region-style-card"><button type="button" class="secondary cloud-close" id="regionStyleCloseBtn">✕</button><h2>🎨 Style régional</h2><div class="muted">Choisis une palette inspirée d’une région de Vaeloria. La prévisualisation est immédiate ; Annuler restaure le thème précédent.</div><div id="regionStyleChoices" class="region-style-choices"></div><div class="cloud-row region-style-actions"><button id="regionStyleApplyBtn" type="button">Appliquer</button><button id="regionStyleCancelBtn" class="secondary" type="button">Annuler</button></div></div></div>
 <div id="notificationModal" class="cloud-modal" aria-hidden="true"><div class="cloud-card"><button type="button" class="secondary cloud-close" id="notificationCloseBtn">✕</button><h2>🔔 Notifications</h2><div id="notificationList" class="notification-list"></div><div class="cloud-row" style="margin-top:12px"><button class="secondary" id="notificationReadAllBtn">Tout marquer comme lu</button></div></div></div>
-<div class="tabs">
-  <button id="wheelTabBtn" class="tabbtn active">🎰 Roue</button>
-  <button id="listTabBtn" class="tabbtn">📋 Liste des personnages</button>
-<button id="genealogyTabBtn" class="tabbtn">🌳 Descendants & lignées</button>
-<div class="arena-nav">
-  <button id="arenaTabBtn" class="tabbtn" type="button" aria-expanded="false">⚔️ Arène ▾</button>
-  <div id="arenaMenu" class="arena-menu" hidden>
-    <button id="tournamentTabBtn" class="arena-item" type="button">⚔️ Tournoi</button>
-    <button id="hallTabBtn" class="arena-item" type="button">🏆 Hall of Fame</button>
-    <button id="duelLocalTabBtn" class="arena-item" type="button">🥊 Duel local</button>
-    <button id="multiplayerTabBtn" class="arena-item" type="button">🌐 Multijoueur <span id="multiplayerMainBadge" class="hgt-badge"></span></button>
+<div class="tabs hgt-artifact-tabs">
+  <button id="wheelTabBtn" class="tabbtn active"><span class="hgt-tab-icon">✥</span><span>Roue</span></button>
+  <button id="listTabBtn" class="tabbtn"><span class="hgt-tab-icon">▤</span><span>Personnages</span></button>
+  <button id="genealogyTabBtn" class="tabbtn"><span class="hgt-tab-icon">♜</span><span>Lignées</span></button>
+  <div class="arena-nav">
+    <button id="arenaTabBtn" class="tabbtn" type="button" aria-expanded="false"><span class="hgt-tab-icon">⚔</span><span>Arène</span><span class="hgt-tab-caret">▾</span></button>
+    <div id="arenaMenu" class="arena-menu" hidden>
+      <button id="tournamentTabBtn" class="arena-item" type="button">⚔️ Tournoi</button>
+      <button id="hallTabBtn" class="arena-item" type="button">🏆 Hall of Fame</button>
+      <button id="duelLocalTabBtn" class="arena-item" type="button">🥊 Duel local</button>
+      <button id="multiplayerTabBtn" class="arena-item" type="button">🌐 Multijoueur <span id="multiplayerMainBadge" class="hgt-badge"></span></button>
+    </div>
   </div>
-</div>
-<button id="universeTabBtn" class="tabbtn">🌌 Univers</button>
+  <button id="universeTabBtn" class="tabbtn"><span class="hgt-tab-icon">✧</span><span>Univers</span></button>
 </div>
 
 <div id="communityTab" class="tabpage">
