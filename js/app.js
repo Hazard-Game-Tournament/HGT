@@ -5149,6 +5149,16 @@ function characterPortraitPrompt(c){
 
   const beastComponents=beastComponentsFromCharacter(c);
   const beastTraitLines=beastComponents.map(b=>`HOMME-BÊTE ${b.species.toUpperCase()} — MANDATORY RACIAL ANATOMY: ${b.traits.join('; ')}. Every listed trait must be visibly present and anatomically coherent.`);
+  // Les contraintes raciales doivent être présentes dans le prompt lui-même,
+  // et pas uniquement dans les métadonnées envoyées à l'Edge Function.
+  const dragonTraitLines=dragonVisualTraitsFromCharacter(c).map(t=>`DRAGON — MANDATORY RACIAL ANATOMY: ${t}. This trait is non-negotiable.`);
+  const extraRacialTraitLines=(Array.isArray(c?.racialVisualTraits)?c.racialVisualTraits:[])
+    .filter(Boolean)
+    .map(t=>`MANDATORY RACIAL ANATOMY: ${clean(t)}. This trait must be clearly visible and anatomically coherent.`);
+  const racialTraitLines=[...new Set([...beastTraitLines,...dragonTraitLines,...extraRacialTraitLines])];
+  const racialValidationLines=[...dragonValidationRulesFromCharacter(c),...(Array.isArray(c?.racialValidationRules)?c.racialValidationRules:[])]
+    .filter(Boolean)
+    .map(t=>`RACIAL VALIDATION: ${clean(t)}`);
 
   return `Create one standalone vertical 2:3 full-body cinematic dark-fantasy character illustration. No text, UI, card layout, border or logo.
 
@@ -5160,7 +5170,8 @@ VAELORIA ORIGIN: born in ${clean(c.birthStratum)}, region ${clean(c.birthRegion)
 CLOTHING STYLE: ${clean(c.clothingStyle)}. Respect this clothing category unless mandatory equipment requires adaptation.
 Dominant character colors: ${colors}.
 ${signLine}
-${beastTraitLines.join('\n')}
+${racialTraitLines.join('\n')}
+${racialValidationLines.join('\n')}
 
 MANDATORY ABILITIES:
 POWER: ${power}. Show it as a specific controlled physical/magical phenomenon appropriate to the named ability, not a generic glow.
@@ -5664,27 +5675,4 @@ if ('serviceWorker' in navigator) {
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',apply,{once:true});
   else apply();
-})();
-
-/* ============================================================
-   HGT V14 — fermeture robuste des fenêtres secondaires
-   Les écouteurs délégués restent valides même si le contenu des modales
-   est rerendu après l'ouverture du profil.
-   ============================================================ */
-(function hgtV14RobustModalClose(){
-  document.addEventListener('click',function(ev){
-    const closeCloud=ev.target?.closest?.('#cloudCloseBtn');
-    if(closeCloud){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      closeCloudModal();
-      return;
-    }
-    const closeRegion=ev.target?.closest?.('#regionStyleCloseBtn');
-    if(closeRegion){
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      closeRegionStyleModal(false);
-    }
-  },true);
 })();
