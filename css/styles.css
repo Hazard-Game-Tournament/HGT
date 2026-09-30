@@ -1692,3 +1692,79 @@ body{
   .roster-shell,.genealogy-shell,.tournament-shell,.hall-shell{padding-left:6px!important;padding-right:6px!important}
   .hall-grid{gap:8px!important}
 }
+
+/* ============================================================
+   HGT V8 — CALIBRAGE MOBILE BORD-A-BORD
+   Header + profil + navigation utilisent le viewport comme cadre.
+   ============================================================ */
+@media(max-width:760px){
+  :root{--hgt-page-gutter:0px!important;--hgt-panel-gutter:0px!important}
+  .container{padding-left:0!important;padding-right:0!important}
+
+  .hgt-integrated-header,
+  .hgt-profile-strip,
+  .tabs.hgt-artifact-tabs,
+  .layout,
+  .panel.left{
+    width:100%!important;max-width:none!important;
+    margin-left:0!important;margin-right:0!important;
+  }
+
+  /* Bandeau HGT compact, sans carte extérieure. */
+  .hgt-integrated-header{
+    grid-template-columns:minmax(0,1fr) minmax(154px,40%)!important;
+    gap:6px!important;
+    padding:8px 10px!important;
+    min-height:102px!important;
+    border-left:0!important;border-right:0!important;
+  }
+  .hgt-integrated-header:before{inset:6px 0!important}
+  .hgt-brand{gap:8px!important;min-width:0!important}
+  .hgt-brand-sigil{width:62px!important;height:62px!important;flex:0 0 62px!important}
+  .hgt-brand-copy{min-width:0!important}
+  .hgt-brand-copy h1 strong{font-size:28px!important;line-height:.9!important}
+  .hgt-brand-copy h1 span{font-size:8.5px!important;line-height:1.05!important}
+  .hgt-header-neurons{font-size:9px!important;line-height:1.25!important;padding:6px 8px!important}
+  .hgt-header-character{font-size:11px!important;padding:5px 8px!important}
+
+  /* Profil = bandeau de page, non une carte centrée. */
+  .hgt-profile-strip{
+    min-height:62px!important;
+    padding:6px 10px!important;
+    border-left:0!important;border-right:0!important;
+    display:flex!important;align-items:center!important;
+    justify-content:space-between!important;gap:8px!important;
+  }
+  .hgt-profile-user{
+    min-width:0!important;max-width:58%!important;
+    padding:5px 8px!important;
+  }
+  .hgt-profile-strip button{
+    min-width:52px!important;min-height:52px!important;
+    padding:7px!important;margin:0!important;
+  }
+
+  /* Les onglets commencent et finissent exactement aux bords. */
+  .tabs.hgt-artifact-tabs{
+    padding:0!important;border-left:0!important;border-right:0!important;
+    scroll-padding-inline:0!important;
+  }
+  .hgt-artifact-tabs>.tabbtn,
+  .hgt-artifact-tabs>.arena-nav>.tabbtn{
+    flex:1 0 31.5vw!important;min-width:31.5vw!important;
+    min-height:76px!important;padding:7px 5px 12px!important;
+  }
+
+  /* Roue presque plein écran mais joyaux latéraux entièrement visibles. */
+  .panel.left #wheel{
+    width:96vw!important;max-width:96vw!important;height:auto!important;
+  }
+  .panel.left .wheelwrap{overflow:visible!important}
+}
+
+@media(max-width:390px){
+  .hgt-integrated-header{grid-template-columns:minmax(0,1fr) 148px!important}
+  .hgt-brand-sigil{width:56px!important;height:56px!important;flex-basis:56px!important}
+  .hgt-brand-copy h1 strong{font-size:25px!important}
+  .hgt-header-neurons{font-size:8.5px!important}
+}
