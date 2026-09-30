@@ -2000,3 +2000,87 @@ body::-webkit-scrollbar{
   #universeTab .roster-page>.panel{padding:12px 8px!important}
   #universeTab .roster-page>.panel>.title{font-size:23px!important;gap:7px!important}
 }
+
+/* ============================================================
+   HGT V12 — FINITIONS MAQUETTE
+   - supprime les carrés/losanges parasites des commandes
+   - carte Bienvenue au format vertical de la maquette avec emblème HGT
+   - titre du codex saisonnier plus compact
+   ============================================================ */
+
+/* 1 — Les "carrés blancs" provenaient des pseudo-éléments ◆ des boutons,
+   tournés de 45° par l'ancien décor. Les filets dorés suffisent désormais. */
+.controls button::before,.controls button::after,
+#spinBtn::before,#spinBtn::after,
+#autoBtn::before,#autoBtn::after,
+#newCharacterBtn::before,#newCharacterBtn::after,
+#resetBtn::before,#resetBtn::after,
+#exportBtn::before,#exportBtn::after{
+  content:none!important;
+  display:none!important;
+}
+
+/* 2 — Bienvenue : proportions et composition de la maquette image 4. */
+.hgt-entry-card:has(#entryPlay){
+  width:min(500px,calc(100vw - 38px))!important;
+  min-height:min(690px,calc(100dvh - 150px))!important;
+  padding:clamp(30px,5vw,48px) clamp(24px,5vw,42px)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  background:
+    linear-gradient(180deg,rgba(3,8,11,.60),rgba(5,6,8,.80)),
+    url('../assets/ui/hgt-home.webp') center/cover no-repeat!important;
+  box-shadow:
+    inset 0 0 0 3px rgba(0,0,0,.72),
+    inset 0 0 0 4px rgba(215,173,85,.22),
+    0 28px 80px #000b!important;
+}
+.hgt-entry-card:has(#entryPlay) .hgt-entry-art{
+  display:block!important;
+  order:3;
+  width:clamp(150px,38vw,210px)!important;
+  height:clamp(150px,38vw,210px)!important;
+  margin:24px auto 26px!important;
+  border-radius:50%!important;
+  border:2px solid rgba(215,173,85,.72)!important;
+  background:#03080b url('../assets/icons/hgt-512.png') center/92% 92% no-repeat!important;
+  box-shadow:0 0 0 5px rgba(0,0,0,.52),0 0 28px rgba(215,173,85,.22)!important;
+}
+.hgt-entry-card:has(#entryPlay) .hgt-entry-placeholder{display:none!important}
+.hgt-entry-card:has(#entryPlay) .hgt-entry-title{order:1;margin:0!important}
+.hgt-entry-card:has(#entryPlay) .hgt-entry-sub{order:2;margin:14px 0 0!important}
+.hgt-entry-card:has(#entryPlay) #hgtEntryContent{order:4;width:100%!important}
+.hgt-entry-card:has(#entryPlay) .hgt-entry-message{order:5}
+.hgt-entry-card:has(#entryPlay) #entryPlay{
+  min-height:64px!important;
+  font-size:clamp(18px,3vw,23px)!important;
+}
+
+/* 3 — Codex saisonnier : titre volontairement plus court et moins massif. */
+#listTab .roster-page>.panel:first-child>.top .title{
+  font-size:clamp(18px,2.5vw,25px)!important;
+  line-height:1.08!important;
+  letter-spacing:.035em!important;
+  max-width:18ch;
+}
+#listTab .roster-page>.panel:first-child>.top .muted{
+  font-size:clamp(12px,1.55vw,14px)!important;
+  line-height:1.38!important;
+  margin-top:5px!important;
+}
+#listTab #rosterCount{font-size:clamp(11px,1.5vw,13px)!important}
+
+@media(max-width:600px){
+  .hgt-entry-card:has(#entryPlay){
+    width:calc(100vw - 38px)!important;
+    min-height:min(660px,calc(100dvh - 135px))!important;
+    padding:28px 22px!important;
+  }
+  .hgt-entry-card:has(#entryPlay) .hgt-entry-art{
+    width:158px!important;height:158px!important;margin:22px auto 24px!important;
+  }
+  #listTab .roster-page>.panel:first-child>.top .title{
+    font-size:20px!important;max-width:14ch!important;
+  }
+}
