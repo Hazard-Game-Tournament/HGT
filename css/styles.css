@@ -42,8 +42,8 @@
 
 
 .illustration-block{margin:14px 0 18px}
-.illustration-frame{width:100%;max-width:520px;margin:0 auto;aspect-ratio:1/2;border:1px solid rgba(212,175,55,.45);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#171313,#0b0909);box-shadow:0 10px 28px rgba(0,0,0,.35)}
-.character-illustration{width:100%;height:100%;object-fit:contain}
+.illustration-frame{width:100%;max-width:512px;margin:0 auto;aspect-ratio:512/1024;border:1px solid rgba(212,175,55,.45);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#171313,#0b0909);box-shadow:0 10px 28px rgba(0,0,0,.35)}
+.character-illustration{display:block;width:100%;height:100%;object-fit:cover;margin:0}
 .illustration-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#9a8d80;font-style:italic}
 .illustration-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
 .illustration-status{margin-top:8px;text-align:center;color:#b9aa98;font-size:.9rem;min-height:1.2em}
@@ -490,7 +490,7 @@ button,.tabbtn,input,select,textarea{touch-action:manipulation}
 
 /* HGT V21 — écran d'entrée + identité publique joueur */
 body.hgt-gated{overflow:hidden}
-#hgtEntry{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:22px;background:#050406 center/cover no-repeat;background-image:linear-gradient(rgba(3,2,4,.22),rgba(3,2,4,.58)),url('../assets/ui/hgt-home.webp')}
+#hgtEntry{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:22px;background:#050406 center/cover no-repeat;background-image:linear-gradient(rgba(3,2,4,.22),rgba(3,2,4,.58)),url('assets/ui/hgt-home.webp')}
 #hgtEntry[hidden]{display:none!important}
 .hgt-entry-card{width:min(420px,92vw);padding:24px;border:1px solid #765463;border-radius:18px;background:rgba(10,7,11,.82);backdrop-filter:blur(12px);box-shadow:0 28px 90px #000c;text-align:center}
 .hgt-entry-art{display:none}
