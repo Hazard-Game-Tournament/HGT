@@ -608,7 +608,7 @@ function ensureGenealogyShape(s){
   if(!Array.isArray(s.relationships)) s.relationships=[];
   return s;
 }
-function saveCurrentCharacter(){
+function saveCurrentCharacter({renderRosterNow=true,cloudNow=true}={}){
   applyAlienStateIfNeeded();
   applyAlienModifiersToStats();
 
@@ -634,11 +634,37 @@ function saveCurrentCharacter(){
     return;
   }
   roster[state.id]=JSON.parse(JSON.stringify(state));
-  saveRoster(roster);
-  renderRoster();
-  if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-  if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
+  saveRoster(roster); // sécurité locale immédiate : reprise exacte même si l'app est quittée
+  if(renderRosterNow) renderRoster();
+  if(cloudNow){
+    if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
+    if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
+  }
 }
+
+let __wheelPersistenceTimer=null;
+function scheduleWheelPersistence(){
+  clearTimeout(__wheelPersistenceTimer);
+  __wheelPersistenceTimer=setTimeout(()=>{
+    __wheelPersistenceTimer=null;
+    try{
+      renderRoster();
+      if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
+      if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
+    }catch(e){console.warn('Persistance différée roue',e)}
+  },2600);
+}
+function flushWheelPersistence(){
+  clearTimeout(__wheelPersistenceTimer);__wheelPersistenceTimer=null;
+  try{
+    saveCurrentCharacter({renderRosterNow:false,cloudNow:false});
+    if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
+    if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
+  }catch(e){}
+}
+window.addEventListener('pagehide',flushWheelPersistence);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushWheelPersistence()});
+
 reconcileSeasonCursor();
 
 function blankCharacterState(id){
@@ -3538,10 +3564,15 @@ function hgtDrawWheelFrame(cx,cy,R){
       // Cristal régional.
       ctx.beginPath();ctx.moveTo(0,-33);ctx.lineTo(11,-8);ctx.lineTo(0,11);ctx.lineTo(-11,-8);ctx.closePath();
       const cg=ctx.createLinearGradient(0,-33,0,11);
-      cg.addColorStop(0,'rgba(255,255,255,.92)');
-      cg.addColorStop(.28,hgtWheelRgba(pal.main,1));cg.addColorStop(1,hgtWheelRgba(pal.secondary,.78));
-      ctx.fillStyle=cg;ctx.shadowBlur=14+22*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
-      ctx.strokeStyle='#e9d38a';ctx.lineWidth=1.4;ctx.stroke();
+      cg.addColorStop(0,'rgba(255,255,255,1)');
+      cg.addColorStop(.18,hgtWheelRgba(pal.accent||pal.main,1));
+      cg.addColorStop(.52,hgtWheelRgba(pal.main,1));
+      cg.addColorStop(1,hgtWheelRgba(pal.secondary||pal.main,.96));
+      ctx.fillStyle=cg;
+      ctx.shadowBlur=24+34*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
+      ctx.strokeStyle='rgba(255,244,205,.92)';ctx.lineWidth=1.6;ctx.stroke();
+      ctx.beginPath();ctx.moveTo(0,-28);ctx.lineTo(4,-9);ctx.lineTo(0,-2);ctx.lineTo(-3,-10);ctx.closePath();
+      ctx.fillStyle='rgba(255,255,255,.78)';ctx.fill();
 
       // Pointe extérieure.
       ctx.beginPath();ctx.moveTo(0,-65);ctx.lineTo(9,-39);ctx.lineTo(0,-31);ctx.lineTo(-9,-39);ctx.closePath();
@@ -3550,7 +3581,7 @@ function hgtDrawWheelFrame(cx,cy,R){
       ctx.beginPath();ctx.moveTo(0,-27);ctx.lineTo(9,-4);ctx.lineTo(0,10);ctx.lineTo(-9,-4);ctx.closePath();
       ctx.fillStyle='#7a5522';ctx.fill();ctx.strokeStyle='#d6ad58';ctx.lineWidth=1.5;ctx.stroke();
       ctx.beginPath();ctx.moveTo(0,-18);ctx.lineTo(5,-4);ctx.lineTo(0,4);ctx.lineTo(-5,-4);ctx.closePath();
-      ctx.fillStyle=hgtWheelRgba(pal.main,.72);ctx.fill();
+      ctx.fillStyle=hgtWheelRgba(pal.main,.96);ctx.shadowBlur=14+18*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
     }
     ctx.restore();
   }
@@ -3704,6 +3735,7 @@ async function spin(opts){
 }
 function finishGeneration(){
   if(index<queue.length)return false;
+  clearTimeout(__wheelPersistenceTimer);__wheelPersistenceTimer=null;
   auto=false;
   autoBtn.textContent='Auto : OFF';
   if(!state._autoSavedAtFinish){
@@ -3749,7 +3781,7 @@ function finishGeneration(){
   resetBtn.textContent='Réinitialiser';
   return true;
 }
-async function next(){if(spinning)return;if(blockGenerationIfPreviousTournamentIncomplete())return;if(blockGenerationIfDescendantsNotSelected())return;if(index>=queue.length){finishGeneration();return}let t=queue[index],opts=t.options();if(t._subwheel&&hideSubwheelsEnabled()){let hiddenProcessed=0;while(index<queue.length&&queue[index]?._subwheel&&hideSubwheelsEnabled()){const hiddenTask=queue[index],hiddenOpts=hiddenTask.options();let r=weightedPick(hiddenOpts),label=hiddenOpts[r]?.label??hiddenOpts[0]?.label;state.logs.push({cat:hiddenTask.title,val:label});hiddenTask.apply(label);index++;hiddenProcessed++;if(hiddenProcessed%6===0)await new Promise(resolve=>requestAnimationFrame(()=>resolve()));if(finishGeneration())return}saveCurrentCharacter();render();if(index>=queue.length){finishGeneration();return}return next()}if(opts.length===1){let r=opts[0].label;result.innerHTML=`${r}<small>${t.title} — attribution automatique</small>`;state.logs.push({cat:t.title,val:r});t.apply(r);index++;saveCurrentCharacter();render();if(finishGeneration())return;return next()}taskTitle.textContent=t.title;count.textContent=`Roue ${spinNumber+1} • ${index+1}/${queue.length} étapes actuelles`;drawWheel(opts);let r=await spin(opts);spinNumber++;result.innerHTML=`${wheelDisplayLabel(r)}<small>${t.title}</small>`;state.logs.push({cat:t.title,val:r});t.apply(r);index++;saveCurrentCharacter();render();if(finishGeneration())return;spinBtn.textContent='Tourner la roue';if(auto)setTimeout(next,280)}
+async function next(){if(spinning)return;if(blockGenerationIfPreviousTournamentIncomplete())return;if(blockGenerationIfDescendantsNotSelected())return;if(index>=queue.length){finishGeneration();return}let t=queue[index],opts=t.options();if(t._subwheel&&hideSubwheelsEnabled()){let hiddenProcessed=0;while(index<queue.length&&queue[index]?._subwheel&&hideSubwheelsEnabled()){const hiddenTask=queue[index],hiddenOpts=hiddenTask.options();let r=weightedPick(hiddenOpts),label=hiddenOpts[r]?.label??hiddenOpts[0]?.label;state.logs.push({cat:hiddenTask.title,val:label});hiddenTask.apply(label);index++;hiddenProcessed++;if(hiddenProcessed%6===0)await new Promise(resolve=>requestAnimationFrame(()=>resolve()));if(finishGeneration())return}saveCurrentCharacter({renderRosterNow:false,cloudNow:false});scheduleWheelPersistence();render();if(index>=queue.length){finishGeneration();return}return next()}if(opts.length===1){let r=opts[0].label;result.innerHTML=`${r}<small>${t.title} — attribution automatique</small>`;state.logs.push({cat:t.title,val:r});t.apply(r);index++;saveCurrentCharacter({renderRosterNow:false,cloudNow:false});scheduleWheelPersistence();render();if(finishGeneration())return;return next()}taskTitle.textContent=t.title;count.textContent=`Roue ${spinNumber+1} • ${index+1}/${queue.length} étapes actuelles`;drawWheel(opts);let r=await spin(opts);spinNumber++;result.innerHTML=`${wheelDisplayLabel(r)}<small>${t.title}</small>`;state.logs.push({cat:t.title,val:r});t.apply(r);index++;saveCurrentCharacter({renderRosterNow:false,cloudNow:false});scheduleWheelPersistence();render();if(finishGeneration())return;spinBtn.textContent='Tourner la roue';if(auto)setTimeout(next,280)}
 function fmtMods(map,parts){let out=[];for(const p of parts){let k=raceKey(p),v=map[k];if(v)out.push(`${p} ${v>0?'+':''}${v}`)}return out.join(' • ')||'aucun'}
 function raceBonusText(){
  const rp=racialProfile7();
