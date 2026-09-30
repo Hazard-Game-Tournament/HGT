@@ -5655,3 +5655,13 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch((error) => console.warn('HGT service worker', error));
   });
 }
+
+/* HGT V12 — libellé compact du registre */
+(function hgtV12SeasonCodexLabel(){
+  const apply=()=>{
+    const title=document.querySelector('#listTab .roster-page>.panel:first-child>.top .title');
+    if(title && /registre complet de la saison/i.test(title.textContent||'')) title.textContent='📋 Codex saisonnier';
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',apply,{once:true});
+  else apply();
+})();
