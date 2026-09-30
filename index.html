@@ -2670,10 +2670,24 @@ function genealogyEntityMap(){
   // Un descendant devenu combattant reste UNE SEULE personne dans l'arbre.
   // Son ancien ID DESC-xxxx devient un alias généalogique de son ID de combattant Sx-xxx.
   const descendantAliases={};
+  const sameDescendantFighter=(desc,fighter)=>{
+    if(!desc||!fighter)return false;
+    // Lien explicite créé lors de la matérialisation : seule preuve fiable.
+    // Un ancien fighterId peut pointer vers un autre personnage si le slot Sx-xxx
+    // a été écrasé (ex. Kais DESC-0002 remplacé par Magrrokg S3-001).
+    if(fighter.descendantSourceId===desc.id)return true;
+    // Compatibilité avec les anciennes sauvegardes qui n'avaient pas encore
+    // descendantSourceId : on n'accepte le fighterId historique que si l'identité
+    // canonique (nom) correspond également.
+    const norm=v=>String(v||'').trim().toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return !!(desc.fighterId===fighter.id && norm(desc.name) && norm(desc.name)===norm(fighter.name));
+  };
   Object.values(d).forEach(x=>{
     if(!x?.id)return;
-    const fighterId=x.fighterId || Object.values(roster).find(r=>r?.descendantSourceId===x.id)?.id;
-    if(fighterId && roster[fighterId]) descendantAliases[x.id]=fighterId;
+    const explicit=Object.values(roster).find(r=>r?.descendantSourceId===x.id);
+    const historical=x.fighterId?roster[x.fighterId]:null;
+    const fighter=explicit || (sameDescendantFighter(x,historical)?historical:null);
+    if(fighter?.id) descendantAliases[x.id]=fighter.id;
   });
   const canonicalId=id=>descendantAliases[id]||id;
   const canonicalParents=(ids,selfId)=>cleanParents(ids,selfId).map(canonicalId).filter(id=>id&&id!==selfId);
@@ -2683,7 +2697,9 @@ function genealogyEntityMap(){
   // remplace visuellement la fiche DESC-xxxx sans perdre ses liens familiaux.
   Object.values(roster).forEach(x=>{
     if(!x?.id)return;
-    const source=x.descendantSourceId?d[x.descendantSourceId]:Object.values(d).find(z=>z?.fighterId===x.id);
+    const explicitSource=x.descendantSourceId?d[x.descendantSourceId]:null;
+    const historicalSource=!explicitSource?Object.values(d).find(z=>z?.fighterId===x.id && sameDescendantFighter(z,x)):null;
+    const source=explicitSource||historicalSource;
     const rawParents=x.genealogy?.parents?.length ? x.genealogy.parents : (source?.parentIds||source?.genealogy?.parents||[]);
     map[x.id]={...x,_kind:'roster',_parents:canonicalParents(rawParents,x.id),_descendantSourceId:source?.id||x.descendantSourceId||null};
   });
