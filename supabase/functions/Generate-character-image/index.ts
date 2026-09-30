@@ -1,3 +1,4 @@
+// HGT season-transition contract: S*-064 -> tournament champion -> births -> descendant selection -> S+1 IDs.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const ALLOWED_ORIGIN = "https://hazard-game-tournament.github.io";
@@ -1187,6 +1188,38 @@ Deno.serve(async (req) => {
     try { body = JSON.parse(rawBody); }
     catch (_) { return jsonResponse({ success: false, error: "Invalid JSON body" }, 400); }
     const action = String(body?.action || "generate");
+
+    // Read-only HGT view of the successful FLUX usage still inside the rolling
+    // 24-hour window. This is an HGT ledger, not a claim that Cloudflare's
+    // undocumented 4006 enforcement is guaranteed to use the exact same rule.
+    if (action === "usage24h") {
+      const now = Date.now();
+      const sinceIso = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      const { data: rows, error: usageError } = await admin
+        .from("neuron_usage")
+        .select("neurons,created_at")
+        .gte("created_at", sinceIso)
+        .order("created_at", { ascending: true })
+        .limit(5000);
+      if (usageError) throw new Error(`24h neuron usage: ${usageError.message}`);
+      const events = (rows || []).map((row: any) => ({
+        neurons: Number(Number(row?.neurons || 0).toFixed(2)),
+        created_at: String(row?.created_at || ""),
+        releases_at: row?.created_at ? new Date(new Date(row.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString() : "",
+      })).filter((row: any) => Number.isFinite(row.neurons) && row.neurons > 0 && row.created_at);
+      const used = Number(events.reduce((sum: number, row: any) => sum + row.neurons, 0).toFixed(2));
+      const limit = 10000;
+      return jsonResponse({
+        success: true,
+        source: "hgt_rolling_24h_ledger",
+        generated_at: new Date(now).toISOString(),
+        window_hours: 24,
+        neurons_limit: limit,
+        neurons_used: used,
+        neurons_remaining: Number(Math.max(0, limit - used).toFixed(2)),
+        events,
+      });
+    }
 
     // Validation is deliberately a separate request from FLUX generation.
     // This keeps QA mandatory without risking that a slow validator kills an
