@@ -1050,9 +1050,26 @@ function markBirthResolutionComplete(season){
 function markDescendantSelectionComplete(season){
   const meta=seasonTransitionMeta();meta.descendantsSelectedBySeason[String(season)]=new Date().toISOString();saveUniverseMeta(meta);
 }
-function birthsResolvedForSeason(season){return !!seasonTransitionMeta().birthsResolvedBySeason?.[String(season)]}
+function birthsResolvedForSeason(season){
+  const s=Number(season);
+  const meta=seasonTransitionMeta();
+  if(meta.birthsResolvedBySeason?.[String(s)])return true;
+  // Source de vérité de secours : si la saison est terminée, a son champion et
+  // qu'aucun événement de naissance de cette saison n'est encore vide, l'étape
+  // est réellement résolue même si le marqueur de transition a été perdu.
+  if(seasonCompleted(s)&&tournamentChampionForSeason(s)){
+    const pending=pendingBirthEventsForSeason(s);
+    if(pending.length===0){
+      markBirthResolutionComplete(s);
+      return true;
+    }
+  }
+  return false;
+}
 function descendantsSelectedForSeason(season){return !!seasonTransitionMeta().descendantsSelectedBySeason?.[String(season)]}
 function blockGenerationIfDescendantsNotSelected(){
+  // Répare les descendants créés trop tôt par l'ancienne version (ex. S4 alors que S3 est en cours).
+  try{cleanupPrematureBirths()}catch(e){console.warn('Nettoyage naissances prématurées',e)}
   if(seasonNumber<=1)return false;
   const previousSeason=seasonNumber-1;
   if(!seasonCompleted(previousSeason))return false;
@@ -1665,6 +1682,31 @@ function createChild(pa,pb,origin,event,meta,descStore){
   }
   descStore[id]=child;return child;
 }
+function cleanupPrematureBirths(){
+  const roster=loadRoster(), d=descendants();
+  let removed=0,changed=false;
+  for(const pa of Object.values(roster||{})){
+    if(!pa)continue;ensureGenealogyShape(pa);
+    for(const ev of (pa.extraDetail||[])){
+      if(ev?.kind!=='Enfant')continue;
+      const bs=Number(ev.birthSeason||characterSeasonFromId(pa,seasonNumber));
+      if(seasonCompleted(bs)&&tournamentChampionForSeason(bs))continue;
+      const ids=birthEventChildIds(ev);
+      const premature=ids.filter(id=>{
+        const child=d[id];
+        return child && Number(child.birthSeason)===bs && Number(child.eligibleSeason)===bs+1 && child.selectedForSeason==null;
+      });
+      if(!premature.length)continue;
+      for(const id of premature){delete d[id];removed++}
+      ev.childIds=ids.filter(id=>!premature.includes(id));delete ev.childId;
+      ev.status=ev.childIds.length?`${ev.childIds.length} naissance${ev.childIds.length>1?'s':''} résolue${ev.childIds.length>1?'s':''}`:'Naissance en attente de résolution';
+      pa.genealogy.children=(pa.genealogy.children||[]).filter(id=>!premature.includes(id));
+      roster[pa.id]=pa;changed=true;
+    }
+  }
+  if(changed){saveRoster(roster);saveStore(STORAGE_DESC,d);if(typeof saveEmergencyLocalBackup==='function')saveEmergencyLocalBackup()}
+  return removed;
+}
 async function resolveBirthEvents(){
   saveCurrentCharacter();
   if(seasonCompleted(seasonNumber)&&!tournamentChampionForSeason(seasonNumber)){
@@ -1680,6 +1722,10 @@ async function resolveBirthEvents(){
   for(const pa of Object.values(roster)){
     ensureGenealogyShape(pa);
     for(const ev of (pa.extraDetail||[]).filter(x=>x?.kind==='Enfant'&&birthEventChildIds(x).length===0)){
+      const sourceSeason=Number(ev.birthSeason||characterSeasonFromId(pa,seasonNumber));
+      // Une naissance n'est résolue qu'à la transition officielle de sa saison :
+      // 64 personnages terminés + champion. Jamais pendant la saison suivante en cours.
+      if(!seasonCompleted(sourceSeason)||!tournamentChampionForSeason(sourceSeason))continue;
       ev.birthSeason=Number(ev.birthSeason||characterSeasonFromId(pa,seasonNumber));
       // Ne jamais traiter comme future une naissance provenant d'une saison qui n'a pas encore eu lieu.
       if(ev.birthSeason>seasonNumber) continue;
@@ -1725,8 +1771,10 @@ async function resolveBirthEvents(){
     try{await cloudSyncAllData()}catch(e){console.warn('Sync naissances',e)}
   }
   // Une saison complète ne valide cette étape qu'une fois toutes ses naissances effectivement résolues.
-  if(seasonCompleted(seasonNumber)&&tournamentChampionForSeason(seasonNumber)&&pendingBirthEventsForSeason(seasonNumber).length===0){
-    markBirthResolutionComplete(seasonNumber);
+  for(let s=1;s<=seasonNumber;s++){
+    if(seasonCompleted(s)&&tournamentChampionForSeason(s)&&pendingBirthEventsForSeason(s).length===0){
+      markBirthResolutionComplete(s);
+    }
   }
   renderRoster();renderGenealogy();
   const suffix=skippedIncomplete?`\n\n${skippedIncomplete} personnage${skippedIncomplete>1?'s':''} encore en cours de génération n${skippedIncomplete>1?'ont':'a'} pas été traité${skippedIncomplete>1?'s':''}.`:'';
