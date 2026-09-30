@@ -1,0 +1,25 @@
+{
+  "name": "Hazard Game Tournament",
+  "short_name": "HGT",
+  "description": "Hazard Game Tournament — génération de personnages, lignées, tournoi et univers de Vaeloria.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0e13",
+  "theme_color": "#0b0e13",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "assets/icons/hgt-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/hgt-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
