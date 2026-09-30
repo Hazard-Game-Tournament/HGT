@@ -2667,21 +2667,36 @@ function genealogyEntityMap(){
   const roster=loadRoster(), d=descendants(), n=npcs(), map={};
   const cleanParents=(ids,selfId)=>[...new Set((Array.isArray(ids)?ids:[]).filter(id=>id&&id!==selfId))].slice(0,2);
 
+  // Un descendant devenu combattant reste UNE SEULE personne dans l'arbre.
+  // Son ancien ID DESC-xxxx devient un alias généalogique de son ID de combattant Sx-xxx.
+  const descendantAliases={};
+  Object.values(d).forEach(x=>{
+    if(!x?.id)return;
+    const fighterId=x.fighterId || Object.values(roster).find(r=>r?.descendantSourceId===x.id)?.id;
+    if(fighterId && roster[fighterId]) descendantAliases[x.id]=fighterId;
+  });
+  const canonicalId=id=>descendantAliases[id]||id;
+  const canonicalParents=(ids,selfId)=>cleanParents(ids,selfId).map(canonicalId).filter(id=>id&&id!==selfId);
+
   // Source de vérité de l'arbre : les parents déclarés par l'ENFANT.
-  // On n'utilise volontairement plus genealogy.children pour construire l'arbre :
-  // d'anciens bugs pouvaient y laisser des IDs fantômes et afficher des "parents" sans enfant réel.
+  // Les combattants sont prioritaires : si un DESC-xxxx a été promu, sa fiche Sx-xxx
+  // remplace visuellement la fiche DESC-xxxx sans perdre ses liens familiaux.
   Object.values(roster).forEach(x=>{
     if(!x?.id)return;
-    map[x.id]={...x,_kind:'roster',_parents:cleanParents(x.genealogy?.parents,x.id)};
+    const source=x.descendantSourceId?d[x.descendantSourceId]:Object.values(d).find(z=>z?.fighterId===x.id);
+    const rawParents=x.genealogy?.parents?.length ? x.genealogy.parents : (source?.parentIds||source?.genealogy?.parents||[]);
+    map[x.id]={...x,_kind:'roster',_parents:canonicalParents(rawParents,x.id),_descendantSourceId:source?.id||x.descendantSourceId||null};
   });
   Object.values(n).forEach(x=>{
     if(!x?.id)return;
-    map[x.id]={...x,_kind:'npc',_parents:cleanParents(x.genealogy?.parents,x.id)};
+    map[x.id]={...x,_kind:'npc',_parents:canonicalParents(x.genealogy?.parents,x.id)};
   });
   Object.values(d).forEach(x=>{
     if(!x?.id)return;
+    // Déjà matérialisé comme combattant : ne surtout pas créer un second nœud DESC-xxxx.
+    if(descendantAliases[x.id])return;
     const explicit=Array.isArray(x.parentIds)?x.parentIds:x.genealogy?.parents;
-    map[x.id]={...x,_kind:'desc',_parents:cleanParents(explicit,x.id)};
+    map[x.id]={...x,_kind:'desc',_parents:canonicalParents(explicit,x.id)};
   });
 
   // Placeholder uniquement lorsqu'un enfant réel référence un parent dont la fiche manque.
