@@ -3553,32 +3553,49 @@ function hgtDrawWheelFrame(cx,cy,R){
     const major=i%2===0, ang=i*Math.PI/8-Math.PI/2;
     ctx.save();ctx.rotate(ang);ctx.translate(0,-(R+36));
     if(major){
-      // Plaque métallique en losange.
-      ctx.beginPath();ctx.moveTo(0,-48);ctx.lineTo(25,-8);ctx.lineTo(14,17);ctx.lineTo(0,27);
-      ctx.lineTo(-14,17);ctx.lineTo(-25,-8);ctx.closePath();
+      // Grande monture : volontairement plus large pour que les 8 joyaux structurent la roue.
+      ctx.beginPath();ctx.moveTo(0,-58);ctx.lineTo(31,-12);ctx.lineTo(19,22);ctx.lineTo(0,34);
+      ctx.lineTo(-19,22);ctx.lineTo(-31,-12);ctx.closePath();
       const mg=ctx.createLinearGradient(-25,-45,25,25);
-      mg.addColorStop(0,'#f0ce72');mg.addColorStop(.24,'#68451b');mg.addColorStop(.52,'#1b120b');
-      mg.addColorStop(.78,'#a87a31');mg.addColorStop(1,'#e0b95d');
+      mg.addColorStop(0,'#ffe29a');mg.addColorStop(.22,'#7b531f');mg.addColorStop(.52,'#160f08');
+      mg.addColorStop(.78,'#bc8b38');mg.addColorStop(1,'#f0c96b');
       ctx.fillStyle=mg;ctx.fill();ctx.strokeStyle='#e7c56d';ctx.lineWidth=2;ctx.stroke();
 
-      // Cristal régional.
-      ctx.beginPath();ctx.moveTo(0,-33);ctx.lineTo(11,-8);ctx.lineTo(0,11);ctx.lineTo(-11,-8);ctx.closePath();
-      const cg=ctx.createLinearGradient(0,-33,0,11);
+      // Joyau régional V5 : grande surface saturée + halo externe + cœur blanc.
+      // Le halo est un simple gradient canvas : aucune particule supplémentaire par frame.
+      const jr=27;
+      const halo=ctx.createRadialGradient(0,-9,2,0,-9,jr+18);
+      halo.addColorStop(0,'rgba(255,255,255,.92)');
+      halo.addColorStop(.16,hgtWheelRgba(pal.accent||pal.main,.98));
+      halo.addColorStop(.48,hgtWheelRgba(pal.main,.72+.20*fx));
+      halo.addColorStop(1,hgtWheelRgba(pal.main,0));
+      ctx.beginPath();ctx.arc(0,-9,jr+18,0,Math.PI*2);
+      ctx.fillStyle=halo;ctx.fill();
+
+      ctx.beginPath();ctx.moveTo(0,-47);ctx.lineTo(18,-10);ctx.lineTo(0,19);ctx.lineTo(-18,-10);ctx.closePath();
+      const cg=ctx.createLinearGradient(-12,-44,14,18);
       cg.addColorStop(0,'rgba(255,255,255,1)');
-      cg.addColorStop(.18,hgtWheelRgba(pal.accent||pal.main,1));
-      cg.addColorStop(.52,hgtWheelRgba(pal.main,1));
-      cg.addColorStop(1,hgtWheelRgba(pal.secondary||pal.main,.96));
+      cg.addColorStop(.14,hgtWheelRgba(pal.accent||pal.main,1));
+      cg.addColorStop(.48,hgtWheelRgba(pal.main,1));
+      cg.addColorStop(.82,hgtWheelRgba(pal.secondary||pal.main,1));
+      cg.addColorStop(1,hgtWheelRgba(pal.dark||pal.main,.96));
       ctx.fillStyle=cg;
-      ctx.shadowBlur=24+34*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(255,244,205,.92)';ctx.lineWidth=1.6;ctx.stroke();
-      ctx.beginPath();ctx.moveTo(0,-28);ctx.lineTo(4,-9);ctx.lineTo(0,-2);ctx.lineTo(-3,-10);ctx.closePath();
-      ctx.fillStyle='rgba(255,255,255,.78)';ctx.fill();
+      ctx.shadowBlur=32+24*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
+      ctx.strokeStyle='rgba(255,249,220,.98)';ctx.lineWidth=2.2;ctx.stroke();
+
+      // Facettes et éclat spéculaire.
+      ctx.beginPath();ctx.moveTo(0,-43);ctx.lineTo(7,-12);ctx.lineTo(0,9);ctx.lineTo(-5,-12);ctx.closePath();
+      ctx.fillStyle='rgba(255,255,255,.72)';ctx.fill();
+      ctx.beginPath();ctx.moveTo(-15,-10);ctx.lineTo(0,-43);ctx.lineTo(15,-10);
+      ctx.strokeStyle='rgba(255,255,255,.42)';ctx.lineWidth=1.2;ctx.stroke();
+      ctx.beginPath();ctx.arc(-4,-24,4.2,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,.96)';ctx.fill();
 
       // Pointe extérieure.
-      ctx.beginPath();ctx.moveTo(0,-65);ctx.lineTo(9,-39);ctx.lineTo(0,-31);ctx.lineTo(-9,-39);ctx.closePath();
+      ctx.beginPath();ctx.moveTo(0,-76);ctx.lineTo(11,-50);ctx.lineTo(0,-40);ctx.lineTo(-11,-50);ctx.closePath();
       ctx.fillStyle='#c99c48';ctx.fill();ctx.strokeStyle='#f0d27b';ctx.stroke();
     }else{
-      ctx.beginPath();ctx.moveTo(0,-27);ctx.lineTo(9,-4);ctx.lineTo(0,10);ctx.lineTo(-9,-4);ctx.closePath();
+      ctx.beginPath();ctx.moveTo(0,-30);ctx.lineTo(10,-4);ctx.lineTo(0,11);ctx.lineTo(-10,-4);ctx.closePath();
       ctx.fillStyle='#7a5522';ctx.fill();ctx.strokeStyle='#d6ad58';ctx.lineWidth=1.5;ctx.stroke();
       ctx.beginPath();ctx.moveTo(0,-18);ctx.lineTo(5,-4);ctx.lineTo(0,4);ctx.lineTo(-5,-4);ctx.closePath();
       ctx.fillStyle=hgtWheelRgba(pal.main,.96);ctx.shadowBlur=14+18*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
