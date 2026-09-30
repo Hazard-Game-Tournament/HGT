@@ -3472,113 +3472,212 @@ function hgtWheelMetalGradient(cx,cy,r1,r2,accent){
   g.addColorStop(.62,'#5c431f');g.addColorStop(.82,'#b58b3e');g.addColorStop(1,'#120e0b');
   return g;
 }
+function hgtWheelFitText(text,maxWidth,maxPx=18,minPx=8){
+  let px=maxPx;
+  while(px>minPx){
+    ctx.font=`800 ${px}px Georgia,system-ui`;
+    if(ctx.measureText(text).width<=maxWidth)break;
+    px-=1;
+  }
+  return px;
+}
 function hgtDrawWheelFrame(cx,cy,R){
   const pal=hgtWheelPalette(),fx=Math.max(0,Math.min(1,__hgtWheelFx||0));
   ctx.save();ctx.translate(cx,cy);
 
-  // Halo régional : même structure HGT, couleur fournie par le thème actif.
-  ctx.shadowBlur=24+34*fx;ctx.shadowColor=hgtWheelRgba(pal.main,.65);
-  ctx.beginPath();ctx.arc(0,0,R+17,0,Math.PI*2);
-  ctx.strokeStyle=hgtWheelRgba(pal.main,.28+.35*fx);ctx.lineWidth=9;ctx.stroke();
-  ctx.shadowBlur=0;
+  // Halo énergétique régional derrière l'artefact.
+  ctx.beginPath();ctx.arc(0,0,R+50,0,Math.PI*2);
+  ctx.strokeStyle=hgtWheelRgba(pal.main,.18+.30*fx);ctx.lineWidth=12;
+  ctx.shadowBlur=30+35*fx;ctx.shadowColor=hgtWheelRgba(pal.main,.72);ctx.stroke();ctx.shadowBlur=0;
 
-  // Double couronne métallique.
-  for(const [rr,w] of [[R+27,14],[R+11,6]]){
+  // Grande armature extérieure multi-couches.
+  const rings=[
+    [R+43,10,'#2a1a0d','#e5c36c'],
+    [R+34,5,'#0b0908','#936827'],
+    [R+27,11,'#35210f','#d8ae55'],
+    [R+17,4,'#090807','#f0cf78']
+  ];
+  rings.forEach(([rr,w,dark,light],idx)=>{
     ctx.beginPath();ctx.arc(0,0,rr,0,Math.PI*2);
-    ctx.strokeStyle=hgtWheelMetalGradient(0,0,Math.max(0,rr-w),rr+w,pal.accent);ctx.lineWidth=w;ctx.stroke();
+    const g=ctx.createLinearGradient(-rr,-rr,rr,rr);
+    g.addColorStop(0,dark);g.addColorStop(.16,light);g.addColorStop(.31,'#4b3215');
+    g.addColorStop(.48,'#f1d27c');g.addColorStop(.62,'#62451e');
+    g.addColorStop(.82,light);g.addColorStop(1,dark);
+    ctx.strokeStyle=g;ctx.lineWidth=w;ctx.stroke();
+    ctx.beginPath();ctx.arc(0,0,rr-(idx%2?2:5),0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,236,176,.16)';ctx.lineWidth=1;ctx.stroke();
+  });
+
+  // Gravures et rivets de la couronne.
+  for(let i=0;i<64;i++){
+    const a=i*Math.PI/32, rr=R+33;
+    const x=Math.cos(a)*rr,y=Math.sin(a)*rr;
+    ctx.beginPath();ctx.arc(x,y,i%8===0?3.2:1.35,0,Math.PI*2);
+    ctx.fillStyle=i%8===0?'#e5c46d':'#6f4c20';ctx.fill();
+    if(i%2===0){
+      const ri=R+22,ro=R+29;
+      ctx.beginPath();ctx.moveTo(Math.cos(a)*ri,Math.sin(a)*ri);ctx.lineTo(Math.cos(a)*ro,Math.sin(a)*ro);
+      ctx.strokeStyle=i%8===0?hgtWheelRgba(pal.main,.72):'rgba(219,182,94,.28)';
+      ctx.lineWidth=i%8===0?2:1;ctx.stroke();
+    }
   }
-  ctx.beginPath();ctx.arc(0,0,R+19,0,Math.PI*2);
-  ctx.strokeStyle=hgtWheelRgba(pal.accent,.55);ctx.lineWidth=2;ctx.stroke();
 
-  // 8 pointes / cristaux façon emblème HGT.
-  for(let i=0;i<8;i++){
-    const ang=i*Math.PI/4-Math.PI/2;
-    ctx.save();ctx.rotate(ang);ctx.translate(0,-(R+25));
-    const long=i%2===0?42:29,wide=i%2===0?15:11;
-    ctx.beginPath();ctx.moveTo(0,-long);ctx.lineTo(wide,0);ctx.lineTo(0,12);ctx.lineTo(-wide,0);ctx.closePath();
-    const pg=ctx.createLinearGradient(0,-long,0,12);
-    pg.addColorStop(0,'#f4d77d');pg.addColorStop(.42,'#7d5926');pg.addColorStop(1,'#24170d');
-    ctx.fillStyle=pg;ctx.fill();ctx.strokeStyle='#e7c66e';ctx.lineWidth=2;ctx.stroke();
+  // 8 grands bastions cristallins + 8 pointes secondaires.
+  for(let i=0;i<16;i++){
+    const major=i%2===0, ang=i*Math.PI/8-Math.PI/2;
+    ctx.save();ctx.rotate(ang);ctx.translate(0,-(R+36));
+    if(major){
+      // Plaque métallique en losange.
+      ctx.beginPath();ctx.moveTo(0,-48);ctx.lineTo(25,-8);ctx.lineTo(14,17);ctx.lineTo(0,27);
+      ctx.lineTo(-14,17);ctx.lineTo(-25,-8);ctx.closePath();
+      const mg=ctx.createLinearGradient(-25,-45,25,25);
+      mg.addColorStop(0,'#f0ce72');mg.addColorStop(.24,'#68451b');mg.addColorStop(.52,'#1b120b');
+      mg.addColorStop(.78,'#a87a31');mg.addColorStop(1,'#e0b95d');
+      ctx.fillStyle=mg;ctx.fill();ctx.strokeStyle='#e7c56d';ctx.lineWidth=2;ctx.stroke();
 
-    ctx.beginPath();ctx.moveTo(0,-Math.min(18,long-4));ctx.lineTo(7,0);ctx.lineTo(0,8);ctx.lineTo(-7,0);ctx.closePath();
-    ctx.fillStyle=hgtWheelRgba(pal.main,.88);ctx.shadowBlur=12+18*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
+      // Cristal régional.
+      ctx.beginPath();ctx.moveTo(0,-33);ctx.lineTo(11,-8);ctx.lineTo(0,11);ctx.lineTo(-11,-8);ctx.closePath();
+      const cg=ctx.createLinearGradient(0,-33,0,11);
+      cg.addColorStop(0,'rgba(255,255,255,.92)');
+      cg.addColorStop(.28,hgtWheelRgba(pal.main,1));cg.addColorStop(1,hgtWheelRgba(pal.secondary,.78));
+      ctx.fillStyle=cg;ctx.shadowBlur=14+22*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
+      ctx.strokeStyle='#e9d38a';ctx.lineWidth=1.4;ctx.stroke();
+
+      // Pointe extérieure.
+      ctx.beginPath();ctx.moveTo(0,-65);ctx.lineTo(9,-39);ctx.lineTo(0,-31);ctx.lineTo(-9,-39);ctx.closePath();
+      ctx.fillStyle='#c99c48';ctx.fill();ctx.strokeStyle='#f0d27b';ctx.stroke();
+    }else{
+      ctx.beginPath();ctx.moveTo(0,-27);ctx.lineTo(9,-4);ctx.lineTo(0,10);ctx.lineTo(-9,-4);ctx.closePath();
+      ctx.fillStyle='#7a5522';ctx.fill();ctx.strokeStyle='#d6ad58';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.beginPath();ctx.moveTo(0,-18);ctx.lineTo(5,-4);ctx.lineTo(0,4);ctx.lineTo(-5,-4);ctx.closePath();
+      ctx.fillStyle=hgtWheelRgba(pal.main,.72);ctx.fill();
+    }
     ctx.restore();
   }
 
-  // Petites runes/repères autour de l'anneau.
-  ctx.strokeStyle=hgtWheelRgba(pal.main,.72);ctx.lineWidth=2;
-  for(let i=0;i<32;i++){
-    const a=i*Math.PI/16,ri=R+8,ro=R+(i%4===0?17:13);
-    ctx.beginPath();ctx.moveTo(Math.cos(a)*ri,Math.sin(a)*ri);ctx.lineTo(Math.cos(a)*ro,Math.sin(a)*ro);ctx.stroke();
+  // Arcatures décoratives entre les bastions.
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4+Math.PI/8;
+    ctx.save();ctx.rotate(a);
+    ctx.strokeStyle='rgba(224,190,104,.42)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(0,0,R+48,-Math.PI/12,Math.PI/12);ctx.stroke();
+    ctx.strokeStyle=hgtWheelRgba(pal.main,.26+.25*fx);
+    ctx.beginPath();ctx.arc(0,0,R+53,-Math.PI/16,Math.PI/16);ctx.stroke();
+    ctx.restore();
   }
 
-  // Noyau HGT fixe.
-  ctx.beginPath();ctx.arc(0,0,73,0,Math.PI*2);
-  const core=ctx.createRadialGradient(-18,-22,4,0,0,73);
-  core.addColorStop(0,hgtWheelRgba(pal.main,.75));core.addColorStop(.38,'#201912');core.addColorStop(1,'#070708');
-  ctx.fillStyle=core;ctx.fill();
-  ctx.strokeStyle='#d7b45d';ctx.lineWidth=7;ctx.stroke();
-  ctx.beginPath();ctx.arc(0,0,58,0,Math.PI*2);ctx.strokeStyle=hgtWheelRgba(pal.main,.75);ctx.lineWidth=3;ctx.stroke();
-  ctx.shadowBlur=12+22*fx;ctx.shadowColor=pal.main;
-  ctx.fillStyle='#f3d47b';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 28px Georgia,serif';ctx.fillText('HGT',0,2);
-  ctx.shadowBlur=0;
+  // Noyau central monumental.
+  const hubR=91;
+  ctx.beginPath();ctx.arc(0,0,hubR+14,0,Math.PI*2);
+  ctx.fillStyle='#080706';ctx.fill();ctx.strokeStyle='#3b2913';ctx.lineWidth=10;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,hubR+7,0,Math.PI*2);
+  ctx.strokeStyle='#e0bb62';ctx.lineWidth=5;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,hubR-3,0,Math.PI*2);
+  ctx.strokeStyle=hgtWheelRgba(pal.main,.65+.22*fx);ctx.lineWidth=4;ctx.stroke();
+
+  // 8 petites pointes du moyeu.
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4;
+    ctx.save();ctx.rotate(a);
+    ctx.beginPath();ctx.moveTo(0,-hubR-19);ctx.lineTo(8,-hubR+1);ctx.lineTo(0,-hubR+11);ctx.lineTo(-8,-hubR+1);ctx.closePath();
+    ctx.fillStyle=i%2?hgtWheelRgba(pal.main,.72):'#b98a39';ctx.fill();
+    ctx.strokeStyle='#e3c26d';ctx.lineWidth=1;ctx.stroke();ctx.restore();
+  }
+
+  const core=ctx.createRadialGradient(-20,-25,3,0,0,hubR-12);
+  core.addColorStop(0,hgtWheelRgba(pal.main,.68));core.addColorStop(.34,'#24190f');core.addColorStop(.72,'#0b0907');core.addColorStop(1,'#020202');
+  ctx.beginPath();ctx.arc(0,0,hubR-14,0,Math.PI*2);ctx.fillStyle=core;ctx.fill();
+
+  // Monogramme central.
+  ctx.shadowBlur=12+24*fx;ctx.shadowColor=pal.main;
+  ctx.fillStyle='#f0cf78';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='900 32px Georgia,serif';ctx.fillText('HGT',0,1);ctx.shadowBlur=0;
   ctx.restore();
 }
 function drawWheel(opts,rot=rotation){
   ctx.clearRect(0,0,760,760);
-  let cx=380,cy=380,R=314,total=opts.reduce((s,o)=>s+o.weight,0),a=-Math.PI/2;
+  // Le disque des secteurs est volontairement plus petit que le châssis :
+  // la bordure ne peut donc jamais recouvrir les libellés.
+  let cx=380,cy=380,R=286,total=opts.reduce((s,o)=>s+o.weight,0),a=-Math.PI/2;
   const pal=hgtWheelPalette(),fx=Math.max(0,Math.min(1,__hgtWheelFx||0));
+  const hubSafe=112, textOuter=R-48, textInner=hubSafe+14;
 
-  // Ombre portée de l'artefact.
+  // Ombre portée.
   ctx.save();ctx.translate(cx,cy);
-  ctx.beginPath();ctx.arc(0,0,R+20,0,Math.PI*2);
-  ctx.shadowBlur=34;ctx.shadowColor='rgba(0,0,0,.78)';ctx.fillStyle='rgba(0,0,0,.18)';ctx.fill();ctx.restore();
+  ctx.beginPath();ctx.arc(0,0,R+42,0,Math.PI*2);
+  ctx.shadowBlur=40;ctx.shadowColor='rgba(0,0,0,.82)';ctx.fillStyle='rgba(0,0,0,.22)';ctx.fill();ctx.restore();
 
-  // Seule la partie interne tourne ; le châssis extérieur reste fixe.
+  // Disque interne rotatif.
   ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);
   opts.forEach((o,i)=>{
-    let span=2*Math.PI*o.weight/total,a1=a+span;
-    let fill=wheelDarkFantasyColor(i,opts.length);
+    const span=2*Math.PI*o.weight/total,a1=a+span,mid=a+span/2;
+    const fill=wheelDarkFantasyColor(i,opts.length);
+    const winner=(i===__hgtWheelWinner);
+
+    // Secteur avec relief.
     ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R,a,a1);ctx.closePath();
+    const gx=Math.cos(mid)*R*.48,gy=Math.sin(mid)*R*.48;
+    const sg=ctx.createRadialGradient(gx,gy,10,0,0,R*1.06);
+    sg.addColorStop(0,winner?'#f3cf6b':hgtWheelRgba(fill,1));
+    sg.addColorStop(.36,hgtWheelRgba(fill,.96));
+    sg.addColorStop(.78,hgtWheelRgba(fill,.72));
+    sg.addColorStop(1,hgtWheelRgba(pal.dark,.98));
+    ctx.fillStyle=sg;
+    if(winner){ctx.shadowBlur=28;ctx.shadowColor='#f1c85c'}
+    ctx.fill();ctx.shadowBlur=0;
 
-    const mid=a+span/2;
-    const gx=Math.cos(mid)*R*.35,gy=Math.sin(mid)*R*.35;
-    const sg=ctx.createRadialGradient(gx,gy,8,0,0,R);
-    sg.addColorStop(0,hgtWheelRgba(fill,.98));sg.addColorStop(.62,fill);sg.addColorStop(1,hgtWheelRgba(pal.dark,.96));
-    ctx.fillStyle=sg;ctx.fill();
+    // Séparateurs métalliques épais comme sur la maquette.
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*R,Math.sin(a)*R);
+    ctx.strokeStyle='#2b1d0d';ctx.lineWidth=8;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*R,Math.sin(a)*R);
+    ctx.strokeStyle='#d7ad54';ctx.lineWidth=3;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*R,Math.sin(a)*R);
+    ctx.strokeStyle='rgba(255,232,164,.38)';ctx.lineWidth=1;ctx.stroke();
 
-    ctx.strokeStyle='rgba(226,190,102,.56)';ctx.lineWidth=3;ctx.stroke();
+    // Filet intérieur du secteur.
+    ctx.beginPath();ctx.arc(0,0,R-12,a+.008,a1-.008);
+    ctx.strokeStyle=winner?'rgba(255,226,132,.95)':'rgba(255,231,166,.22)';
+    ctx.lineWidth=winner?4:2;ctx.stroke();
 
-    // Gravure interne.
-    ctx.beginPath();ctx.arc(0,0,R-12,a+.006,a1-.006);
-    ctx.strokeStyle='rgba(255,232,170,.16)';ctx.lineWidth=2;ctx.stroke();
-
+    // Libellé : zone de sécurité entre moyeu et bordure.
     if(span>.07 && !(opts.length===1 && (o.label==='✓'||o.label==='?'))){
       ctx.save();ctx.rotate(mid);ctx.textAlign='right';ctx.textBaseline='middle';
-      ctx.shadowBlur=5;ctx.shadowColor='rgba(0,0,0,.9)';
-      ctx.fillStyle=readableText(fill);
-      ctx.font=`800 ${Math.max(10,Math.min(18,13+span*4))}px Georgia,system-ui`;
-      let label=wheelDisplayLabel(o.label),t=label.length>27?label.slice(0,25)+'…':label;
-      ctx.fillText(t,R-22,0);ctx.restore();
+      ctx.shadowBlur=5;ctx.shadowColor='rgba(0,0,0,.95)';
+      ctx.fillStyle=winner?'#fff0b0':readableText(fill);
+      let label=String(wheelDisplayLabel(o.label)||'');
+      const maxWidth=Math.max(44,textOuter-textInner);
+      let t=label;
+      let px=hgtWheelFitText(t,maxWidth,Math.max(11,Math.min(19,13+span*4)),8);
+      ctx.font=`800 ${px}px Georgia,system-ui`;
+      if(ctx.measureText(t).width>maxWidth){
+        while(t.length>4 && ctx.measureText(t+'…').width>maxWidth)t=t.slice(0,-1);
+        t+='…';
+      }
+      // R-48 laisse une vraie bande vide sous l'armature extérieure.
+      ctx.fillText(t,textOuter,0);
+      ctx.restore();
     }
     a=a1;
   });
 
-  // Anneaux internes décoratifs qui tournent avec la roue.
-  ctx.beginPath();ctx.arc(0,0,R-4,0,Math.PI*2);ctx.strokeStyle='rgba(239,207,126,.72)';ctx.lineWidth=5;ctx.stroke();
-  ctx.beginPath();ctx.arc(0,0,84,0,Math.PI*2);ctx.strokeStyle='rgba(226,190,102,.62)';ctx.lineWidth=4;ctx.stroke();
+  // Cercles métalliques interne/externe du disque rotatif.
+  ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.strokeStyle='#d9b25c';ctx.lineWidth=7;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,R-8,0,Math.PI*2);ctx.strokeStyle='rgba(255,231,163,.45)';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,104,0,Math.PI*2);ctx.strokeStyle='#d7ad54';ctx.lineWidth=6;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,111,0,Math.PI*2);ctx.strokeStyle='rgba(255,232,170,.24)';ctx.lineWidth=2;ctx.stroke();
   ctx.restore();
 
-  // Châssis HGT fixe au-dessus.
+  // Châssis fixe au-dessus.
   hgtDrawWheelFrame(cx,cy,R);
 
-  // Éclats d'énergie pendant le lancement / ralentissement.
+  // Effets de lancement / ralentissement.
   if(fx>.04){
-    ctx.save();ctx.translate(cx,cy);ctx.globalAlpha=.18+.45*fx;
-    for(let i=0;i<12;i++){
-      const aa=i*Math.PI/6+(rot*.12),rr=R+42+(i%3)*5;
-      ctx.beginPath();ctx.arc(Math.cos(aa)*rr,Math.sin(aa)*rr,2+3*fx,0,Math.PI*2);
-      ctx.fillStyle=i%2?pal.main:pal.accent;ctx.shadowBlur=14;ctx.shadowColor=ctx.fillStyle;ctx.fill();
+    ctx.save();ctx.translate(cx,cy);
+    ctx.globalAlpha=.20+.55*fx;
+    for(let i=0;i<20;i++){
+      const aa=i*Math.PI/10+(rot*.16),rr=R+42+(i%4)*7;
+      ctx.beginPath();ctx.arc(Math.cos(aa)*rr,Math.sin(aa)*rr,1.5+3.2*fx,0,Math.PI*2);
+      ctx.fillStyle=i%3?pal.main:'#f0cc70';ctx.shadowBlur=16+10*fx;ctx.shadowColor=ctx.fillStyle;ctx.fill();
     }
     ctx.restore();
   }
