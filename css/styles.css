@@ -842,3 +842,156 @@ body:not(.hgt-gated){background-attachment:fixed}
  .hgt-neuron-plaque{font-size:10.5px;padding:8px 9px!important}
  .hgt-id-plaque{font-size:12px}
 }
+
+
+/* ============================================================
+   HGT V4 — FINITION MAQUETTE
+   - échelle typographique corrigée
+   - véritable icône HGT
+   - registre en cartes portrait
+   - joyau d'onglet attaché à l'état réel
+   ============================================================ */
+
+/* --- TYPOGRAPHIE : revenir à l'échelle dense de la maquette --- */
+.hgt-brand-copy h1 strong{font-size:38px!important}
+.hgt-brand-copy h1 span{font-size:12px!important;line-height:1.05!important}
+.hgt-brand-copy .muted{font-size:12px!important}
+.title{font-size:clamp(18px,2.6vw,27px)!important;line-height:1.16!important}
+.top .pill,#count{font-size:12px!important;line-height:1.3!important}
+.result{font-size:15px!important}
+.result .big,.result h2,.result h3{font-size:clamp(20px,3vw,28px)!important;line-height:1.15!important}
+.controls button,#spinBtn,#autoBtn,#newCharacterBtn{font-size:16px!important}
+#spinBtn{font-size:clamp(18px,2.5vw,23px)!important}
+.panel.right .section h3{font-size:16px!important}
+.panel.right .section{font-size:14px!important}
+.season-roster-group>summary{font-size:17px!important}
+
+/* --- VRAI LOGO HGT DES ASSETS --- */
+.hgt-brand-sigil{
+ transform:none!important;border:0!important;background:none!important;
+ width:92px!important;height:92px!important;flex:0 0 92px!important;
+ box-shadow:none!important;overflow:visible!important;
+}
+.hgt-brand-sigil:before,.hgt-brand-sigil:after{display:none!important}
+.hgt-brand-sigil img{
+ display:block;width:100%;height:100%;object-fit:contain;
+ filter:drop-shadow(0 0 9px color-mix(in srgb,var(--accent) 65%,transparent))
+        drop-shadow(0 3px 3px rgba(0,0,0,.7));
+}
+
+/* --- CURSEUR / JOYAU D'ONGLET : uniquement nav-current --- */
+.hgt-artifact-tabs .tabbtn.active:before{display:none!important}
+.hgt-artifact-tabs .tabbtn.nav-current{
+ position:relative!important;
+}
+.hgt-artifact-tabs .tabbtn.nav-current:after{
+ content:""!important;display:block!important;position:absolute!important;
+ left:50%!important;bottom:4px!important;top:auto!important;right:auto!important;
+ width:17px!important;height:17px!important;
+ transform:translateX(-50%) rotate(45deg)!important;
+ background:
+   radial-gradient(circle,#fff 0 10%,var(--accent) 14% 43%,#071011 47% 62%,var(--artifact-gold) 66% 78%,#050707 82%)!important;
+ border:1px solid var(--artifact-gold-hi)!important;
+ box-shadow:0 0 7px #fff8,0 0 15px var(--accent)!important;
+ pointer-events:none!important;z-index:4!important;
+}
+
+/* --- REGISTRE : cartes illustrées comme la maquette --- */
+.season-roster-group .season-roster-list{
+ display:grid!important;
+ grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;
+ gap:10px!important;padding:10px!important;
+}
+.compact-roster-row{
+ position:relative!important;display:flex!important;flex-direction:column!important;
+ align-items:stretch!important;gap:0!important;min-width:0!important;
+ min-height:245px!important;padding:0!important;overflow:hidden!important;
+ border:1px solid var(--artifact-gold)!important;border-radius:0!important;
+ clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px)!important;
+ background:#060a0b!important;
+ box-shadow:inset 0 0 0 2px #171006,inset 0 0 0 3px rgba(215,173,85,.18),0 8px 18px rgba(0,0,0,.34)!important;
+}
+.compact-roster-row:hover{transform:translateY(-2px)!important}
+.compact-roster-row.current{
+ outline:none!important;
+ box-shadow:inset 0 0 0 2px var(--artifact-gold-hi),inset 0 0 0 4px var(--accent),0 0 15px var(--accent)!important;
+}
+.compact-roster-row .illustration-thumb-wrap{
+ order:1!important;width:100%!important;height:auto!important;aspect-ratio:512/760!important;
+ flex:none!important;margin:0!important;border:0!important;border-radius:0!important;
+ background:linear-gradient(180deg,#101719,#040607)!important;
+ overflow:hidden!important;
+}
+.compact-roster-row .illustration-thumb{
+ width:100%!important;height:100%!important;display:none;object-fit:cover!important;
+ object-position:center 20%!important;border:0!important;box-shadow:none!important;
+}
+.compact-roster-row .illustration-thumb-placeholder{
+ width:100%!important;height:100%!important;font-size:28px!important;
+ background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.06),transparent 48%);
+}
+.compact-roster-main{
+ order:2!important;display:flex!important;flex-direction:column!important;align-items:center!important;
+ justify-content:center!important;gap:2px!important;min-height:58px!important;
+ padding:8px 6px!important;white-space:normal!important;overflow:visible!important;
+ border-top:1px solid var(--artifact-gold-lo)!important;
+ background:linear-gradient(180deg,#0b1315,#050809)!important;text-align:center!important;
+}
+.compact-roster-id{
+ font-family:Georgia,'Times New Roman',serif!important;
+ font-size:13px!important;color:var(--artifact-gold-hi)!important;line-height:1.1!important;
+}
+.compact-roster-separator{display:none!important}
+.compact-roster-name{
+ max-width:100%!important;font-family:Georgia,'Times New Roman',serif!important;
+ font-size:15px!important;line-height:1.08!important;color:#fff4d5!important;
+ overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+}
+.compact-roster-kind{
+ position:absolute!important;z-index:3!important;right:6px!important;top:6px!important;
+ margin:0!important;padding:3px 6px!important;border-radius:2px!important;
+ font-size:9px!important;line-height:1.1!important;
+ border:1px solid var(--artifact-gold)!important;
+ box-shadow:0 0 8px rgba(0,0,0,.7)!important;
+}
+/* Petit joyau d'angle sur chaque carte */
+.compact-roster-row:after{
+ content:"";position:absolute;z-index:4;right:5px;top:5px;width:10px;height:10px;
+ transform:rotate(45deg);
+ background:radial-gradient(circle,#fff 0 10%,var(--accent) 16% 47%,#101515 51% 67%,var(--artifact-gold) 71%);
+ border:1px solid var(--artifact-gold-hi);box-shadow:0 0 8px var(--accent);
+}
+.compact-roster-row:has(.compact-roster-kind):after{right:5px;top:auto;bottom:64px}
+
+/* Le badge descendant reste lisible sans cacher le portrait. */
+.compact-roster-row .compact-roster-kind{top:auto!important;bottom:64px!important}
+
+/* Descendants sans portrait : même silhouette de carte. */
+.compact-roster-row.descendant-row{cursor:pointer!important;border-style:solid!important}
+.compact-roster-row.descendant-row:hover{transform:translateY(-2px)!important;box-shadow:0 8px 18px rgba(0,0,0,.34)!important}
+
+/* --- MOBILE --- */
+@media(max-width:760px){
+ .hgt-brand-copy h1 strong{font-size:27px!important}
+ .hgt-brand-copy h1 span{font-size:9px!important}
+ .hgt-brand-sigil{width:54px!important;height:54px!important;flex-basis:54px!important}
+ .title{font-size:clamp(17px,5.3vw,23px)!important}
+ .top .pill,#count{font-size:11px!important}
+ .hgt-artifact-tabs>.tabbtn,.hgt-artifact-tabs>.arena-nav>.tabbtn{font-size:11px!important}
+ .hgt-tab-icon{font-size:20px!important}
+ .season-roster-group .season-roster-list{
+   grid-template-columns:repeat(2,minmax(0,1fr))!important;
+   gap:8px!important;padding:8px!important;
+ }
+ .compact-roster-row{min-height:0!important}
+ .compact-roster-row .illustration-thumb-wrap{aspect-ratio:512/720!important}
+ .compact-roster-main{min-height:52px!important;padding:6px 4px!important}
+ .compact-roster-id{font-size:11px!important}
+ .compact-roster-name{font-size:13px!important}
+ .compact-roster-kind{bottom:58px!important;font-size:8px!important}
+ .compact-roster-row:has(.compact-roster-kind):after{bottom:58px}
+}
+@media(max-width:380px){
+ .season-roster-group .season-roster-list{gap:6px!important;padding:6px!important}
+ .compact-roster-name{font-size:12px!important}
+}
