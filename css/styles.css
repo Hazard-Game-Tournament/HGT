@@ -569,3 +569,264 @@ body{font-family:system-ui;background:radial-gradient(circle at top,#24161f,#0c0
 
 /* HGT portrait 512x1024 — override final */
 .illustration-frame .character-illustration{display:block;width:100%;height:100%;max-width:none;max-height:none!important;object-fit:cover;object-position:center;margin:0}
+
+
+/* ==========================================================
+   HGT — INTERFACE ARTEFACT / ARENE V1
+   Couleurs régionales existantes conservées : cette couche
+   ne remplace pas la logique JS de palette.
+   ========================================================== */
+
+:root{
+  --hgt-metal:#c9a75a;
+  --hgt-metal-hi:#f0d48a;
+  --hgt-metal-dark:#5f451f;
+  --hgt-void:rgba(5,8,9,.90);
+  --hgt-glass:rgba(8,15,15,.78);
+  --hgt-line:rgba(213,178,91,.48);
+  --hgt-line-soft:rgba(213,178,91,.20);
+}
+
+/* Fond plus profond, sans changer la teinte régionale injectée ailleurs. */
+body:not(.hgt-gated){
+  background-image:
+    radial-gradient(circle at 50% -15%,rgba(255,255,255,.045),transparent 34%),
+    linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.24));
+}
+
+/* Header : une seule armature plutôt que plusieurs capsules indépendantes. */
+body:not(.hgt-gated)>header{
+  position:relative;
+  margin:14px 18px 0;
+  padding:20px 20px 18px;
+  border:1px solid var(--hgt-line);
+  border-radius:4px;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.035),transparent 26%),
+    linear-gradient(180deg,rgba(10,15,14,.94),rgba(5,9,9,.88));
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.75),
+    inset 0 0 26px rgba(255,255,255,.025),
+    0 12px 30px rgba(0,0,0,.34);
+}
+body:not(.hgt-gated)>header::before,
+body:not(.hgt-gated)>header::after{
+  content:"◆";
+  position:absolute;top:50%;transform:translateY(-50%) rotate(45deg);
+  width:18px;height:18px;display:grid;place-items:center;
+  color:var(--hgt-metal-hi);font-size:10px;
+  background:#0a0c0b;border:1px solid var(--hgt-metal);
+  box-shadow:0 0 12px rgba(255,255,255,.06);
+}
+body:not(.hgt-gated)>header::before{left:-10px}
+body:not(.hgt-gated)>header::after{right:-10px}
+body:not(.hgt-gated)>header h1{
+  text-shadow:0 2px 0 #000,0 0 16px rgba(255,255,255,.06);
+  letter-spacing:.045em;
+}
+body:not(.hgt-gated)>header .pill{
+  border-radius:2px;
+  border:1px solid var(--hgt-line);
+  clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%);
+  padding-inline:18px;
+}
+
+/* Barre compte / profil raccordée au header. */
+.cloud-bar{
+  margin:0 18px;
+  min-height:12px;
+  border-left:1px solid var(--hgt-line-soft);
+  border-right:1px solid var(--hgt-line-soft);
+}
+.hgt-player-chip,.cloud-status,.account-actions button{
+  border-radius:3px!important;
+}
+
+/* Navigation : onglets enchâssés dans une barre métallique. */
+.tabs{
+  position:relative;
+  margin:0 18px 18px;
+  padding:8px 7px 10px;
+  gap:5px;
+  border:1px solid var(--hgt-line);
+  border-radius:3px;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.035),transparent 42%),
+    rgba(4,8,8,.88);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.7),0 9px 22px rgba(0,0,0,.28);
+}
+.tabs::before,.tabs::after{
+  content:"◆";position:absolute;top:50%;transform:translateY(-50%) rotate(45deg);
+  width:13px;height:13px;display:grid;place-items:center;font-size:7px;
+  color:var(--hgt-metal-hi);background:#090b0a;border:1px solid var(--hgt-metal);
+}
+.tabs::before{left:-8px}.tabs::after{right:-8px}
+.tabbtn,.arena-item{
+  position:relative;
+  border-radius:2px!important;
+  border:1px solid rgba(203,168,85,.38)!important;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.045),rgba(0,0,0,.12)),
+    rgba(7,12,12,.72)!important;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.48)!important;
+}
+.tabbtn.active{
+  box-shadow:
+    inset 0 -3px 0 rgba(255,255,255,.12),
+    inset 0 0 22px rgba(255,255,255,.06),
+    0 0 14px rgba(255,255,255,.035)!important;
+}
+.tabbtn.active::after{
+  content:"◆";position:absolute;left:50%;bottom:-8px;transform:translateX(-50%) rotate(45deg);
+  width:11px;height:11px;background:currentColor;border:1px solid var(--hgt-metal-hi);
+  box-shadow:0 0 11px currentColor;
+}
+
+/* Sections : coins d'artefact, moins de gros arrondis web. */
+.panel,.card,.cloud-card,.profile-card,.tournament-card,.hall-card,
+.genealogy-card,.universe-card,.race-card,.duel-card,.multiplayer-card,
+.shared-detail-sheet,.combat-card{
+  position:relative;
+  border-radius:4px!important;
+  border:1px solid var(--hgt-line)!important;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.025),transparent 20%),
+    linear-gradient(180deg,rgba(9,13,12,.91),rgba(4,7,7,.88))!important;
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.62),
+    inset 0 0 32px rgba(255,255,255,.018),
+    0 10px 28px rgba(0,0,0,.25)!important;
+}
+.panel::before,.card::before,.cloud-card::before{
+  content:"";position:absolute;pointer-events:none;inset:7px;
+  border:1px solid var(--hgt-line-soft);
+  clip-path:polygon(0 14px,14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px));
+}
+
+/* Titres de sections et compteurs : plaques serties. */
+.top{
+  position:relative;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--hgt-line-soft);
+}
+.title{
+  letter-spacing:.055em;
+  text-shadow:0 2px 0 #000;
+}
+.top .pill,#count,.pill{
+  border-radius:3px;
+  border:1px solid var(--hgt-line-soft);
+  box-shadow:inset 0 0 12px rgba(255,255,255,.025);
+}
+
+/* La roue est intégrée au panneau plutôt que posée dans une carte web. */
+.wheelwrap{
+  position:relative;
+  padding:16px 5px 6px;
+  isolation:isolate;
+}
+.wheelwrap::before{
+  content:"";position:absolute;inset:5% 4%;
+  border-radius:50%;
+  border:1px solid var(--hgt-line-soft);
+  box-shadow:0 0 35px rgba(0,0,0,.48),inset 0 0 45px rgba(0,0,0,.25);
+  pointer-events:none;z-index:-1;
+}
+.pointer{
+  filter:drop-shadow(0 4px 4px rgba(0,0,0,.7)) drop-shadow(0 0 7px rgba(255,255,255,.10));
+}
+
+/* Résultat : moins de boîte, davantage d'inscription de panneau. */
+.result{
+  border-top:1px solid var(--hgt-line-soft);
+  border-bottom:1px solid var(--hgt-line-soft);
+  padding:17px 12px 15px;
+  margin-top:8px;
+  text-shadow:0 2px 0 #000;
+}
+
+/* Boutons principaux : plaques d'artefact angulaires. */
+button:not(.tabbtn):not(.arena-item):not(.cloud-close):not(.hgt-entry-sound),
+.button,.btn{
+  border-radius:3px!important;
+}
+#spinBtn,#autoBtn,#newCharacterBtn,.primary,.btn-primary{
+  position:relative;
+  min-height:54px;
+  border:1px solid var(--hgt-metal)!important;
+  clip-path:polygon(18px 0,calc(100% - 18px) 0,100% 50%,calc(100% - 18px) 100%,18px 100%,0 50%);
+  box-shadow:
+    inset 0 0 0 2px rgba(0,0,0,.38),
+    inset 0 0 18px rgba(255,255,255,.055),
+    0 7px 18px rgba(0,0,0,.32)!important;
+  letter-spacing:.055em;
+}
+#spinBtn::before,#spinBtn::after,#autoBtn::before,#autoBtn::after,
+#newCharacterBtn::before,#newCharacterBtn::after{
+  content:"◆";position:absolute;top:50%;transform:translateY(-50%) rotate(45deg);
+  font-size:9px;color:var(--hgt-metal-hi);text-shadow:0 0 8px currentColor;
+}
+#spinBtn::before,#autoBtn::before,#newCharacterBtn::before{left:14px}
+#spinBtn::after,#autoBtn::after,#newCharacterBtn::after{right:14px}
+
+/* Inputs, recherche et sélecteurs : même langage que les plaques. */
+input,select,textarea{
+  border-radius:2px!important;
+  border-color:var(--hgt-line)!important;
+  box-shadow:inset 0 0 12px rgba(0,0,0,.35);
+}
+
+/* Portraits : cadre serti sans toucher au ratio 512×1024. */
+.illustration-frame{
+  position:relative;
+  border-radius:4px!important;
+  border:2px solid var(--hgt-metal)!important;
+  box-shadow:
+    0 0 0 1px #21170c,
+    0 0 0 3px rgba(205,168,81,.22),
+    0 13px 32px rgba(0,0,0,.42)!important;
+}
+.illustration-frame::after{
+  content:"";position:absolute;inset:7px;pointer-events:none;
+  border:1px solid rgba(238,207,126,.28);
+  clip-path:polygon(0 16px,16px 0,calc(100% - 16px) 0,100% 16px,100% calc(100% - 16px),calc(100% - 16px) 100%,16px 100%,0 calc(100% - 16px));
+}
+
+/* Listes personnages : cartes plus proches de fiches de tournoi. */
+.character-card,.roster-card,.character-item{
+  position:relative;
+  border-radius:3px!important;
+  border:1px solid var(--hgt-line)!important;
+  overflow:hidden;
+  box-shadow:0 8px 20px rgba(0,0,0,.27),inset 0 0 0 1px rgba(0,0,0,.5)!important;
+}
+.character-card::after,.roster-card::after,.character-item::after{
+  content:"";position:absolute;inset:5px;pointer-events:none;
+  border:1px solid var(--hgt-line-soft);
+}
+
+/* Modales et menus : disparition de l'aspect capsule. */
+.cloud-modal{backdrop-filter:blur(7px)}
+.arena-menu{
+  border-radius:3px!important;
+  border:1px solid var(--hgt-line)!important;
+  box-shadow:0 14px 32px rgba(0,0,0,.48)!important;
+}
+
+/* Desktop : interface plus cadrée, sans devenir gigantesque. */
+@media(min-width:900px){
+  body:not(.hgt-gated)>header,.cloud-bar,.tabs{max-width:1380px;margin-left:auto;margin-right:auto}
+  .tabpage{max-width:1380px;margin-left:auto;margin-right:auto}
+}
+
+/* Mobile : conserver la lisibilité et éviter que les ornements mangent l'espace. */
+@media(max-width:600px){
+  body:not(.hgt-gated)>header{margin:8px 10px 0;padding:15px 14px}
+  .cloud-bar{margin:0 10px}
+  .tabs{margin:0 10px 12px;padding:6px 5px 8px;gap:4px}
+  .tabbtn{min-height:52px;padding:9px 11px!important}
+  .panel{border-radius:3px!important}
+  .panel::before,.card::before,.cloud-card::before{inset:5px}
+  .wheelwrap{padding-top:8px}
+  #spinBtn,#autoBtn,#newCharacterBtn{min-height:52px}
+}
