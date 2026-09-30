@@ -1,4 +1,4 @@
-const CACHE = 'hgt-shell-auto-v3';
+const CACHE = 'hgt-shell-auto-v4';
 const SHELL = [
   './',
   './index.html',
