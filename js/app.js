@@ -608,7 +608,7 @@ function ensureGenealogyShape(s){
   if(!Array.isArray(s.relationships)) s.relationships=[];
   return s;
 }
-function saveCurrentCharacter({renderRosterNow=true,cloudNow=true}={}){
+function saveCurrentCharacter(){
   applyAlienStateIfNeeded();
   applyAlienModifiersToStats();
 
@@ -634,37 +634,11 @@ function saveCurrentCharacter({renderRosterNow=true,cloudNow=true}={}){
     return;
   }
   roster[state.id]=JSON.parse(JSON.stringify(state));
-  saveRoster(roster); // sécurité locale immédiate : reprise exacte même si l'app est quittée
-  if(renderRosterNow) renderRoster();
-  if(cloudNow){
-    if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-    if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
-  }
+  saveRoster(roster);
+  renderRoster();
+  if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
+  if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
 }
-
-let __wheelPersistenceTimer=null;
-function scheduleWheelPersistence(){
-  clearTimeout(__wheelPersistenceTimer);
-  __wheelPersistenceTimer=setTimeout(()=>{
-    __wheelPersistenceTimer=null;
-    try{
-      renderRoster();
-      if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-      if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
-    }catch(e){console.warn('Persistance différée roue',e)}
-  },2600);
-}
-function flushWheelPersistence(){
-  clearTimeout(__wheelPersistenceTimer);__wheelPersistenceTimer=null;
-  try{
-    saveCurrentCharacter({renderRosterNow:false,cloudNow:false});
-    if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-    if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
-  }catch(e){}
-}
-window.addEventListener('pagehide',flushWheelPersistence);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushWheelPersistence()});
-
 reconcileSeasonCursor();
 
 function blankCharacterState(id){
@@ -1215,23 +1189,6 @@ function showTab(which){
   const buttons={wheel:'wheelTabBtn',list:'listTabBtn',genealogy:'genealogyTabBtn',tournament:'tournamentTabBtn',hall:'hallTabBtn',duelLocal:'duelLocalTabBtn',multiplayer:'multiplayerTabBtn',universe:'universeTabBtn',community:'communityTabBtn'};
   Object.entries(buttons).forEach(([key,id])=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',key===which)});
   const arena=document.getElementById('arenaTabBtn');if(arena)arena.classList.toggle('active',['tournament','hall','duelLocal','multiplayer'].includes(which));
-  // V4: le joyau de navigation suit toujours l'onglet PRINCIPAL réellement actif.
-  // Il n'est plus dépendant du dernier clic ni d'une position calculée dans la barre scrollable.
-  const mainNav=document.querySelector('.hgt-artifact-tabs');
-  if(mainNav){
-    mainNav.querySelectorAll(':scope > .tabbtn, :scope > .arena-nav > .tabbtn').forEach(btn=>btn.classList.remove('nav-current'));
-    const mainBtn = ['tournament','hall','duelLocal','multiplayer'].includes(which)
-      ? arena
-      : document.getElementById(buttons[which]||'');
-    if(mainBtn){
-      mainBtn.classList.add('nav-current');
-      // Sur mobile, garde l'onglet actif visible sans déplacer le joyau hors de son bouton.
-      requestAnimationFrame(()=>{
-        const r=mainBtn.getBoundingClientRect(), nr=mainNav.getBoundingClientRect();
-        if(r.left<nr.left || r.right>nr.right) mainBtn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-      });
-    }
-  }
   try{
     if(which==='list')renderRoster();
     else if(which==='genealogy')renderGenealogy();
@@ -3570,52 +3527,30 @@ function hgtDrawWheelFrame(cx,cy,R){
     const major=i%2===0, ang=i*Math.PI/8-Math.PI/2;
     ctx.save();ctx.rotate(ang);ctx.translate(0,-(R+36));
     if(major){
-      // Grande monture : volontairement plus large pour que les 8 joyaux structurent la roue.
-      ctx.beginPath();ctx.moveTo(0,-58);ctx.lineTo(31,-12);ctx.lineTo(19,22);ctx.lineTo(0,34);
-      ctx.lineTo(-19,22);ctx.lineTo(-31,-12);ctx.closePath();
+      // Plaque métallique en losange.
+      ctx.beginPath();ctx.moveTo(0,-48);ctx.lineTo(25,-8);ctx.lineTo(14,17);ctx.lineTo(0,27);
+      ctx.lineTo(-14,17);ctx.lineTo(-25,-8);ctx.closePath();
       const mg=ctx.createLinearGradient(-25,-45,25,25);
-      mg.addColorStop(0,'#ffe29a');mg.addColorStop(.22,'#7b531f');mg.addColorStop(.52,'#160f08');
-      mg.addColorStop(.78,'#bc8b38');mg.addColorStop(1,'#f0c96b');
+      mg.addColorStop(0,'#f0ce72');mg.addColorStop(.24,'#68451b');mg.addColorStop(.52,'#1b120b');
+      mg.addColorStop(.78,'#a87a31');mg.addColorStop(1,'#e0b95d');
       ctx.fillStyle=mg;ctx.fill();ctx.strokeStyle='#e7c56d';ctx.lineWidth=2;ctx.stroke();
 
-      // Joyau régional V5 : grande surface saturée + halo externe + cœur blanc.
-      // Le halo est un simple gradient canvas : aucune particule supplémentaire par frame.
-      const jr=27;
-      const halo=ctx.createRadialGradient(0,-9,2,0,-9,jr+18);
-      halo.addColorStop(0,'rgba(255,255,255,.92)');
-      halo.addColorStop(.16,hgtWheelRgba(pal.accent||pal.main,.98));
-      halo.addColorStop(.48,hgtWheelRgba(pal.main,.72+.20*fx));
-      halo.addColorStop(1,hgtWheelRgba(pal.main,0));
-      ctx.beginPath();ctx.arc(0,-9,jr+18,0,Math.PI*2);
-      ctx.fillStyle=halo;ctx.fill();
-
-      ctx.beginPath();ctx.moveTo(0,-47);ctx.lineTo(18,-10);ctx.lineTo(0,19);ctx.lineTo(-18,-10);ctx.closePath();
-      const cg=ctx.createLinearGradient(-12,-44,14,18);
-      cg.addColorStop(0,'rgba(255,255,255,1)');
-      cg.addColorStop(.14,hgtWheelRgba(pal.accent||pal.main,1));
-      cg.addColorStop(.48,hgtWheelRgba(pal.main,1));
-      cg.addColorStop(.82,hgtWheelRgba(pal.secondary||pal.main,1));
-      cg.addColorStop(1,hgtWheelRgba(pal.dark||pal.main,.96));
-      ctx.fillStyle=cg;
-      ctx.shadowBlur=32+24*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(255,249,220,.98)';ctx.lineWidth=2.2;ctx.stroke();
-
-      // Facettes et éclat spéculaire.
-      ctx.beginPath();ctx.moveTo(0,-43);ctx.lineTo(7,-12);ctx.lineTo(0,9);ctx.lineTo(-5,-12);ctx.closePath();
-      ctx.fillStyle='rgba(255,255,255,.72)';ctx.fill();
-      ctx.beginPath();ctx.moveTo(-15,-10);ctx.lineTo(0,-43);ctx.lineTo(15,-10);
-      ctx.strokeStyle='rgba(255,255,255,.42)';ctx.lineWidth=1.2;ctx.stroke();
-      ctx.beginPath();ctx.arc(-4,-24,4.2,0,Math.PI*2);
-      ctx.fillStyle='rgba(255,255,255,.96)';ctx.fill();
+      // Cristal régional.
+      ctx.beginPath();ctx.moveTo(0,-33);ctx.lineTo(11,-8);ctx.lineTo(0,11);ctx.lineTo(-11,-8);ctx.closePath();
+      const cg=ctx.createLinearGradient(0,-33,0,11);
+      cg.addColorStop(0,'rgba(255,255,255,.92)');
+      cg.addColorStop(.28,hgtWheelRgba(pal.main,1));cg.addColorStop(1,hgtWheelRgba(pal.secondary,.78));
+      ctx.fillStyle=cg;ctx.shadowBlur=14+22*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
+      ctx.strokeStyle='#e9d38a';ctx.lineWidth=1.4;ctx.stroke();
 
       // Pointe extérieure.
-      ctx.beginPath();ctx.moveTo(0,-76);ctx.lineTo(11,-50);ctx.lineTo(0,-40);ctx.lineTo(-11,-50);ctx.closePath();
+      ctx.beginPath();ctx.moveTo(0,-65);ctx.lineTo(9,-39);ctx.lineTo(0,-31);ctx.lineTo(-9,-39);ctx.closePath();
       ctx.fillStyle='#c99c48';ctx.fill();ctx.strokeStyle='#f0d27b';ctx.stroke();
     }else{
-      ctx.beginPath();ctx.moveTo(0,-30);ctx.lineTo(10,-4);ctx.lineTo(0,11);ctx.lineTo(-10,-4);ctx.closePath();
+      ctx.beginPath();ctx.moveTo(0,-27);ctx.lineTo(9,-4);ctx.lineTo(0,10);ctx.lineTo(-9,-4);ctx.closePath();
       ctx.fillStyle='#7a5522';ctx.fill();ctx.strokeStyle='#d6ad58';ctx.lineWidth=1.5;ctx.stroke();
       ctx.beginPath();ctx.moveTo(0,-18);ctx.lineTo(5,-4);ctx.lineTo(0,4);ctx.lineTo(-5,-4);ctx.closePath();
-      ctx.fillStyle=hgtWheelRgba(pal.main,.96);ctx.shadowBlur=14+18*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
+      ctx.fillStyle=hgtWheelRgba(pal.main,.72);ctx.fill();
     }
     ctx.restore();
   }
@@ -3769,7 +3704,6 @@ async function spin(opts){
 }
 function finishGeneration(){
   if(index<queue.length)return false;
-  clearTimeout(__wheelPersistenceTimer);__wheelPersistenceTimer=null;
   auto=false;
   autoBtn.textContent='Auto : OFF';
   if(!state._autoSavedAtFinish){
@@ -3815,7 +3749,7 @@ function finishGeneration(){
   resetBtn.textContent='Réinitialiser';
   return true;
 }
-async function next(){if(spinning)return;if(blockGenerationIfPreviousTournamentIncomplete())return;if(blockGenerationIfDescendantsNotSelected())return;if(index>=queue.length){finishGeneration();return}let t=queue[index],opts=t.options();if(t._subwheel&&hideSubwheelsEnabled()){let hiddenProcessed=0;while(index<queue.length&&queue[index]?._subwheel&&hideSubwheelsEnabled()){const hiddenTask=queue[index],hiddenOpts=hiddenTask.options();let r=weightedPick(hiddenOpts),label=hiddenOpts[r]?.label??hiddenOpts[0]?.label;state.logs.push({cat:hiddenTask.title,val:label});hiddenTask.apply(label);index++;hiddenProcessed++;if(hiddenProcessed%6===0)await new Promise(resolve=>requestAnimationFrame(()=>resolve()));if(finishGeneration())return}saveCurrentCharacter({renderRosterNow:false,cloudNow:false});scheduleWheelPersistence();render();if(index>=queue.length){finishGeneration();return}return next()}if(opts.length===1){let r=opts[0].label;result.innerHTML=`${r}<small>${t.title} — attribution automatique</small>`;state.logs.push({cat:t.title,val:r});t.apply(r);index++;saveCurrentCharacter({renderRosterNow:false,cloudNow:false});scheduleWheelPersistence();render();if(finishGeneration())return;return next()}taskTitle.textContent=t.title;count.textContent=`Roue ${spinNumber+1} • ${index+1}/${queue.length} étapes actuelles`;drawWheel(opts);let r=await spin(opts);spinNumber++;result.innerHTML=`${wheelDisplayLabel(r)}<small>${t.title}</small>`;state.logs.push({cat:t.title,val:r});t.apply(r);index++;saveCurrentCharacter({renderRosterNow:false,cloudNow:false});scheduleWheelPersistence();render();if(finishGeneration())return;spinBtn.textContent='Tourner la roue';if(auto)setTimeout(next,280)}
+async function next(){if(spinning)return;if(blockGenerationIfPreviousTournamentIncomplete())return;if(blockGenerationIfDescendantsNotSelected())return;if(index>=queue.length){finishGeneration();return}let t=queue[index],opts=t.options();if(t._subwheel&&hideSubwheelsEnabled()){let hiddenProcessed=0;while(index<queue.length&&queue[index]?._subwheel&&hideSubwheelsEnabled()){const hiddenTask=queue[index],hiddenOpts=hiddenTask.options();let r=weightedPick(hiddenOpts),label=hiddenOpts[r]?.label??hiddenOpts[0]?.label;state.logs.push({cat:hiddenTask.title,val:label});hiddenTask.apply(label);index++;hiddenProcessed++;if(hiddenProcessed%6===0)await new Promise(resolve=>requestAnimationFrame(()=>resolve()));if(finishGeneration())return}saveCurrentCharacter();render();if(index>=queue.length){finishGeneration();return}return next()}if(opts.length===1){let r=opts[0].label;result.innerHTML=`${r}<small>${t.title} — attribution automatique</small>`;state.logs.push({cat:t.title,val:r});t.apply(r);index++;saveCurrentCharacter();render();if(finishGeneration())return;return next()}taskTitle.textContent=t.title;count.textContent=`Roue ${spinNumber+1} • ${index+1}/${queue.length} étapes actuelles`;drawWheel(opts);let r=await spin(opts);spinNumber++;result.innerHTML=`${wheelDisplayLabel(r)}<small>${t.title}</small>`;state.logs.push({cat:t.title,val:r});t.apply(r);index++;saveCurrentCharacter();render();if(finishGeneration())return;spinBtn.textContent='Tourner la roue';if(auto)setTimeout(next,280)}
 function fmtMods(map,parts){let out=[];for(const p of parts){let k=raceKey(p),v=map[k];if(v)out.push(`${p} ${v>0?'+':''}${v}`)}return out.join(' • ')||'aucun'}
 function raceBonusText(){
  const rp=racialProfile7();
@@ -4529,7 +4463,7 @@ function renderEntryGate(){
   if(hgtPasswordRecovery){renderPasswordRecovery();return}
   if(!cloudUser){sub.textContent='Connecte-toi pour entrer dans Vaeloria.';root.innerHTML=`<div class="hgt-entry-form"><input id="entryEmail" type="email" autocomplete="email" placeholder="Adresse e-mail"><input id="entryPassword" type="password" autocomplete="current-password" placeholder="Mot de passe (6 caractères minimum)"><button class="hgt-forgot" id="entryForgot" type="button">Mot de passe oublié ?</button><div class="hgt-entry-actions"><button id="entryLogin">Se connecter</button><button class="secondary" id="entrySignup">Créer un compte</button></div></div>`;document.getElementById('entryLogin').onclick=entryLogin;document.getElementById('entrySignup').onclick=entrySignup;document.getElementById('entryForgot').onclick=entryForgotPassword;return}
   if(!cloudProfile?.username){sub.textContent='Choisis ton identité publique pour les combats en ligne.';root.innerHTML=`<div class="hgt-entry-form"><input id="entryPseudo" maxlength="24" autocomplete="nickname" placeholder="Pseudo (3–24 caractères)"><button id="entryPseudoBtn">Créer mon pseudo</button><button class="secondary" id="entryLogout">Se déconnecter</button></div><div class="muted" style="margin-top:8px">Le pseudo est unique à l’identique. La casse compte : « Damien » et « damien » peuvent coexister.</div>`;document.getElementById('entryPseudoBtn').onclick=async()=>{const b=document.getElementById('entryPseudoBtn');b.disabled=true;try{await createCloudProfile(document.getElementById('entryPseudo').value);renderEntryGate()}catch(e){hgtEntryMessage(e.message||String(e),'error')}finally{b.disabled=false}};document.getElementById('entryLogout').onclick=cloudLogout;return}
-  sub.replaceChildren(document.createTextNode('Bienvenue, '),Object.assign(document.createElement('span'),{className:'hgt-entry-user',textContent:cloudProfile.username}),document.createTextNode('.'));root.innerHTML=`<div class="hgt-entry-form"><button id="entryPlay">⚔️ Jouer</button></div>`;document.getElementById('entryPlay').onclick=enterHgt;
+  sub.textContent=`Bienvenue, ${cloudProfile.username}.`;root.innerHTML=`<div class="hgt-entry-form"><button id="entryPlay">⚔️ Jouer</button></div>`;document.getElementById('entryPlay').onclick=enterHgt;
 }
 async function entryForgotPassword(){
   const email=document.getElementById('entryEmail')?.value.trim();
@@ -4932,11 +4866,9 @@ async function cloudSignup(){
 }
 async function cloudLogout(){if(cloudReady())try{await cloudSyncAllData()}catch(e){} await cloudClient.auth.signOut();localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY);cloudCurrentGame=null;cloudProfile=null;closeCloudModal();leaveHgtGate()}
 async function cloudCreateGame(){
-  const root=document.getElementById('cloudModalContent');if(!root)return;
-  root.innerHTML=`<div class="hgt-new-game-card"><div class="hgt-new-game-emblem"><img src="assets/icons/hgt-512.png" alt=""></div><h2>Nouvelle partie</h2><div class="muted">Crée une nouvelle aventure sans modifier les règles actuelles de génération.</div><div class="hgt-new-game-form"><label for="cloudNewGameName">Nom de la partie</label><input id="cloudNewGameName" maxlength="60" value="Ma partie" autocomplete="off"><div class="hgt-new-game-actions"><button id="cloudCreateGameConfirm" type="button">Commencer</button><button id="cloudCreateGameCancel" class="secondary" type="button">Annuler</button></div><div id="cloudNewGameMessage" class="cloud-message" hidden></div></div></div>`;
-  const input=root.querySelector('#cloudNewGameName'),confirmBtn=root.querySelector('#cloudCreateGameConfirm'),cancelBtn=root.querySelector('#cloudCreateGameCancel'),msg=root.querySelector('#cloudNewGameMessage');
-  const create=async()=>{const name=(input?.value||'').trim()||'Ma partie';confirmBtn.disabled=true;if(msg){msg.hidden=false;msg.textContent='Création…'}try{const {data,error}=await cloudClient.from('games').insert({owner_id:cloudUser.id,name}).select().single();if(error)throw error;await cloudRefreshGames();await cloudOpenGame(data.id,true)}catch(e){confirmBtn.disabled=false;if(msg){msg.hidden=false;msg.textContent='Création impossible : '+(e.message||e)}}};
-  confirmBtn.onclick=create;cancelBtn.onclick=renderCloudModal;input.onkeydown=e=>{if(e.key==='Enter')create()};setTimeout(()=>{input.focus();input.select()},0);
+  const name=prompt('Nom de la nouvelle partie :','Ma partie');if(name===null)return;
+  const {data,error}=await cloudClient.from('games').insert({owner_id:cloudUser.id,name:(name.trim()||'Ma partie')}).select().single();
+  if(error){cloudSetMessage('Création impossible : '+error.message);return}await cloudRefreshGames();renderCloudModal();await cloudOpenGame(data.id,true);
 }
 async function cloudRenameGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;const name=prompt('Nouveau nom :',g.name||'Partie');if(name===null||!name.trim())return;const {error}=await cloudClient.from('games').update({name:name.trim()}).eq('id',id);if(error){cloudSetMessage(error.message);return}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
 async function cloudDeleteGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;if(!confirm(`Supprimer définitivement la partie « ${g.name} » et toutes ses données en ligne ?`))return;const {error}=await cloudClient.from('games').delete().eq('id',id);if(error){cloudSetMessage(error.message);return}if(cloudCurrentGame?.id===id){cloudCurrentGame=null;localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY)}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
@@ -5656,12 +5588,28 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-/* HGT V12 — libellé compact du registre */
-(function hgtV12SeasonCodexLabel(){
-  const apply=()=>{
-    const title=document.querySelector('#listTab .roster-page>.panel:first-child>.top .title');
-    if(title && /registre complet de la saison/i.test(title.textContent||'')) title.textContent='📋 Codex saisonnier';
+/* HGT V21.7 — fermeture robuste de toutes les fenêtres secondaires */
+(function hgtRobustModalClose(){
+  const closeById={
+    cloudCloseBtn:()=>typeof closeCloudModal==='function'&&closeCloudModal(),
+    profileCloseBtn:()=>typeof closeProfileModal==='function'&&closeProfileModal(),
+    tutorialCloseBtn:()=>typeof closeTutorial==='function'&&closeTutorial(),
+    friendsCloseBtn:()=>typeof closeFriendsModal==='function'&&closeFriendsModal(),
+    friendGameCloseBtn:()=>typeof closeFriendGameModal==='function'&&closeFriendGameModal(),
+    avatarChampionClose:()=>typeof closeAvatarChampionModal==='function'&&closeAvatarChampionModal(),
+    avatarCropClose:()=>typeof closeAvatarCropModal==='function'&&closeAvatarCropModal(),
+    regionStyleCloseBtn:()=>typeof closeRegionStyleModal==='function'&&closeRegionStyleModal(false),
+    notificationCloseBtn:()=>document.getElementById('notificationModal')?.classList.remove('active'),
+    neuronDetailClose:()=>document.getElementById('neuronDetailModal')?.classList.remove('active')
   };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',apply,{once:true});
-  else apply();
+  document.addEventListener('click',e=>{
+    const btn=e.target.closest?.('.cloud-close');
+    if(btn&&closeById[btn.id]){
+      e.preventDefault();e.stopPropagation();closeById[btn.id]();return;
+    }
+    const modal=e.target.classList?.contains('cloud-modal')?e.target:null;
+    if(!modal)return;
+    if(modal.id==='regionStyleModal'){typeof closeRegionStyleModal==='function'&&closeRegionStyleModal(false);return}
+    modal.classList.remove('active');modal.setAttribute('aria-hidden','true');
+  },true);
 })();
