@@ -1,55 +1,69 @@
-const CACHE = 'hgt-shell-v4';
+const CACHE = 'hgt-shell-current';
 const SHELL = [
   './',
   './index.html',
-  './css/styles.css?v=20260930-3',
-  './js/app.js?v=20260930-3',
+  './css/styles.css',
+  './js/app.js',
   './manifest.webmanifest',
   './assets/icons/hgt-192.png',
   './assets/icons/hgt-512.png'
 ];
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE)
-      .then((cache) => cache.addAll(SHELL))
+      .then(cache => cache.addAll(SHELL))
       .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(
-        keys.filter((key) => key.startsWith('hgt-shell-') && key !== CACHE)
-          .map((key) => caches.delete(key))
+      .then(keys => Promise.all(
+        keys.filter(key => key.startsWith('hgt-shell-') && key !== CACHE)
+            .map(key => caches.delete(key))
       ))
       .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const response = await fetch(request, { cache: 'no-store' });
+    if (response && response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch (_) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    if (request.mode === 'navigate') {
+      const fallback = await cache.match('./index.html');
+      if (fallback) return fallback;
+    }
+    return Response.error();
+  }
+}
 
-  const url = new URL(event.request.url);
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        }
-        return response;
-      })
-      .catch(async () => {
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-        return Response.error();
-      })
-  );
+  // Always ask GitHub first for HTML, JS, CSS, manifest and SW-related app shell.
+  if (
+    request.mode === 'navigate' ||
+    url.pathname.endsWith('/index.html') ||
+    url.pathname.endsWith('/js/app.js') ||
+    url.pathname.endsWith('/css/styles.css') ||
+    url.pathname.endsWith('/manifest.webmanifest')
+  ) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Other same-origin assets: network first, cache as offline fallback.
+  event.respondWith(networkFirst(request));
 });
