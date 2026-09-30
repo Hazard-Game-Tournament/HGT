@@ -1871,3 +1871,20 @@ body{
   .hgt-artifact-header{padding-left:clamp(24px,4vw,64px)!important;padding-right:clamp(24px,4vw,64px)!important}
   .cloud-bar{padding-left:clamp(24px,4vw,64px)!important;padding-right:clamp(24px,4vw,64px)!important}
 }
+
+/* ============================================================
+   HGT V10 — SUPPRESSION DE LA BANDE VERTICALE DU VIEWPORT
+   La bande brun/rose à droite était le scrollbar global stylisé.
+   Le défilement vertical reste actif, seule sa piste visuelle disparaît.
+   Les scrollbars internes (navigation horizontale, etc.) restent inchangées.
+   ============================================================ */
+html,body{
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar{
+  width:0!important;
+  height:0!important;
+  display:none!important;
+}
