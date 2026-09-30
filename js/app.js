@@ -1215,6 +1215,23 @@ function showTab(which){
   const buttons={wheel:'wheelTabBtn',list:'listTabBtn',genealogy:'genealogyTabBtn',tournament:'tournamentTabBtn',hall:'hallTabBtn',duelLocal:'duelLocalTabBtn',multiplayer:'multiplayerTabBtn',universe:'universeTabBtn',community:'communityTabBtn'};
   Object.entries(buttons).forEach(([key,id])=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',key===which)});
   const arena=document.getElementById('arenaTabBtn');if(arena)arena.classList.toggle('active',['tournament','hall','duelLocal','multiplayer'].includes(which));
+  // V4: le joyau de navigation suit toujours l'onglet PRINCIPAL réellement actif.
+  // Il n'est plus dépendant du dernier clic ni d'une position calculée dans la barre scrollable.
+  const mainNav=document.querySelector('.hgt-artifact-tabs');
+  if(mainNav){
+    mainNav.querySelectorAll(':scope > .tabbtn, :scope > .arena-nav > .tabbtn').forEach(btn=>btn.classList.remove('nav-current'));
+    const mainBtn = ['tournament','hall','duelLocal','multiplayer'].includes(which)
+      ? arena
+      : document.getElementById(buttons[which]||'');
+    if(mainBtn){
+      mainBtn.classList.add('nav-current');
+      // Sur mobile, garde l'onglet actif visible sans déplacer le joyau hors de son bouton.
+      requestAnimationFrame(()=>{
+        const r=mainBtn.getBoundingClientRect(), nr=mainNav.getBoundingClientRect();
+        if(r.left<nr.left || r.right>nr.right) mainBtn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+      });
+    }
+  }
   try{
     if(which==='list')renderRoster();
     else if(which==='genealogy')renderGenealogy();
