@@ -3346,8 +3346,158 @@ function wheelDarkFantasyColor(i,count){
   const C=A.map((v,k)=>Math.round(v+(B[k]-v)*t));
   return '#'+C.map(v=>v.toString(16).padStart(2,'0')).join('');
 }
-function drawWheel(opts,rot=rotation){ctx.clearRect(0,0,760,760);let cx=380,cy=380,R=325,total=opts.reduce((s,o)=>s+o.weight,0),a=-Math.PI/2,type=wheelRankType(),isAppearanceColor=(taskTitle.textContent||'').startsWith('Couleur dominante');ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);opts.forEach((o,i)=>{let span=2*Math.PI*o.weight/total,a1=a+span;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R,a,a1);ctx.closePath();let n=valNum(o.label),fill=wheelDarkFantasyColor(i,opts.length);ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle='#10151e';ctx.lineWidth=2;ctx.stroke();if(span>.07 && !(opts.length===1 && (o.label==='✓' || o.label==='?'))){ctx.save();ctx.rotate(a+span/2);ctx.textAlign='right';ctx.fillStyle=readableText(fill);ctx.font=`700 ${Math.max(10,Math.min(18,13+span*4))}px system-ui`;let label=wheelDisplayLabel(o.label),t=label.length>27?label.slice(0,25)+'…':label;ctx.fillText(t,R-18,5);ctx.restore()}a=a1});ctx.beginPath();ctx.arc(0,0,66,0,Math.PI*2);ctx.fillStyle='#151a22';ctx.fill();ctx.strokeStyle='#ffd166';ctx.lineWidth=5;ctx.stroke();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='850 17px system-ui';ctx.fillText('ROUE',0,6);ctx.restore()}
-async function spin(opts){spinning=true;spinBtn.disabled=true;let chosen=weightedPick(opts),total=opts.reduce((s,o)=>s+o.weight,0),before=opts.slice(0,chosen).reduce((s,o)=>s+o.weight,0),center=(before+opts[chosen].weight/2)/total*2*Math.PI;let start=rotation,desired=-center,turns=(5+Math.floor(Math.random()*3))*2*Math.PI,end=start+turns+(desired-(start%(2*Math.PI))),dur=1700+Math.random()*500,t0=performance.now();await new Promise(done=>{function f(t){let p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,4);rotation=start+(end-start)*e;drawWheel(opts,rotation);p<1?requestAnimationFrame(f):done()}requestAnimationFrame(f)});rotation=end;spinning=false;spinBtn.disabled=false;return opts[chosen].label}
+let __hgtWheelFx=0;
+let __hgtWheelWinner=-1;
+
+function hgtWheelHexRgb(hex){
+  let h=String(hex||'#d4a017').replace('#','');
+  if(h.length===3)h=h.split('').map(x=>x+x).join('');
+  return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0];
+}
+function hgtWheelRgba(hex,a){
+  const [r,g,b]=hgtWheelHexRgb(hex);return `rgba(${r},${g},${b},${a})`;
+}
+function hgtWheelPalette(){
+  const p=(window.HGT_THEME_WHEEL_COLORS&&window.HGT_THEME_WHEEL_COLORS.length?window.HGT_THEME_WHEEL_COLORS:['#b11226','#98152d','#7e1737','#65183f','#4d1742','#37143b','#26102f','#170b20','#08070b']);
+  return {main:p[0]||'#b11226',secondary:p[2]||p[1]||'#65183f',accent:p[5]||'#d4a017',dark:p[p.length-1]||'#08070b'};
+}
+function hgtWheelMetalGradient(cx,cy,r1,r2,accent){
+  const g=ctx.createRadialGradient(cx,cy,r1,cx,cy,r2);
+  g.addColorStop(0,'#17130f');g.addColorStop(.28,'#8a6931');g.addColorStop(.48,'#e0bd67');
+  g.addColorStop(.62,'#5c431f');g.addColorStop(.82,'#b58b3e');g.addColorStop(1,'#120e0b');
+  return g;
+}
+function hgtDrawWheelFrame(cx,cy,R){
+  const pal=hgtWheelPalette(),fx=Math.max(0,Math.min(1,__hgtWheelFx||0));
+  ctx.save();ctx.translate(cx,cy);
+
+  // Halo régional : même structure HGT, couleur fournie par le thème actif.
+  ctx.shadowBlur=24+34*fx;ctx.shadowColor=hgtWheelRgba(pal.main,.65);
+  ctx.beginPath();ctx.arc(0,0,R+17,0,Math.PI*2);
+  ctx.strokeStyle=hgtWheelRgba(pal.main,.28+.35*fx);ctx.lineWidth=9;ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // Double couronne métallique.
+  for(const [rr,w] of [[R+27,14],[R+11,6]]){
+    ctx.beginPath();ctx.arc(0,0,rr,0,Math.PI*2);
+    ctx.strokeStyle=hgtWheelMetalGradient(0,0,Math.max(0,rr-w),rr+w,pal.accent);ctx.lineWidth=w;ctx.stroke();
+  }
+  ctx.beginPath();ctx.arc(0,0,R+19,0,Math.PI*2);
+  ctx.strokeStyle=hgtWheelRgba(pal.accent,.55);ctx.lineWidth=2;ctx.stroke();
+
+  // 8 pointes / cristaux façon emblème HGT.
+  for(let i=0;i<8;i++){
+    const ang=i*Math.PI/4-Math.PI/2;
+    ctx.save();ctx.rotate(ang);ctx.translate(0,-(R+25));
+    const long=i%2===0?42:29,wide=i%2===0?15:11;
+    ctx.beginPath();ctx.moveTo(0,-long);ctx.lineTo(wide,0);ctx.lineTo(0,12);ctx.lineTo(-wide,0);ctx.closePath();
+    const pg=ctx.createLinearGradient(0,-long,0,12);
+    pg.addColorStop(0,'#f4d77d');pg.addColorStop(.42,'#7d5926');pg.addColorStop(1,'#24170d');
+    ctx.fillStyle=pg;ctx.fill();ctx.strokeStyle='#e7c66e';ctx.lineWidth=2;ctx.stroke();
+
+    ctx.beginPath();ctx.moveTo(0,-Math.min(18,long-4));ctx.lineTo(7,0);ctx.lineTo(0,8);ctx.lineTo(-7,0);ctx.closePath();
+    ctx.fillStyle=hgtWheelRgba(pal.main,.88);ctx.shadowBlur=12+18*fx;ctx.shadowColor=pal.main;ctx.fill();ctx.shadowBlur=0;
+    ctx.restore();
+  }
+
+  // Petites runes/repères autour de l'anneau.
+  ctx.strokeStyle=hgtWheelRgba(pal.main,.72);ctx.lineWidth=2;
+  for(let i=0;i<32;i++){
+    const a=i*Math.PI/16,ri=R+8,ro=R+(i%4===0?17:13);
+    ctx.beginPath();ctx.moveTo(Math.cos(a)*ri,Math.sin(a)*ri);ctx.lineTo(Math.cos(a)*ro,Math.sin(a)*ro);ctx.stroke();
+  }
+
+  // Noyau HGT fixe.
+  ctx.beginPath();ctx.arc(0,0,73,0,Math.PI*2);
+  const core=ctx.createRadialGradient(-18,-22,4,0,0,73);
+  core.addColorStop(0,hgtWheelRgba(pal.main,.75));core.addColorStop(.38,'#201912');core.addColorStop(1,'#070708');
+  ctx.fillStyle=core;ctx.fill();
+  ctx.strokeStyle='#d7b45d';ctx.lineWidth=7;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,58,0,Math.PI*2);ctx.strokeStyle=hgtWheelRgba(pal.main,.75);ctx.lineWidth=3;ctx.stroke();
+  ctx.shadowBlur=12+22*fx;ctx.shadowColor=pal.main;
+  ctx.fillStyle='#f3d47b';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 28px Georgia,serif';ctx.fillText('HGT',0,2);
+  ctx.shadowBlur=0;
+  ctx.restore();
+}
+function drawWheel(opts,rot=rotation){
+  ctx.clearRect(0,0,760,760);
+  let cx=380,cy=380,R=314,total=opts.reduce((s,o)=>s+o.weight,0),a=-Math.PI/2;
+  const pal=hgtWheelPalette(),fx=Math.max(0,Math.min(1,__hgtWheelFx||0));
+
+  // Ombre portée de l'artefact.
+  ctx.save();ctx.translate(cx,cy);
+  ctx.beginPath();ctx.arc(0,0,R+20,0,Math.PI*2);
+  ctx.shadowBlur=34;ctx.shadowColor='rgba(0,0,0,.78)';ctx.fillStyle='rgba(0,0,0,.18)';ctx.fill();ctx.restore();
+
+  // Seule la partie interne tourne ; le châssis extérieur reste fixe.
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);
+  opts.forEach((o,i)=>{
+    let span=2*Math.PI*o.weight/total,a1=a+span;
+    let fill=wheelDarkFantasyColor(i,opts.length);
+    ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R,a,a1);ctx.closePath();
+
+    const mid=a+span/2;
+    const gx=Math.cos(mid)*R*.35,gy=Math.sin(mid)*R*.35;
+    const sg=ctx.createRadialGradient(gx,gy,8,0,0,R);
+    sg.addColorStop(0,hgtWheelRgba(fill,.98));sg.addColorStop(.62,fill);sg.addColorStop(1,hgtWheelRgba(pal.dark,.96));
+    ctx.fillStyle=sg;ctx.fill();
+
+    ctx.strokeStyle='rgba(226,190,102,.56)';ctx.lineWidth=3;ctx.stroke();
+
+    // Gravure interne.
+    ctx.beginPath();ctx.arc(0,0,R-12,a+.006,a1-.006);
+    ctx.strokeStyle='rgba(255,232,170,.16)';ctx.lineWidth=2;ctx.stroke();
+
+    if(span>.07 && !(opts.length===1 && (o.label==='✓'||o.label==='?'))){
+      ctx.save();ctx.rotate(mid);ctx.textAlign='right';ctx.textBaseline='middle';
+      ctx.shadowBlur=5;ctx.shadowColor='rgba(0,0,0,.9)';
+      ctx.fillStyle=readableText(fill);
+      ctx.font=`800 ${Math.max(10,Math.min(18,13+span*4))}px Georgia,system-ui`;
+      let label=wheelDisplayLabel(o.label),t=label.length>27?label.slice(0,25)+'…':label;
+      ctx.fillText(t,R-22,0);ctx.restore();
+    }
+    a=a1;
+  });
+
+  // Anneaux internes décoratifs qui tournent avec la roue.
+  ctx.beginPath();ctx.arc(0,0,R-4,0,Math.PI*2);ctx.strokeStyle='rgba(239,207,126,.72)';ctx.lineWidth=5;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,84,0,Math.PI*2);ctx.strokeStyle='rgba(226,190,102,.62)';ctx.lineWidth=4;ctx.stroke();
+  ctx.restore();
+
+  // Châssis HGT fixe au-dessus.
+  hgtDrawWheelFrame(cx,cy,R);
+
+  // Éclats d'énergie pendant le lancement / ralentissement.
+  if(fx>.04){
+    ctx.save();ctx.translate(cx,cy);ctx.globalAlpha=.18+.45*fx;
+    for(let i=0;i<12;i++){
+      const aa=i*Math.PI/6+(rot*.12),rr=R+42+(i%3)*5;
+      ctx.beginPath();ctx.arc(Math.cos(aa)*rr,Math.sin(aa)*rr,2+3*fx,0,Math.PI*2);
+      ctx.fillStyle=i%2?pal.main:pal.accent;ctx.shadowBlur=14;ctx.shadowColor=ctx.fillStyle;ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+async function spin(opts){
+  spinning=true;spinBtn.disabled=true;__hgtWheelWinner=-1;
+  let chosen=weightedPick(opts),total=opts.reduce((s,o)=>s+o.weight,0),before=opts.slice(0,chosen).reduce((s,o)=>s+o.weight,0),center=(before+opts[chosen].weight/2)/total*2*Math.PI;
+  let start=rotation,desired=-center,turns=(5+Math.floor(Math.random()*3))*2*Math.PI,end=start+turns+(desired-(start%(2*Math.PI))),dur=1900+Math.random()*550,t0=performance.now();
+  await new Promise(done=>{
+    function f(t){
+      let p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,4);
+      rotation=start+(end-start)*e;
+      __hgtWheelFx=p<.72?Math.min(1,p/.22):Math.max(.18,(1-p)/.28);
+      drawWheel(opts,rotation);
+      p<1?requestAnimationFrame(f):done();
+    }
+    requestAnimationFrame(f)
+  });
+  rotation=end;__hgtWheelWinner=chosen;__hgtWheelFx=1;drawWheel(opts,rotation);
+  await new Promise(r=>setTimeout(r,150));
+  __hgtWheelFx=.18;drawWheel(opts,rotation);
+  spinning=false;spinBtn.disabled=false;
+  return opts[chosen].label;
+}
 function finishGeneration(){
   if(index<queue.length)return false;
   auto=false;
