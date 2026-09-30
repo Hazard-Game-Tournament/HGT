@@ -1066,7 +1066,41 @@ function birthsResolvedForSeason(season){
   }
   return false;
 }
-function descendantsSelectedForSeason(season){return !!seasonTransitionMeta().descendantsSelectedBySeason?.[String(season)]}
+function descendantsSelectedForSeason(season){
+  const s=Number(season), target=s+1;
+  const meta=seasonTransitionMeta();
+  if(meta.descendantsSelectedBySeason?.[String(s)])return true;
+
+  // Auto-réparation d'un marqueur de transition perdu :
+  // si la saison suivante existe déjà dans le roster, sa sélection a forcément
+  // été finalisée auparavant (même lorsqu'aucun descendant n'avait été retenu).
+  const roster=loadRoster();
+  const targetExists=Object.values(roster||{}).some(c=>{
+    const parsed=parseCharacterCode(c?.id||'');
+    return Number(parsed?.season)===target;
+  });
+  if(targetExists){
+    markDescendantSelectionComplete(s);
+    return true;
+  }
+
+  // Deuxième preuve : des descendants portent déjà explicitement la sélection cible.
+  const d=descendants();
+  const selected=Object.values(d||{}).some(x=>Number(x?.selectedForSeason)===target);
+  if(selected){
+    markDescendantSelectionComplete(s);
+    return true;
+  }
+
+  // Compatibilité avec le registre historique selectedBySeason, y compris [] :
+  // la présence de la clé signifie que la sélection a été exécutée.
+  const raw=universeMeta();
+  if(raw.selectedBySeason && Object.prototype.hasOwnProperty.call(raw.selectedBySeason,String(target))){
+    markDescendantSelectionComplete(s);
+    return true;
+  }
+  return false;
+}
 function blockGenerationIfDescendantsNotSelected(){
   // Répare les descendants créés trop tôt par l'ancienne version (ex. S4 alors que S3 est en cours).
   try{cleanupPrematureBirths()}catch(e){console.warn('Nettoyage naissances prématurées',e)}
