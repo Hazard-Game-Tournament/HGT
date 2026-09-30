@@ -1,9 +1,9 @@
-const CACHE = 'hgt-shell-v3';
+const CACHE = 'hgt-shell-v4';
 const SHELL = [
   './',
   './index.html',
-  './css/styles.css',
-  './js/app.js',
+  './css/styles.css?v=20260930-3',
+  './js/app.js?v=20260930-3',
   './manifest.webmanifest',
   './assets/icons/hgt-192.png',
   './assets/icons/hgt-512.png'
@@ -35,7 +35,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(event.request, { cache: 'no-store' })
+    fetch(event.request)
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
