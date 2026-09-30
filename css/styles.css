@@ -490,7 +490,7 @@ button,.tabbtn,input,select,textarea{touch-action:manipulation}
 
 /* HGT V21 — écran d'entrée + identité publique joueur */
 body.hgt-gated{overflow:hidden}
-#hgtEntry{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:22px;background:#050406 center/cover no-repeat;background-image:linear-gradient(rgba(3,2,4,.22),rgba(3,2,4,.58)),url('assets/ui/hgt-home.webp')}
+#hgtEntry{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:22px;background:#050406 center/cover no-repeat;background-image:linear-gradient(rgba(3,2,4,.22),rgba(3,2,4,.58)),url('../assets/ui/hgt-home.webp')}
 #hgtEntry[hidden]{display:none!important}
 .hgt-entry-card{width:min(420px,92vw);padding:24px;border:1px solid #765463;border-radius:18px;background:rgba(10,7,11,.82);backdrop-filter:blur(12px);box-shadow:0 28px 90px #000c;text-align:center}
 .hgt-entry-art{display:none}
