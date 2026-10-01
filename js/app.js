@@ -5676,39 +5676,78 @@ if ('serviceWorker' in navigator) {
   else apply();
 })();
 
-/* HGT — correctif chirurgical des croix de modales (2026-10-01)
-   Capture pointerdown avant les handlers locaux/rendus dynamiques. */
-(function hgtModalCloseCrossFix(){
-  if(window.__hgtModalCloseCrossFixInstalled)return;
-  window.__hgtModalCloseCrossFixInstalled=true;
+/* HGT V15 — fermeture tactile uniforme des fenêtres + codex racial en vraie modale */
+(function hgtV15ModalCloseAndRaceWindow(){
+  const closeMap={
+    notificationCloseBtn:()=>typeof closeNotifications==='function'&&closeNotifications(),
+    cloudCloseBtn:()=>typeof closeCloudModal==='function'&&closeCloudModal(),
+    profileCloseBtn:()=>typeof closeProfileModal==='function'&&closeProfileModal(),
+    tutorialCloseBtn:()=>typeof closeTutorial==='function'&&closeTutorial(),
+    friendsCloseBtn:()=>typeof closeFriendsModal==='function'&&closeFriendsModal(),
+    friendGameCloseBtn:()=>typeof closeFriendGameModal==='function'&&closeFriendGameModal(),
+    friendInviteCloseBtn:()=>typeof closeFriendInviteModal==='function'&&closeFriendInviteModal(),
+    regionStyleCloseBtn:()=>typeof closeRegionStyleModal==='function'&&closeRegionStyleModal(false),
+    avatarChampionCloseBtn:()=>typeof closeAvatarChampionModal==='function'&&closeAvatarChampionModal(),
+    avatarCropCloseBtn:()=>typeof closeAvatarCropModal==='function'&&closeAvatarCropModal(),
+    neuronDetailCloseBtn:()=>typeof closeNeuronDetail==='function'&&closeNeuronDetail()
+  };
+  function closeFromTarget(target){
+    const btn=target?.closest?.('button,[role="button"]');
+    if(!btn)return false;
+    if(btn.classList?.contains('race-detail-close')){
+      const box=document.getElementById('raceCodexDetail');
+      if(box){box.classList.remove('active');box.innerHTML='';document.body.style.overflow='';}
+      return true;
+    }
+    const fn=closeMap[btn.id];
+    if(!fn)return false;
+    fn();return true;
+  }
+  // Capture avant les décorations/pseudo-éléments et avant les handlers locaux.
+  document.addEventListener('pointerdown',e=>{
+    if(closeFromTarget(e.target)){e.preventDefault();e.stopImmediatePropagation();}
+  },true);
+  // Secours clavier/souris pour les navigateurs sans Pointer Events fiables.
+  document.addEventListener('click',e=>{
+    if(closeFromTarget(e.target)){e.preventDefault();e.stopImmediatePropagation();}
+  },true);
 
   const style=document.createElement('style');
-  style.id='hgt-modal-close-cross-fix-style';
+  style.id='hgt-v15-race-modal-style';
   style.textContent=`
-    #notificationCloseBtn,#regionStyleCloseBtn,#cloudCloseBtn{
-      position:relative!important;
-      z-index:2147483647!important;
-      pointer-events:auto!important;
-      touch-action:manipulation!important;
-      cursor:pointer!important;
+    #raceCodexDetail{
+      display:none!important;position:fixed!important;inset:0!important;z-index:100000!important;
+      width:100vw!important;height:100dvh!important;max-width:none!important;box-sizing:border-box!important;
+      padding:clamp(14px,3vw,30px)!important;background:rgba(0,0,0,.82)!important;
+      overflow:auto!important;overscroll-behavior:contain!important;
     }
-    #notificationCloseBtn::before,#notificationCloseBtn::after,
-    #regionStyleCloseBtn::before,#regionStyleCloseBtn::after,
-    #cloudCloseBtn::before,#cloudCloseBtn::after{pointer-events:none!important;}
+    #raceCodexDetail.active{display:flex!important;align-items:flex-start!important;justify-content:center!important;}
+    #raceCodexDetail .race-detail-shell{
+      position:relative!important;width:min(980px,100%)!important;max-width:980px!important;
+      margin:auto!important;box-sizing:border-box!important;padding:clamp(18px,4vw,34px)!important;
+      background:linear-gradient(180deg,rgba(4,17,19,.98),rgba(10,7,12,.99))!important;
+      border:1px solid var(--theme-accent,#d7ad55)!important;
+      box-shadow:0 0 0 3px rgba(0,0,0,.9),0 0 0 4px color-mix(in srgb,var(--theme-accent,#d7ad55) 45%,transparent),0 24px 80px #000!important;
+      overflow:hidden!important;
+    }
+    #raceCodexDetail .race-detail-close{
+      position:sticky!important;top:0!important;float:right!important;z-index:100003!important;
+      width:54px!important;height:54px!important;min-width:54px!important;padding:0!important;margin:0 0 10px 12px!important;
+      display:grid!important;place-items:center!important;font-size:34px!important;line-height:1!important;
+      pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important;
+    }
+    #raceCodexDetail .race-detail-layout{clear:both!important;min-width:0!important;max-width:100%!important;}
+    #raceCodexDetail .race-detail-layout>*{min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
+    #raceCodexDetail img{max-width:100%!important;height:auto!important;}
+    @media(max-width:700px){
+      #raceCodexDetail{padding:12px!important;}
+      #raceCodexDetail .race-detail-shell{width:100%!important;padding:16px!important;margin:auto 0!important;}
+      #raceCodexDetail .race-detail-layout{display:block!important;}
+    }
   `;
   document.head.appendChild(style);
 
-  document.addEventListener('pointerdown',function(e){
-    const btn=e.target?.closest?.('#notificationCloseBtn,#regionStyleCloseBtn,#cloudCloseBtn');
-    if(!btn)return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    if(btn.id==='notificationCloseBtn'){
-      closeNotifications();
-    }else if(btn.id==='regionStyleCloseBtn'){
-      closeRegionStyleModal(false);
-    }else if(btn.id==='cloudCloseBtn'){
-      closeCloudModal();
-    }
-  },true);
+  // Le conteneur existait dans la page Univers : on le sort du flux pour en faire une vraie fenêtre indépendante.
+  const raceBox=document.getElementById('raceCodexDetail');
+  if(raceBox && raceBox.parentElement!==document.body)document.body.appendChild(raceBox);
 })();
