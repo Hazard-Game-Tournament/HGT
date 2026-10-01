@@ -4823,23 +4823,44 @@ function renderProfileModal(){
  fillProfileChampionAvatars(root);
  const current=root.querySelector('#profileCurrentAvatar');if(current){current.style.setProperty('--avatar-x',(cloudProfile?.avatar_focus_x??50)+'%');current.style.setProperty('--avatar-y',(cloudProfile?.avatar_focus_y??32)+'%');current.style.setProperty('--avatar-zoom',String((Number(cloudProfile?.avatar_zoom??160)||160)/100));current.onclick=()=>{closeProfileModal();openAvatarChampionModal()}}if(current&&cloudProfile?.avatar_image_path&&cloudReady())cloudDownloadPortraitPath(cloudProfile.avatar_image_path).then(blob=>{if(!blob||!current.isConnected)return;const u=URL.createObjectURL(blob),img=document.createElement('img');img.src=u;img.alt='Icône de profil';img.onload=()=>URL.revokeObjectURL(u);current.replaceChildren(img)}).catch(()=>{});
 }
+let hgtBugImages=[];
+function hgtRenderBugImages(){
+ const box=document.getElementById('bugImagePreview');if(!box)return;
+ box.innerHTML=hgtBugImages.map((x,i)=>`<div style="position:relative;width:96px;height:96px;border:1px solid rgba(215,173,85,.65);background:#090b0d;overflow:hidden"><img src="${x.preview}" alt="Capture ${i+1}" style="width:100%;height:100%;object-fit:cover"><button type="button" data-bug-image-remove="${i}" aria-label="Retirer l’image ${i+1}" style="position:absolute;right:4px;top:4px;width:28px;height:28px;min-width:28px;padding:0;line-height:1;z-index:2">×</button></div>`).join('');
+ box.querySelectorAll('[data-bug-image-remove]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const i=Number(b.dataset.bugImageRemove);const old=hgtBugImages.splice(i,1)[0];if(old?.preview)URL.revokeObjectURL(old.preview);hgtRenderBugImages()});
+ const add=document.getElementById('bugImageBtn');if(add)add.disabled=hgtBugImages.length>=2;
+ const count=document.getElementById('bugImageCount');if(count)count.textContent=`${hgtBugImages.length}/2 image${hgtBugImages.length>1?'s':''}`;
+}
+async function hgtCompressBugImage(file){
+ if(!file?.type?.startsWith('image/'))throw new Error('Seules les images sont acceptées.');
+ const bitmap=await createImageBitmap(file),max=1600,scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height)),w=Math.max(1,Math.round(bitmap.width*scale)),h=Math.max(1,Math.round(bitmap.height*scale));
+ const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(bitmap,0,0,w,h);bitmap.close?.();
+ const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Compression impossible.')),'image/jpeg',.82));
+ if(blob.size>4*1024*1024)throw new Error('Image trop lourde après compression.');
+ return blob;
+}
+function hgtBlobToDataUrl(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error||new Error('Lecture impossible.'));r.readAsDataURL(blob)})}
 function renderBugReportForm(root){
- if(!root)return;
- root.innerHTML=`<h2>🐞 Signaler un bug</h2><div class="muted">Le signalement sera envoyé au suivi GitHub de HGT. Aucun e-mail ni identifiant privé n’est inclus automatiquement.</div><div class="cloud-form" style="margin-top:14px"><input id="bugTitle" maxlength="120" placeholder="Titre du bug"><select id="bugCategory"><option value="Gameplay">Gameplay</option><option value="Interface">Interface</option><option value="Compte / connexion">Compte / connexion</option><option value="Multijoueur">Multijoueur</option><option value="Génération d’image">Génération d’image</option><option value="Autre">Autre</option></select><textarea id="bugDescription" rows="6" maxlength="5000" placeholder="Que s’est-il passé ?"></textarea><textarea id="bugSteps" rows="5" maxlength="4000" placeholder="Étapes pour reproduire le problème (facultatif)"></textarea><div class="cloud-row"><button id="bugSendBtn" type="button">Envoyer le signalement</button><button class="secondary" id="bugCancelBtn" type="button">Retour au profil</button></div></div><div id="bugMessage" class="cloud-message"></div>`;
- root.querySelector('#bugCancelBtn').onclick=renderProfileModal;
- root.querySelector('#bugSendBtn').onclick=submitBugReport;
+ if(!root)return;hgtBugImages.forEach(x=>x.preview&&URL.revokeObjectURL(x.preview));hgtBugImages=[];
+ root.innerHTML=`<h2>🐞 Signaler un bug</h2><div class="muted">Le signalement sera envoyé au suivi GitHub de HGT. Aucun e-mail ni identifiant privé n’est inclus automatiquement.</div><div class="cloud-form" style="margin-top:14px"><input id="bugTitle" maxlength="120" placeholder="Titre du bug"><select id="bugCategory"><option value="Gameplay">Gameplay</option><option value="Interface">Interface</option><option value="Compte / connexion">Compte / connexion</option><option value="Multijoueur">Multijoueur</option><option value="Génération d’image">Génération d’image</option><option value="Autre">Autre</option></select><textarea id="bugDescription" rows="6" maxlength="5000" placeholder="Que s’est-il passé ?"></textarea><textarea id="bugSteps" rows="5" maxlength="4000" placeholder="Étapes pour reproduire le problème (facultatif)"></textarea><div style="border:1px solid rgba(215,173,85,.35);padding:12px"><div class="cloud-row" style="align-items:center"><button class="secondary" id="bugImageBtn" type="button">🖼️ Ajouter une image</button><span class="muted" id="bugImageCount">0/2 image</span></div><input id="bugImageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><div id="bugImagePreview" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"></div><div class="muted" style="margin-top:8px">2 images maximum. Elles seront supprimées automatiquement lorsque l’issue GitHub sera fermée.</div></div><div class="cloud-row"><button id="bugSendBtn" type="button">Envoyer le signalement</button><button class="secondary" id="bugCancelBtn" type="button">Retour au profil</button></div></div><div id="bugMessage" class="cloud-message"></div>`;
+ root.querySelector('#bugCancelBtn').onclick=renderProfileModal;root.querySelector('#bugSendBtn').onclick=submitBugReport;
+ const input=root.querySelector('#bugImageInput');root.querySelector('#bugImageBtn').onclick=()=>input.click();
+ input.onchange=async()=>{const msg=root.querySelector('#bugMessage');try{const files=[...input.files];if(hgtBugImages.length+files.length>2)throw new Error('Maximum 2 images par signalement.');for(const f of files){const blob=await hgtCompressBugImage(f);hgtBugImages.push({blob,preview:URL.createObjectURL(blob),name:f.name})}hgtRenderBugImages();if(msg)msg.textContent=''}catch(e){if(msg)msg.textContent=e.message||String(e)}finally{input.value=''}};
 }
 async function submitBugReport(){
  const title=document.getElementById('bugTitle')?.value.trim()||'',category=document.getElementById('bugCategory')?.value||'Autre',description=document.getElementById('bugDescription')?.value.trim()||'',steps=document.getElementById('bugSteps')?.value.trim()||'',msg=document.getElementById('bugMessage'),btn=document.getElementById('bugSendBtn');
  if(!title||!description){if(msg)msg.textContent='Ajoute un titre et une description du problème.';return}
  if(!cloudClient||!cloudUser){if(msg)msg.textContent='Tu dois être connecté pour envoyer un signalement.';return}
- btn.disabled=true;if(msg)msg.textContent='Envoi du signalement…';
+ btn.disabled=true;if(msg)msg.textContent=hgtBugImages.length?'Préparation des images et envoi…':'Envoi du signalement…';
  try{
-  const {data,error}=await cloudClient.functions.invoke('report-bug',{body:{title,category,description,steps,page:location.href,userAgent:navigator.userAgent,gameId:cloudCurrentGame?.id||null}});
+  const images=[];for(const x of hgtBugImages)images.push({data:await hgtBlobToDataUrl(x.blob),name:x.name||'capture.jpg'});
+  const {data,error}=await cloudClient.functions.invoke('report-bug',{body:{title,category,description,steps,page:location.href,userAgent:navigator.userAgent,gameId:cloudCurrentGame?.id||null,images}});
   if(error)throw error;if(!data?.ok)throw new Error(data?.error||'Réponse invalide du serveur.');
   if(msg)msg.textContent=data.issue_number?`Signalement envoyé ✓ — Issue GitHub #${data.issue_number}`:'Signalement envoyé ✓';
+  hgtBugImages.forEach(x=>x.preview&&URL.revokeObjectURL(x.preview));hgtBugImages=[];hgtRenderBugImages();
  }catch(e){if(msg)msg.textContent='Envoi impossible : '+(e.message||String(e));btn.disabled=false}
 }
+
 function cloudStatus(text,kind=''){
   const el=document.getElementById('cloudStatus');if(!el)return;
   const detail=String(text||'').replace(/^☁️\s*/, '');
