@@ -2397,6 +2397,8 @@ async function saveIllustration(characterId,file){
   });
 }
 
+const __invalidIllustrationThisSession=new Set();
+
 async function getIllustration(characterId){
   const db=await openIllustrationDB();
   const local=await new Promise((resolve,reject)=>{
@@ -2406,6 +2408,9 @@ async function getIllustration(characterId){
     req.onerror=()=>reject(req.error);
   });
   if(local) return local;
+  // Après un échec de première génération, ne pas retélécharger dans la même session
+  // un objet cloud fantôme/corrompu qui ferait réapparaître l'icône d'image cassée.
+  if(__invalidIllustrationThisSession.has(characterId))return null;
   if(typeof cloudDownloadIllustration==='function'){
     try{
       const remote=await cloudDownloadIllustration(characterId);
@@ -2481,6 +2486,7 @@ function updateIllustrationPlaceholderState(characterId){
   ph.innerHTML=`<button type="button" class="secondary illustration-first-retry" onclick="retryInitialCharacterIllustration('${characterId}')" title="Relancer la première génération" aria-label="Relancer la première génération de l’illustration" style="font-size:2rem;line-height:1;padding:.55rem .8rem;border-radius:999px">↻</button>`;
 }
 async function retryInitialCharacterIllustration(characterId){
+  __invalidIllustrationThisSession.delete(characterId);
   if(__imageGenerationBusy.has(characterId)){illustrationStatus(characterId,'⏳ Une génération est déjà en cours…');updateIllustrationPlaceholderState(characterId);return false}
   illustrationStatus(characterId,'🎨 Illustration automatique en cours…');
   updateIllustrationPlaceholderState(characterId);
@@ -2526,11 +2532,12 @@ async function refreshIllustrationFor(characterId){
     const url=URL.createObjectURL(blob);
     img.onerror=async()=>{
       if(img.dataset.objectUrl){URL.revokeObjectURL(img.dataset.objectUrl);delete img.dataset.objectUrl}
+      __invalidIllustrationThisSession.add(characterId);
       await clearLocalIllustrationCache(characterId);
       showRetry();
       illustrationStatus(characterId,'⚠️ Illustration absente ou invalide — tu peux relancer la première génération.');
     };
-    img.onload=()=>{img.onerror=null};
+    img.onload=()=>{img.onerror=null;__invalidIllustrationThisSession.delete(characterId)};
     img.src=url;
     img.dataset.objectUrl=url;
     img.style.display='block';
@@ -4830,11 +4837,11 @@ async function getRollingNeuronUsage(){
 }
 function closeNeuronDetail(){document.getElementById('neuronDetailModal')?.classList.remove('active')}
 async function openNeuronDetail(){
-  const modal=document.getElementById('neuronDetailModal'),root=document.getElementById('neuronDetailContent');if(!modal||!root)return;modal.classList.add('active');root.innerHTML='<h2>⚡ Consommation sur 24 h</h2><div class="muted">Chargement…</div>';
+  const modal=document.getElementById('neuronDetailModal'),root=document.getElementById('neuronDetailContent');if(!modal||!root)return;modal.classList.add('active');root.innerHTML='<h2>⚡ Énergie de Vaeloria — 24 h</h2><div class="muted">Chargement…</div>';
   try{const u=await getRollingNeuronUsage(),used=Number(u.neurons_used||0),limit=Number(u.neurons_limit||10000),remaining=Number(u.neurons_remaining??Math.max(0,limit-used)),events=Array.isArray(u.events)?u.events:[],pct=Math.max(0,Math.min(100,limit?used/limit*100:0)),now=Date.now();
     const releases=events.filter(e=>new Date(e.releases_at).getTime()>now).slice(0,8);const next=releases[0];
-    root.innerHTML=`<h2>⚡ Consommation sur 24 h</h2><div class="neuron-detail-card"><div><div style="display:flex;justify-content:space-between;gap:10px"><b>${used.toLocaleString('fr-FR',{maximumFractionDigits:2})} / ${limit.toLocaleString('fr-FR')}</b><span>${remaining.toLocaleString('fr-FR',{maximumFractionDigits:2})} disponibles</span></div><div class="neuron-meter" style="margin-top:7px"><span style="width:${pct.toFixed(2)}%"></span></div></div><div class="neuron-detail-stats"><div class="neuron-detail-stat"><small class="muted">Fenêtre</small><br><b>24 heures glissantes</b></div><div class="neuron-detail-stat"><small class="muted">Fuseau affiché</small><br><b>${escapeHtml(hgtTimeZone())}</b></div></div>${next?`<div><b>Prochaine libération</b><div style="margin-top:4px">${Number(next.neurons).toLocaleString('fr-FR',{maximumFractionDigits:2})} neurons · ${formatHgtDateTime(next.releases_at)} <span class="muted">(dans ${hgtDuration(new Date(next.releases_at).getTime()-now)})</span></div></div>`:'<div class="muted">Aucune consommation HGT à libérer dans la fenêtre actuelle.</div>'}<div><b>Prochaines libérations</b><div class="neuron-release-list" style="margin-top:7px">${releases.length?releases.map(e=>`<div class="neuron-release-row"><span>${formatHgtDateTime(e.releases_at)}</span><b>+${Number(e.neurons).toLocaleString('fr-FR',{maximumFractionDigits:2})}</b></div>`).join(''):'<div class="muted">Aucune.</div>'}</div></div><div class="muted">Estimation HGT basée sur les générations réussies enregistrées pendant les 24 dernières heures. Le quota réellement appliqué reste celui de Cloudflare.</div></div>`;
-  }catch(e){root.innerHTML=`<h2>⚡ Consommation sur 24 h</h2><div class="muted">Impossible de charger la fenêtre : ${escapeHtml(e?.message||String(e))}</div>`}
+    root.innerHTML=`<h2>⚡ Énergie de Vaeloria — 24 h</h2><div class="neuron-detail-card"><div><div style="display:flex;justify-content:space-between;gap:10px"><b>${used.toLocaleString('fr-FR',{maximumFractionDigits:2})} / ${limit.toLocaleString('fr-FR')}</b><span>${remaining.toLocaleString('fr-FR',{maximumFractionDigits:2})} disponibles</span></div><div class="neuron-meter" style="margin-top:7px"><span style="width:${pct.toFixed(2)}%"></span></div></div><div class="neuron-detail-stats"><div class="neuron-detail-stat"><small class="muted">Fenêtre</small><br><b>24 heures glissantes</b></div><div class="neuron-detail-stat"><small class="muted">Fuseau affiché</small><br><b>${escapeHtml(hgtTimeZone())}</b></div></div>${next?`<div><b>Prochaine libération</b><div style="margin-top:4px">${Number(next.neurons).toLocaleString('fr-FR',{maximumFractionDigits:2})} EV · ${formatHgtDateTime(next.releases_at)} <span class="muted">(dans ${hgtDuration(new Date(next.releases_at).getTime()-now)})</span></div></div>`:'<div class="muted">Aucune consommation HGT à libérer dans la fenêtre actuelle.</div>'}<div><b>Prochaines libérations</b><div class="neuron-release-list" style="margin-top:7px">${releases.length?releases.map(e=>`<div class="neuron-release-row"><span>${formatHgtDateTime(e.releases_at)}</span><b>+${Number(e.neurons).toLocaleString('fr-FR',{maximumFractionDigits:2})} EV</b></div>`).join(''):'<div class="muted">Aucune.</div>'}</div></div><div class="muted">Estimation HGT basée sur les générations réussies enregistrées pendant les 24 dernières heures. Le quota réellement appliqué reste celui de Cloudflare.</div></div>`;
+  }catch(e){root.innerHTML=`<h2>⚡ Énergie de Vaeloria — 24 h</h2><div class="muted">Impossible de charger la fenêtre : ${escapeHtml(e?.message||String(e))}</div>`}
 }
 
 async function getGlobalNeuronUsage(){
@@ -4847,12 +4854,12 @@ async function refreshProfileNeuronUsage(root){
   const box=root?.querySelector('#profileNeuronUsage');if(!box)return;
   try{
     const u=await getGlobalNeuronUsage();
-    if(!u){box.innerHTML='<b>⚡ Neurons globaux</b><div class="muted">Compteur indisponible.</div>';return}
+    if(!u){box.innerHTML='<b>⚡ Énergie de Vaeloria</b><div class="muted">Compteur indisponible.</div>';return}
     const used=Number(u.neurons_used||0),limit=Number(u.neurons_limit||10000),remaining=Number(u.neurons_remaining??Math.max(0,limit-used)),count=Number(u.image_count||0);
     const reset=u.reset_at?new Date(u.reset_at):null;
     const resetText=reset&&!Number.isNaN(reset.getTime())?formatHgtDateTime(reset):'—';
-    box.innerHTML=`<b>⚡ Neurons globaux aujourd’hui</b><div style="margin-top:5px"><strong>${used.toLocaleString('fr-FR',{maximumFractionDigits:2})}</strong> / ${limit.toLocaleString('fr-FR')} neurons · ${count} image${count>1?'s':''}</div><div class="muted">Restants estimés : ${remaining.toLocaleString('fr-FR',{maximumFractionDigits:2})} · Reset journalier affiché : ${resetText}</div>`;
-  }catch(e){box.innerHTML=`<b>⚡ Neurons globaux</b><div class="muted">Erreur compteur : ${escapeHtml(e?.message||String(e))}</div>`}
+    box.innerHTML=`<b>⚡ Énergie de Vaeloria aujourd’hui</b><div style="margin-top:5px"><strong>${used.toLocaleString('fr-FR',{maximumFractionDigits:2})}</strong> / ${limit.toLocaleString('fr-FR')} EV · ${count} image${count>1?'s':''}</div><div class="muted">EV restants estimés : ${remaining.toLocaleString('fr-FR',{maximumFractionDigits:2})} · Reset journalier affiché : ${resetText}</div>`;
+  }catch(e){box.innerHTML=`<b>⚡ Énergie de Vaeloria</b><div class="muted">Erreur compteur : ${escapeHtml(e?.message||String(e))}</div>`}
 }
 let __hgtFriends=[],__hgtIncomingFriendRequests=[],__hgtOnlineUsers=new Set(),__hgtPresenceChannel=null,__hgtInviteChannel=null,__friendGameMode='duel',__activeFriendInvite=null;
 async function hgtFriendRpc(name,args={}){if(!cloudClient||!cloudUser)throw new Error('Connecte-toi à ton compte.');const {data,error}=await cloudClient.rpc(name,args);if(error)throw error;return data}
@@ -5050,7 +5057,7 @@ async function startCommunityRealtime(){if(!cloudClient||!cloudUser)return;for(c
 
 const HGT_TUTORIAL_STEPS=[
  {icon:'⚔️',title:'Bienvenue dans Hazard Game Tournament',text:'Crée des combattants entièrement tirés par les roues, développe leurs lignées et fais-les s’affronter dans Vaeloria.',points:[['🎰 Tirages visibles','Chaque donnée aléatoire vient d’une roue. La coche « Masquer les sous-roues », placée directement sous la roue, permet de cacher leurs animations sans modifier les tirages.'],['☁️ Compte & sauvegarde','Tes parties peuvent être synchronisées avec ton compte pour retrouver ta progression.']]},
- {icon:'🎰',title:'Créer un personnage',text:'Dans Roue, appuie sur « Commencer ». Les roues construisent progressivement l’identité, les origines, l’histoire, les statistiques, pouvoirs, armes, faiblesses, extras et l’apparence.',points:[['▶️ Auto','Le mode Auto enchaîne les tirages.'],['👁️ Sous-roues','La coche sous la roue permet de masquer uniquement les animations des sous-roues ; leurs résultats sont toujours tirés normalement.'],['🔄 Réinitialiser','Repart sur une nouvelle génération lorsque tu le souhaites.'],['📦 JSON','Tu peux exporter les données du personnage au format JSON.'],['⚡ Portraits','Les fonctions d’image utilisent le quota global de neurons affiché dans ton Profil.']]},
+ {icon:'🎰',title:'Créer un personnage',text:'Dans Roue, appuie sur « Commencer ». Les roues construisent progressivement l’identité, les origines, l’histoire, les statistiques, pouvoirs, armes, faiblesses, extras et l’apparence.',points:[['▶️ Auto','Le mode Auto enchaîne les tirages.'],['👁️ Sous-roues','La coche sous la roue permet de masquer uniquement les animations des sous-roues ; leurs résultats sont toujours tirés normalement.'],['🔄 Réinitialiser','Repart sur une nouvelle génération lorsque tu le souhaites.'],['📦 JSON','Tu peux exporter les données du personnage au format JSON.'],['⚡ Portraits','Les fonctions d’image utilisent le quota global d’Énergie de Vaeloria (EV) affiché dans ton Profil.']]},
  {icon:'📋',title:'Registre des personnages',text:'La Liste des personnages rassemble les combattants de ta saison. La recherche retrouve rapidement un nom ou un ID et chaque fiche donne accès aux informations complètes.',points:[['🖼️ Fiches & portraits','Consulte les caractéristiques et les images générées du personnage.'],['📥 Import','Le registre permet aussi d’importer des personnages JSON compatibles.']]},
  {icon:'🌳',title:'Descendants & lignées',text:'Les relations créées au fil des saisons alimentent les lignées. Cet espace suit les parents, enfants, générations et naissances en attente.',points:[['👶 Naissances','Résous les naissances lorsque des descendants sont en attente.'],['🎟️ Saison suivante','Sélectionne les descendants qui pourront rejoindre la saison suivante.'],['🌳 Arbre','L’arbre généalogique visualise les générations et les liens familiaux.'],['💾 Univers','L’univers et ses données généalogiques peuvent être exportés.']]},
  {icon:'⚔️',title:'Arène : tournoi et duels',text:'Le menu Arène regroupe les affrontements. Le Tournoi oppose les 64 combattants d’une saison, combat après combat, jusqu’au Champion.',points:[['🏆 Hall of Fame','Les Champions des saisons terminées sont archivés et peuvent recevoir un portrait Champion.'],['🥊 Duel local','Fais s’affronter directement des personnages disponibles sur ton appareil.'],['🌐 Multijoueur','Défie d’autres joueurs en duel ou avec une équipe de 5 Champions.'],['🎲 Conditions de combat','Région, terrain, distance et informations disponibles influencent les affrontements.']]},
@@ -5091,7 +5098,7 @@ function renderProfileModal(){
  const champs=championHistory(),roster=loadRoster(),selected=cloudProfile?.avatar_champion_id||'';
  const selectedChampion=champs.find(x=>x.id===selected),selectedName=selectedChampion?(roster[selected]?.name||selectedChampion.name||selected):'Aucune icône sélectionnée';
  const choices=champs.length?champs.map(ch=>{const c=roster[ch.id]||{},hasPortrait=!!(c?.imageGeneration?.championPath||c?.imageGeneration?.selectedPortrait);return `<button type="button" class="profile-avatar-choice ${selected===ch.id?'selected':''}" data-avatar-choice="${escapeHtml(ch.id)}" ${hasPortrait?'':'disabled'}><span class="champion-mini" data-profile-avatar-id="${escapeHtml(ch.id)}">${hasPortrait?'🏆':'—'}</span><small>${escapeHtml(c.name||ch.name||ch.id)}</small><small class="muted">S${Number(ch.season)||'?'}</small></button>`}).join(''):'<div class="muted">Aucun Champion disponible pour le moment.</div>';
- root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div class="profile-avatar-current"><button type="button" class="player-avatar" id="profileCurrentAvatar" aria-label="Changer l’icône de profil" title="Changer l’icône">👤</button><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div class="muted" style="margin:-4px 0 12px">Clique sur ton icône ci-dessus pour choisir un Champion et régler son cadrage.</div><div class="cloud-row" style="margin-top:14px"><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><div class="profile-option"><span class="profile-option-copy"><b>🎨 Style</b><small>Personnalise l’interface et les roues avec une région de Vaeloria.</small></span><button class="secondary" id="profileRegionStyleBtn" type="button">Région</button></div><div class="profile-option"><span class="profile-option-copy"><b>🕒 Fuseau horaire</b><small>Utilisé pour les heures HGT, notamment les libérations de neurons sur 24 h.</small></span><select id="profileTimezoneSelect" class="profile-timezone-select" aria-label="Fuseau horaire">${hgtTimeZoneOptions().map(z=>`<option value="${escapeHtml(z)}" ${z===hgtTimeZone()?'selected':''}>${escapeHtml(z)}</option>`).join('')}</select></div>${(()=>{const i=hgtInstallAvailability();return `<div class="profile-option"><span class="profile-option-copy"><b>📲 Installer HGT</b><small>${escapeHtml(i.help)}</small></span><button class="secondary" id="profileInstallBtn" type="button" ${i.disabled?'disabled':''}>${escapeHtml(i.label)}</button></div>`})()}<div class="cloud-separator"></div><button class="secondary" id="profileTutorialBtn">📖 Tutoriel</button><div class="muted" style="margin-top:6px">Revoir le guide complet de Hazard Game Tournament et de ses fonctionnalités.</div><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
+ root.innerHTML=`<h2>👤 ${escapeHtml(cloudProfile.username)}</h2><div class="muted">${escapeHtml(cloudUser.email||'')}</div><div class="profile-avatar-current"><button type="button" class="player-avatar" id="profileCurrentAvatar" aria-label="Changer l’icône de profil" title="Changer l’icône">👤</button><div><b>Icône de profil</b><div class="muted">${escapeHtml(selectedName)}</div></div></div><div class="muted" style="margin:-4px 0 12px">Clique sur ton icône ci-dessus pour choisir un Champion et régler son cadrage.</div><div class="cloud-row" style="margin-top:14px"><button id="profileGamesBtn">☁️ Mes parties</button><button class="secondary" id="profileSyncBtn" ${cloudReady()?'':'disabled'}>☁️ Synchroniser</button></div><div class="cloud-separator"></div><div class="profile-option"><span class="profile-option-copy"><b>🎨 Style</b><small>Personnalise l’interface et les roues avec une région de Vaeloria.</small></span><button class="secondary" id="profileRegionStyleBtn" type="button">Région</button></div><div class="profile-option"><span class="profile-option-copy"><b>🕒 Fuseau horaire</b><small>Utilisé pour les heures HGT, notamment les libérations d’Énergie de Vaeloria (EV) sur 24 h.</small></span><select id="profileTimezoneSelect" class="profile-timezone-select" aria-label="Fuseau horaire">${hgtTimeZoneOptions().map(z=>`<option value="${escapeHtml(z)}" ${z===hgtTimeZone()?'selected':''}>${escapeHtml(z)}</option>`).join('')}</select></div>${(()=>{const i=hgtInstallAvailability();return `<div class="profile-option"><span class="profile-option-copy"><b>📲 Installer HGT</b><small>${escapeHtml(i.help)}</small></span><button class="secondary" id="profileInstallBtn" type="button" ${i.disabled?'disabled':''}>${escapeHtml(i.label)}</button></div>`})()}<div class="cloud-separator"></div><button class="secondary" id="profileTutorialBtn">📖 Tutoriel</button><div class="muted" style="margin-top:6px">Revoir le guide complet de Hazard Game Tournament et de ses fonctionnalités.</div><div class="cloud-separator"></div><button class="secondary" id="profileBugBtn">🐞 Signaler un bug</button><div class="muted" style="margin-top:6px">Décris le problème rencontré afin qu’il puisse être transmis au suivi GitHub de HGT.</div><div class="cloud-separator"></div><button class="secondary" id="profileLogoutBtn">Se déconnecter</button><div id="profileMessage" class="cloud-message"></div>`;
  refreshProfileNeuronUsage(root);
  
  root.querySelector('#profileGamesBtn').onclick=()=>{closeProfileModal();openCloudModal()};
@@ -5525,10 +5532,10 @@ async function refreshNeuronStatus(){
     const u=await getGlobalNeuronUsage();
     if(!u){el.textContent='⚡ Compteur indisponible';return;}
     const used=Number(u.neurons_used||0),limit=Number(u.neurons_limit||10000),remaining=Number(u.neurons_remaining??Math.max(0,limit-used));
-    // Estimation en portraits normaux 4B (114,93 neurons/image). Les portraits Champion 9B coûtent 1450 neurons.
+    // Estimation en portraits normaux 4B (114,93 EV/image). Les portraits Champion 9B coûtent 1450 EV.
     const normalCost=114.93,imagesRemaining=Math.max(0,Math.floor(remaining/normalCost));
-    el.textContent=`⚡ ${remaining.toLocaleString('fr-FR',{maximumFractionDigits:2})} neurons · ≈ ${imagesRemaining} image${imagesRemaining>1?'s':''} restante${imagesRemaining>1?'s':''}`;
-    el.title=`${used.toLocaleString('fr-FR',{maximumFractionDigits:2})} / ${limit.toLocaleString('fr-FR')} neurons utilisés · estimation basée sur un portrait normal 4B à ${normalCost.toLocaleString('fr-FR')} neurons (Champion 9B : 1 450)`;
+    el.textContent=`⚡ ${remaining.toLocaleString('fr-FR',{maximumFractionDigits:2})} EV · ≈ ${imagesRemaining} image${imagesRemaining>1?'s':''} restante${imagesRemaining>1?'s':''}`;
+    el.title=`${used.toLocaleString('fr-FR',{maximumFractionDigits:2})} / ${limit.toLocaleString('fr-FR')} EV utilisés · estimation basée sur un portrait normal 4B à ${normalCost.toLocaleString('fr-FR')} EV (Champion 9B : 1 450 EV)`;
   }catch(_){el.textContent='⚡ Compteur indisponible';}
 }
 function hgtFullscreenElement(){return document.fullscreenElement||document.webkitFullscreenElement||null}
@@ -5587,6 +5594,64 @@ async function scheduleAutomaticCharacterImageGeneration(characterId){
   illustrationStatus(id,'⚠️ Portrait automatique non lancé. La régénération manuelle reste disponible.');
   return false;
 }
+const HGT_IMAGE_FLAGGED_MAX_RETRIES=20;
+const HGT_IMAGE_TRANSIENT_MAX_RETRIES=3;
+const hgtImageRetrySleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function hgtImageErrorText(err){return String(err?.message||err||'').toLowerCase()}
+function hgtImageIsFlagged(err){const t=hgtImageErrorText(err);return /flagged|safety|moderation|unsafe|content.?filter|output.?refus|image.?refus/.test(t)}
+function hgtImageIsQuota(err){const t=hgtImageErrorText(err);return /429|4006|daily free allocation|quota|neurons? used|allocation.*used|too many requests/.test(t)}
+function hgtImageIsTransient(err){const t=hgtImageErrorText(err);return /failed to fetch|network|timeout|timed out|d[ée]pass[ée]|temporar|unavailable|502|503|504|gateway|connection|edge function/.test(t)}
+async function hgtVaeloriaQuotaMessage(){
+  try{
+    const u=await getRollingNeuronUsage(),now=Date.now(),events=Array.isArray(u?.events)?u.events:[];
+    const next=events.filter(e=>new Date(e.releases_at).getTime()>now).sort((a,b)=>new Date(a.releases_at)-new Date(b.releases_at))[0];
+    if(next)return `⚡ Les réserves d’Énergie de Vaeloria sont épuisées. Prochaine recharge estimée : +${Number(next.neurons||0).toLocaleString('fr-FR',{maximumFractionDigits:2})} EV à ${formatHgtDateTime(next.releases_at)}.`;
+  }catch(_){ }
+  return '⚡ Les réserves d’Énergie de Vaeloria sont épuisées. Réessaie lorsque de l’EV sera de nouveau disponible.';
+}
+async function hgtInvokeImageWithRecovery(characterId,payload){
+  let flaggedCount=0,transientCount=0;
+  for(;;){
+    try{
+      const invokePromise=cloudClient.functions.invoke('Generate-character-image',{body:payload});
+      const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('generation timeout')),240000));
+      const result=await Promise.race([invokePromise,timeoutPromise]);
+      if(result?.error){
+        let detail=result.error.message||String(result.error);
+        try{if(result.error.context&&typeof result.error.context.json==='function'){const b=await result.error.context.json();detail=b?.error||b?.message||detail}}catch(_){ }
+        throw new Error(detail);
+      }
+      if(!result?.data?.success)throw new Error(result?.data?.error||'generation failed');
+      return result.data;
+    }catch(e){
+      if(hgtImageIsQuota(e))throw Object.assign(new Error(await hgtVaeloriaQuotaMessage()),{hgtFriendly:true,hgtQuota:true,cause:e});
+      if(hgtImageIsFlagged(e)){
+        flaggedCount++;
+        if(flaggedCount>=HGT_IMAGE_FLAGGED_MAX_RETRIES)throw Object.assign(new Error('🛡️ Les Arbitres ont rejeté 20 visions d’affilée. Même eux trouvent ça suspect. Génération interrompue pour éviter une consommation anormale.'),{hgtFriendly:true,cause:e});
+        const variants=['🛡️ Les Arbitres de Vaeloria ont refusé cette vision… Nouvelle tentative en cours.','🛡️ Encore rejetée par les Arbitres. Ils sont difficiles aujourd’hui… Nouvelle tentative en cours.','🛡️ Cette vision n’a pas franchi les portes de Vaeloria… Nouvelle tentative en cours.'];
+        illustrationStatus(characterId,variants[(flaggedCount-1)%variants.length]);
+        await hgtImageRetrySleep(Math.min(5000,1000+flaggedCount*250));
+        continue;
+      }
+      if(hgtImageIsTransient(e)&&transientCount<HGT_IMAGE_TRANSIENT_MAX_RETRIES){
+        transientCount++;
+        illustrationStatus(characterId,transientCount===1?'🌩️ Les communications avec Elyrion vacillent… Reconnexion en cours.':`🌀 Une perturbation traverse les strates de Vaeloria… Nouvelle tentative ${transientCount}/${HGT_IMAGE_TRANSIENT_MAX_RETRIES}.`);
+        await hgtImageRetrySleep([0,2000,5000,10000][transientCount]);
+        continue;
+      }
+      if(hgtImageIsTransient(e))throw Object.assign(new Error('🌌 Le lien avec Vaeloria est rompu. Impossible de poursuivre la génération pour le moment.'),{hgtFriendly:true,cause:e});
+      throw e;
+    }
+  }
+}
+async function hgtDownloadPortraitWithRecovery(characterId,path){
+  let last=null;
+  for(let attempt=1;attempt<=3;attempt++){
+    try{const remote=await cloudDownloadPortraitPath(path);if(remote)return remote;last=new Error('portrait absent')}catch(e){last=e}
+    if(attempt<3){illustrationStatus(characterId,'📜 Les Archives de Vaeloria ont égaré l’illustration… Recherche en cours.');await hgtImageRetrySleep(1200*attempt)}
+  }
+  throw Object.assign(new Error('📚 Les Archives refusent obstinément ce portrait. Impossible de l’enregistrer pour le moment.'),{hgtFriendly:true,cause:last});
+}
 async function invokeCharacterImageGeneration(characterId,{regenerate=false,champion=false,championSeason=null}={}){
   const busyKey=champion?`${characterId}::champion`:characterId;
   if(__imageGenerationBusy.has(busyKey)){illustrationStatus(characterId,'⏳ Une génération est déjà en cours…');return false}
@@ -5642,27 +5707,14 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
     // On passe par le client Supabase : il transmet la session active et évite le faux
     // « Failed to fetch » provoqué auparavant par l'appel du mauvais slug en premier.
     illustrationStatus(characterId,champion?'🏆 Envoi du portrait champion…':(regenerate?'🎨 Envoi de la régénération…':'🎨 Envoi de l’illustration automatique…'));
-    const invokePromise=cloudClient.functions.invoke('Generate-character-image',{body:payload});
-    const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('La génération a dépassé 4 minutes. Le verrou local a été libéré : tu peux réessayer.')),240000));
-    const {data,error}=await Promise.race([invokePromise,timeoutPromise]);
-    if(error){
-      let detail=error.message||String(error);
-      try{
-        if(error.context && typeof error.context.json==='function'){
-          const body=await error.context.json();
-          detail=body?.error||body?.message||detail;
-        }
-      }catch(_){ }
-      throw new Error(`Edge Function — ${String(detail).slice(0,500)}`);
-    }
-    if(!data?.success)throw new Error(data?.error||'Génération impossible');
+    const data=await hgtInvokeImageWithRecovery(characterId,payload);
 
     // QA is mandatory, but runs as a second Edge Function request on the image
     // that has already been generated and stored. A validator retry never calls
     // FLUX again and therefore never consumes another image-generation charge.
     let finalData=data;
     if(data?.validationPending){
-      illustrationStatus(characterId,'🔎 Image générée • validation visuelle obligatoire…');
+      illustrationStatus(characterId,'🔮 Les Oracles examinent l’illustration…');
       let validationData=null;
       let validationError=null;
       for(let validationAttempt=1;validationAttempt<=3;validationAttempt++){
@@ -5689,20 +5741,24 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
         }catch(e){
           validationError=e;
           if(validationAttempt<3){
-            illustrationStatus(characterId,`🔎 Validation temporairement indisponible • nouvelle tentative ${validationAttempt+1}/3…`);
+            illustrationStatus(characterId,`🔮 Les Oracles ne sont pas d’accord. Nouvelle consultation… ${validationAttempt+1}/3.`);
             await new Promise(resolve=>setTimeout(resolve,1500*validationAttempt));
           }
         }
       }
       if(!validationData){
-        throw new Error(`Image générée et conservée, mais validation obligatoire impossible après 3 tentatives : ${String(validationError?.message||validationError||'erreur inconnue').slice(0,300)}`);
+        // L'image FLUX existe déjà : ne jamais la jeter ni relancer FLUX pour une panne QA.
+        // On poursuit avec l'image stockée et on conserve validationPending pour une reprise ultérieure.
+        illustrationStatus(characterId,'🔮 Les Oracles restent silencieux après trois consultations. L’illustration est conservée ; sa validation sera reprise plus tard.');
+        finalData={...data,validationPending:true,validationError:String(validationError?.message||validationError||'')};
+      }else{
+        finalData={...data,validation:validationData.validation,validationPending:false};
       }
-      finalData={...data,validation:validationData.validation,validationPending:false};
     }
     // Exactly one FLUX generation per click. QA may retry independently on the
     // same stored image, and its correction feedback is used by the next manual regeneration.
     const generatedPath=finalData?.path||(champion?`${cloudGeneratedImageDir(characterId)}/${characterImageIdentity(characterId)}-Champion.png`:cloudGeneratedImagePath(characterId,portraitNumber));
-    const remote=await cloudDownloadPortraitPath(generatedPath);if(!remote)throw new Error('Image générée introuvable dans le Storage');
+    const remote=await hgtDownloadPortraitWithRecovery(characterId,generatedPath);
     if(champion){
       c.imageGeneration={...(c.imageGeneration||{}),championPath:generatedPath,championSeason:championSeason||null,championGeneratedAt:new Date().toISOString(),championModel:finalData?.model||'@cf/black-forest-labs/flux-2-klein-9b'};
       // Le portrait Champion 9B devient aussi le portrait principal du personnage.
@@ -5725,6 +5781,7 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
       lastValidationScore:Number(finalData?.validation?.score||0),
       lastCriticalPass:finalData?.validation?.criticalPass===true
     };
+    __invalidIllustrationThisSession.delete(characterId);
     if(regenerate)recordRegeneration(c);
     else c.imageGeneration.initialGeneratedAt=c.imageGeneration.initialGeneratedAt||new Date().toISOString();
     const rr=loadRoster();rr[c.id]=JSON.parse(JSON.stringify(c));saveRoster(rr);queueCloudCharacterSave(c);
@@ -5736,16 +5793,27 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
     // jamais laisser un portrait fantôme : on retire uniquement le cache local puis
     // on réaffiche le bouton ↻. Les éventuels vrais portraits cloud ne sont pas supprimés.
     if(!champion&&!regenerate){
+      __invalidIllustrationThisSession.add(characterId);
       await clearLocalIllustrationCache(characterId);
       const img=document.querySelector(`[data-illustration-for="${characterId}"]`);
       if(img){img.removeAttribute('src');img.style.display='none'}
       const ph=document.querySelector(`[data-illustration-placeholder-for="${characterId}"]`);
       if(ph)ph.style.display='flex';
     }
-    illustrationStatus(characterId,`⚠️ Génération impossible : ${msg.slice(0,220)}`);
+    const friendly=e?.hgtFriendly?msg:'🌌 Une anomalie inconnue perturbe Vaeloria. La génération a été interrompue ; tu peux réessayer.';
+    illustrationStatus(characterId,friendly);
     return false
   }
-  finally{__imageGenerationBusy.delete(busyKey);updateIllustrationPlaceholderState(characterId)}
+  finally{
+    __imageGenerationBusy.delete(busyKey);
+    updateIllustrationPlaceholderState(characterId);
+    if(!champion&&!regenerate&&__invalidIllustrationThisSession.has(characterId)){
+      const img=document.querySelector(`[data-illustration-for="${characterId}"]`);
+      const ph=document.querySelector(`[data-illustration-placeholder-for="${characterId}"]`);
+      if(img){if(img.dataset.objectUrl){URL.revokeObjectURL(img.dataset.objectUrl);delete img.dataset.objectUrl}img.removeAttribute('src');img.style.setProperty('display','none','important')}
+      if(ph){ph.style.setProperty('display','flex','important');updateIllustrationPlaceholderState(characterId)}
+    }
+  }
 }
 async function ensureChampionPortrait(characterId,season){
   const c=loadRoster()[characterId];if(!c)return false;
