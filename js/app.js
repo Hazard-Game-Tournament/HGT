@@ -130,30 +130,63 @@ function hasFinalRaceAlteration(c){
 }
 
 const RACE_MANDATORY_VISUAL_TRAITS={
+  'Humain':['anatomie humaine naturelle clairement conservée'],
+  'Elfe':['oreilles longues et nettement pointues','traits fins et élégants','silhouette élancée'],
   'Nain':['petite stature nettement visible','proportions naines compactes : torse relativement large et membres plus courts','carrure dense et robuste','centre de gravité bas'],
-  'Elfe':['oreilles nettement pointues','silhouette élancée et traits fins'],
-  'Orc':['mâchoire robuste','défenses inférieures visibles','carrure puissante'],
+  'Orc':['mâchoire robuste','défenses inférieures visibles','carrure puissante et musculature dense'],
   'Gobelin':['petite stature','grandes oreilles pointues','traits faciaux gobelins marqués'],
-  'Fée':['traits féeriques clairement visibles','ailes féeriques anatomiquement attachées au dos'],
-  'Neoxus':['peau noire, graphite ou bleu-noir techno-organique','réseau énergétique doré sous-cutané visible','yeux noirs cosmiques étoilés','quatre doigts aux mains','structures crâniennes organiques']
+  'Fée':['UNE PAIRE DE DEUX AILES FÉERIQUES clairement visibles, symétriques et anatomiquement attachées au haut du dos','traits féeriques clairement visibles; une simple aura, poussière lumineuse ou tatouage ne remplace jamais les ailes'],
+  'Géant':['stature gigantesque immédiatement lisible par comparaison avec l’environnement','proportions humanoïdes massives'],
+  'Vampire':['morphologie humanoïde','crocs vampiriques clairement visibles','teint surnaturel ou signes vampiriques discrets mais lisibles'],
+  'Loup-garou':['faciès lupin avec museau de loup clairement identifiable','oreilles lupines','fourrure visible','crocs et griffes','morphologie humanoïde bestiale'],
+  'Démon':['cornes démoniaques anatomiquement intégrées au crâne','traits surnaturels démoniaques clairement visibles','anatomie humanoïde non humaine sans remplacer les autres composantes raciales'],
+  'Ange':['UNE PAIRE DE DEUX GRANDES AILES EMPLUMÉES clairement visibles et anatomiquement attachées au dos','traits célestes clairement visibles; une aura ou un halo ne remplace jamais les ailes'],
+  'Esprit':['corps humanoïde partiellement spectral ou translucide','contours ou matière corporelle surnaturels clairement visibles'],
+  'Dragon humanoïde':['écailles draconiques clairement visibles','traits crâniens draconiques ou cornes','queue draconique anatomiquement reliée au corps'],
+  'Golem / Artificiel':['corps manifestement artificiel ou façonné','articulations et matière non organiques clairement visibles'],
+  'Extraterrestre':['biologie visiblement non humaine et extraterrestre','anatomie cohérente et non réduite à un humain avec maquillage'],
+  'Demi-dieu':['anatomie humanoïde','marques physiques surnaturelles traduisant une ascendance divine sans effacer les autres composantes'],
+  'Divinité':['présence divine physiquement lisible','marques corporelles surnaturelles cohérentes avec son domaine'],
+  'Dieu céleste':['présence divine céleste physiquement lisible','marques corporelles surnaturelles cohérentes avec son domaine'],
+  'Titan':['gigantisme immédiatement lisible','carrure titanesque et proportions monumentales'],
+  'Titan primordial':['gigantisme primordial immédiatement lisible','anatomie titanesque monumentale et ancienne'],
+  'Titan fondateur':['gigantisme fondateur immédiatement lisible','anatomie titanesque monumentale'],
+  'Squelette':['corps squelettique réellement constitué d’os visibles','crâne osseux clairement identifiable','aucune chair humaine normale recouvrant l’ensemble du corps'],
+  'Liche':['nature morte-vivante immédiatement lisible','anatomie desséchée, cadavérique ou squelettique','magie innée visible comme manifestation secondaire sans remplacer le corps de mort-vivant'],
+  'Cyborg':['fusion anatomique claire de chair et de composants cybernétiques','implants mécaniques réellement intégrés au corps'],
+  'N.E.X.U.S.':['corps techno-organique clairement visible','structures biologiques et technologiques fusionnées en une seule anatomie cohérente'],
+  'Neoxus':['peau noire, graphite ou bleu-noir techno-organique','réseau énergétique doré sous-cutané visible','yeux noirs cosmiques étoilés','exactement quatre doigts aux mains','structures crâniennes organiques'],
+  'Deus Machina':['fusion corporelle visible du divin et du techno-organique; aucun des deux aspects ne doit disparaître'],
+  'Titan céleste':['gigantisme primordial immédiatement lisible','manifestations divines célestes intégrées à l’anatomie titanesque'],
+  'Colosse Nexus':['gigantisme primordial immédiatement lisible','corps techno-organique intégré à l’anatomie titanesque'],
+  'Drakéon':['fusion visible d’une lignée draconique pure et d’une lignée de Dieu céleste','manifestations divines intégrées à l’anatomie draconique sans l’effacer'],
+  'Nexaryx':['fusion visible d’une lignée draconique pure et de caractères techno-organiques Neoxus','aucune des deux lignées ne doit être réduite à une simple aura'],
+  'Tyrakhan':['fusion visible d’une lignée draconique pure et d’une anatomie de Titan fondateur','gigantisme et caractères draconiques doivent rester simultanément lisibles']
 };
 function activeRaceComponentsFromCharacter(c){
   if(hasFinalRaceAlteration(c)){
     const finalRace=String(c?.race||'');
-    return finalRace&&finalRace!=='Hybride'?[{race:finalRace,component:{race:finalRace}}]:[];
+    return finalRace&&finalRace!=='Hybride'?[{race:finalRace,component:{race:finalRace},role:'final'}]:[];
   }
-  const L=c?.lineage||{},out=[];
-  const add=x=>{if(!x)return;const o=typeof x==='string'?{race:x}:x;if(o.race)out.push({race:o.race,component:o})};
-  if(c?.race==='Hybride'){add(L.hybridCompA);add(L.hybridCompB)}
-  else if(L.primaryComponent)add(L.primaryComponent);
-  else add(c?.race);
+  const L=c?.lineage||{},out=[],seen=new Set();
+  const add=(x,role='component')=>{if(!x)return;const o=typeof x==='string'?{race:x}:x;const race=String(o?.race||'').trim();if(!race||seen.has(race))return;seen.add(race);out.push({race,component:o,role})};
+  if(c?.race==='Hybride'){
+    add(L.hybridCompA,'hybrid-A'); add(L.hybridCompB,'hybrid-B');
+  }else{
+    add(L.primaryComponent,'primary');
+    // Certaines races transformées (ex. Loup-garou) n'ont pas de primaryComponent :
+    // la race actuelle reste obligatoire ET la race d'origine conserve ses marqueurs physiques.
+    if(!L.primaryComponent)add(c?.race,'current');
+    add(L.originComponent||L.originRace,'origin');
+  }
+  if(!out.length)add(c?.race,'current');
   return out;
 }
 function nonBeastRacialVisualTraitsFromCharacter(c){
   const out=[];
-  for(const {race} of activeRaceComponentsFromCharacter(c)){
+  for(const {race,role} of activeRaceComponentsFromCharacter(c)){
     if(race==='Homme-bête')continue;
-    for(const trait of (RACE_MANDATORY_VISUAL_TRAITS[race]||[]))out.push(`${race}: ${trait}`);
+    for(const trait of (RACE_MANDATORY_VISUAL_TRAITS[race]||[]))out.push(`${race}${role==='origin'?' (race d’origine, héritage physique obligatoire)':''}: ${trait}`);
   }
   return [...new Set(out)];
 }
@@ -161,8 +194,8 @@ function hybridScaleVisualRules(c){
   const comps=activeRaceComponentsFromCharacter(c).map(x=>x.race);
   const h=Number.parseFloat(String(c?.size||'').replace(',','.'));
   const rules=[];
-  if(comps.length>1)rules.push(`HYBRID FUSION — the final body must visibly combine BOTH racial components (${comps.join(' + ')}); neither component may be reduced to a hidden lore note.`);
-  if(Number.isFinite(h)&&h<=1.2)rules.push(`MANDATORY SCALE — the character is only ${String(c.size)} tall. Make this unmistakable with nearby standard-size architecture, furniture, equipment or a secondary humanoid scale reference; do not frame them so they read as average human height.`);
+  if(comps.length>1)rules.push(`HYBRID / RACIAL FUSION — the final body must visibly and anatomically combine ALL racial components (${comps.join(' + ')}). Each component must retain its mandatory physical markers; no component may be reduced to lore, clothing, aura, tattoos, color, magic particles or background effects.`);
+  if(Number.isFinite(h)&&h<=1.5)rules.push(`MANDATORY SCALE — the character is only ${String(c.size)} tall. Make this unmistakable with nearby standard-size architecture, furniture, equipment or a secondary humanoid scale reference; do not frame them so they read as average human height.`);
   return rules;
 }
 function beastComponentsFromCharacter(c){
@@ -327,36 +360,36 @@ const chaos=['Réalité instable','Manipulation de probabilité','Réflexion','I
 const weapons=['Épée','Épée à deux mains','Katana','Dagues doubles','Hache','Hache à deux mains','Marteau de guerre','Rope Dart / Corde-dard','Lance','Hallebarde','Faux','Bâton','Nunchaku','Chaîne / Kusarigama','Fouet','Gantelets de combat','Bouclier offensif','Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique','Grimoire / catalyseur','Arme improvisée','Aucune arme','Arme unique'];
 const DRAGON_TAIL_WEAPONS=['Lame caudale','Masse caudale','Pointe perforante','Faux caudale','Massue épineuse','Queue barbelée','Pince caudale','Dard caudal','Foreuse caudale','Arme caudale unique'];
 const CLASSIC_WEAPON_TRAITS={
-'Épée':['une seule lame droite','longueur intermédiaire','poignée à une main','garde distincte','pommeau'],
-'Épée à deux mains':['une seule longue lame droite','poignée suffisamment longue pour deux mains','garde large','proportions nettement supérieures à une épée normale'],
-'Katana':['une seule lame longue légèrement courbe','tranchant unique','poignée longue gainée','petite garde circulaire ou polygonale'],
-'Dagues doubles':['deux dagues distinctes','une dans chaque main','lames courtes','poignées à une main','dimensions similaires'],
-'Hache':['manche à une main','tête de hache clairement identifiable','lame montée transversalement au manche'],
+'Épée':['une seule lame droite de longueur intermédiaire','garde distincte','poignée conçue pour UNE main','pommeau distinct','INTERDIT : seconde lame, manche de lance, proportions d’épée à deux mains'],
+'Épée à deux mains':['une seule très longue lame droite','grande garde','longue poignée permettant DEUX mains espacées','les DEUX mains tiennent simultanément la poignée en combat','INTERDIT : prise à une main, poignée courte, proportions d’épée normale'],
+'Katana':['une seule lame longue légèrement courbe à tranchant unique','tsuba distincte','longue tsuka gainée permettant une prise à deux mains','en combat les DEUX mains tiennent la tsuka avec une prise espacée','INTERDIT : lame droite occidentale, double tranchant, grande garde européenne'],
+'Dagues doubles':['EXACTEMENT DEUX dagues distinctes de dimensions similaires','lames courtes','une dague tenue dans chaque main','INTERDIT : troisième arme, lames longues d’épée, fusion des deux dagues'],
+'Hache':['manche court ou moyen conçu pour UNE main','une tête de hache de guerre clairement identifiable montée transversalement au manche','large lame de hache','INTERDIT : très long manche, hallebarde, hache à deux mains, petite hachette d’outil'],
 'Hache à deux mains':['très long manche droit, proche de la taille du porteur','les DEUX mains tiennent simultanément le manche avec une prise espacée','une seule grosse et lourde tête de hache de guerre montée à l’extrémité du manche','large lame de hache clairement identifiable','proportions d’une arme lourde à deux mains','INTERDIT : hachette, petite hache, hache à une main, hallebarde, lance ou tête de hache minuscule'],
-'Marteau de guerre':['manche robuste','lourde tête de marteau','surface de frappe massive','arme clairement conçue pour le combat et non comme un petit marteau d’outil'],
-'Rope Dart / Corde-dard':['EXIGENCE FORTE : une longue corde réellement souple, continue et clairement identifiable','la corde est ENROULÉE PLUSIEURS FOIS AUTOUR DE L’AVANT-BRAS du combattant avant de passer par sa main','la corde sort clairement de la main et se prolonge sans interruption jusqu’au projectile','un seul dard métallique, une pointe ou une petite lame est fixé UNIQUEMENT à l’extrémité libre de la corde','montrer visuellement la continuité complète : avant-bras entouré de corde → main qui contrôle la corde → longueur de corde libre → pointe/lame terminale','aucun manche rigide, aucune hampe, aucune poignée de fouet, aucune transformation en lance, fouet rigide ou arme à chaîne'],
-'Lance':['long manche droit','une pointe principale à l’extrémité','arme nettement plus longue qu’une épée','prise à une ou deux mains'],
-'Hallebarde':['long manche','pointe supérieure','large lame de hache latérale près de l’extrémité','tête combinant clairement lance et hache'],
-'Faux':['long manche','grande lame courbe montée perpendiculairement au manche','lame unique principale','proportions adaptées au combat'],
-'Bâton':['long bâton rigide et droit','tenu à une ou deux mains','aucune lame ni pointe','longueur proche ou supérieure à la taille du porteur'],
-'Nunchaku':['EXIGENCE FORTE : exactement deux bâtons courts distincts de longueur similaire','les deux bâtons sont reliés UNIQUEMENT par une courte chaîne ou corde souple clairement visible','chaque bâton reste court : aucun ne doit devenir un bâton long, une canne, une lame ou une arme à hampe','silhouette immédiatement reconnaissable comme un nunchaku traditionnel','si l’arme est déployée, la liaison souple doit relier directement les extrémités des deux bâtons'],
-'Chaîne / Kusarigama':['EXIGENCE FORTE : kusarigama structurellement lisible','une faucille à manche court avec lame courbe clairement identifiable','une longue chaîne métallique souple reliée à la faucille','un poids métallique distinct à l’autre extrémité de la chaîne','faucille, chaîne et poids restent trois éléments distincts et correctement reliés','ne doit pas devenir une faux longue, un fouet ou une simple chaîne'],
-'Fouet':['poignée courte','longue lanière souple et flexible','extrémité effilée','arme représentée courbée ou en mouvement plutôt que comme une tige rigide'],
-'Gantelets de combat':['deux gantelets, un sur chaque main','couvrent mains et poignets','renforcés pour frapper','poings utilisables normalement','aucune arme séparée tenue en main'],
-'Bouclier offensif':['bouclier porté au bras ou tenu en main','surface de protection clairement identifiable','bords ou renforts conçus pour frapper','dimensions permettant simultanément attaque et défense'],
-'Arc':['corps d’arc courbé','corde reliant ses deux extrémités','flèche distincte utilisée comme projectile','aucune mécanique d’arbalète'],
-'Arbalète':['EXIGENCE FORTE : silhouette immédiatement reconnaissable comme une arbalète','corps rigide longitudinal','arc transversal perpendiculaire au corps','corde reliant les deux branches de l’arc','mécanisme de détente','carreau positionné dans l’axe de tir','ne doit pas devenir un arc tenu verticalement ni un fusil sans arc transversal'],
-'Pistolet':['EXIGENCE FORTE : silhouette immédiatement reconnaissable comme un pistolet','arme à feu compacte avec un seul canon court aligné avec la culasse','poignée de pistolet distincte sous l’arrière de la culasse','pontet et détente à la jonction poignée/culasse','tenue principalement à une main','aucune crosse longue, aucun canon de fusil, aucune lame remplaçant le canon','géométrie mécanique cohérente : canon, culasse, poignée et détente ne doivent pas fusionner ou se tordre'],
-'Fusil':['EXIGENCE FORTE : silhouette immédiatement reconnaissable comme un fusil','un canon long orienté dans un seul axe','crosse clairement épaulable derrière le mécanisme','poignée, pontet et détente placés de façon fonctionnelle','tenue à deux mains avec une main à la poignée et l’autre soutenant l’avant','aucune lame principale, aucun canon tordu ou interrompu','géométrie mécanique cohérente du canon à la crosse'],
-'Fusil de précision':['EXIGENCE FORTE : silhouette immédiatement reconnaissable comme un fusil de précision','canon unique particulièrement long et rectiligne','crosse épaulable alignée avec le canon','lunette de visée tubulaire clairement visible au-dessus du boîtier','poignée, détente et garde-main fonctionnels','tenue à deux mains','aucune lame, aucun arc, aucun canon multiple ou structure fusionnée incohérente'],
-'Fusil à pompe':['EXIGENCE FORTE : silhouette immédiatement reconnaissable comme un fusil à pompe','canon long et relativement large','crosse épaulable','garde-main coulissant distinct placé sous le canon','poignée et détente fonctionnelles','tenue à deux mains','pas de chargeur de fusil d’assaut dominant, pas de lunette de précision obligatoire, aucune lame ou fusion incohérente'],
-'Mitrailleuse':['EXIGENCE FORTE : silhouette immédiatement reconnaissable comme une mitrailleuse','arme à feu lourde avec canon long clairement identifiable','alimentation visible et plausible par bande de munitions ou grand chargeur','boîtier mécanique massif, poignée et détente cohérents','tenue à deux mains ou supportée de façon plausible','aucune lame principale, aucun canon déformé, aucune fusion avec une autre arme'],
-'Lance-roquettes':['EXIGENCE FORTE : silhouette immédiatement reconnaissable comme un lance-roquettes','grand tube de lancement rigide et rectiligne','ouverture de bouche circulaire clairement visible à l’avant','arme portée ou épaulée de façon plausible','poignée, viseur ou commandes fixés au tube sans remplacer sa forme principale','aucune lame, aucun canon de fusil fin, aucune fusion incohérente avec une autre arme'],
-'Arme énergétique':['arme technologique','source ou cœur énergétique clairement visible','parties émettrices lumineuses','construction artificielle cohérente','énergie intégrée à l’arme et non simple aura autour d’une arme classique'],
-'Grimoire / catalyseur':['livre magique physique clairement identifiable','pages ou couverture visibles','tenu ou flottant près du porteur','sert directement de foyer au pouvoir','manifestations magiques provenant du grimoire'],
-'Arme improvisée':['objet normalement non conçu comme une arme','objet physique clairement identifiable','utilisé directement pour combattre','ne doit pas prendre spontanément la forme d’une arme conventionnelle'],
-'Aucune arme':['aucune arme tenue, portée ou flottant autour du personnage','aucune arme dans les mains','pas d’arme attachée au dos ou à la ceinture'],
-'Arme unique':['arme originale ne correspondant clairement à aucun des types standards','conception fonctionnelle et cohérente','forme distinctive','une seule identité d’arme sans assemblage aléatoire incohérent']};
+'Marteau de guerre':['long manche robuste','lourde tête métallique de marteau montée perpendiculairement au manche','surface de frappe massive clairement identifiable','les DEUX mains tiennent le manche pour le modèle lourd','INTERDIT : petit marteau d’outil, masse sphérique, tête de hache'],
+'Rope Dart / Corde-dard':['EXIGENCE FORTE : une longue corde réellement souple, continue et clairement identifiable','la corde est enroulée plusieurs fois autour de l’avant-bras avant de passer par la main qui la contrôle','la corde sort de la main et se prolonge SANS INTERRUPTION jusqu’au projectile','EXACTEMENT UN petit dard métallique, pointe ou petite lame uniquement à l’extrémité libre','continuité visible : avant-bras entouré de corde → main → corde libre → dard terminal','INTERDIT : manche rigide, hampe, poignée de fouet, chaîne métallique, lance, multiples pointes'],
+'Lance':['très longue hampe droite et continue','EXACTEMENT UNE pointe de lance principale alignée à une extrémité','les DEUX mains tiennent la hampe avec une prise espacée en combat','INTERDIT : lame de hache latérale, chaîne, manche court, hallebarde'],
+'Hallebarde':['très longue hampe droite','tête unique composée d’une pointe supérieure ET d’une grande lame de hache latérale près de la même extrémité','les DEUX mains tiennent la hampe avec une prise espacée','INTERDIT : simple lance, simple hache, composants flottants ou séparés'],
+'Faux':['très long manche','EXACTEMENT UNE longue lame fortement courbée montée presque perpendiculairement à l’extrémité','les DEUX mains tiennent le manche','INTERDIT : petite faucille, kusarigama, chaîne, hallebarde'],
+'Bâton':['long bâton rigide, droit et continu','longueur proche ou supérieure à la taille du porteur','les DEUX mains le contrôlent avec une prise espacée en combat','AUCUNE lame, pointe, chaîne ou tête de masse'],
+'Nunchaku':['EXIGENCE FORTE : EXACTEMENT DEUX bâtons COURTS distincts et de longueur similaire','les deux bâtons sont reliés DIRECTEMENT et UNIQUEMENT par UNE courte chaîne ou corde souple clairement visible','aucun troisième segment','INTERDIT : bâton long, canne, lance, deux armes séparées'],
+'Chaîne / Kusarigama':['EXIGENCE FORTE : kusarigama traditionnel structurellement lisible','UNE faucille à MANCHE COURT avec une seule lame courbe clairement identifiable','UNE longue chaîne métallique souple reliée DIRECTEMENT à la faucille','UN poids métallique lourd et distinct fixé à l’AUTRE extrémité de la chaîne','faucille + chaîne + poids = EXACTEMENT trois composants fonctionnels, distincts et correctement connectés','la chaîne ne traverse pas une ceinture, un anneau de vêtement ou un élément du décor','INTERDIT : faux longue, seconde faucille, fouet, simple chaîne, lame montée sur une longue hampe'],
+'Fouet':['UNE poignée courte clairement identifiable','UNE longue lanière souple continue qui s’amincit vers son extrémité','une main tient la poignée','INTERDIT : chaîne rigide, dard/lame terminale, rope dart, kusarigama, tige rigide'],
+'Gantelets de combat':['EXACTEMENT DEUX gantelets portés sur les mains et avant-bras','les mains et doigts restent anatomiquement à l’intérieur des gantelets','renforcés pour frapper','INTERDIT : gantelets flottants, mains supplémentaires, arme séparée tenue dans les mêmes mains'],
+'Bouclier offensif':['UN bouclier clairement identifiable fixé ou tenu par un avant-bras/main','large surface protectrice','bossage, bord ou renfort utilisable pour frapper','INTERDIT : simple brassard, seconde arme fusionnée au bouclier sans cohérence'],
+'Arc':['corps d’arc courbé continu','corde tendue reliant directement les deux extrémités','UNE flèche distincte encochée lorsque le personnage tire','une main tient l’arc et l’autre tire réellement la corde','INTERDIT : mécanisme de détente, fût d’arbalète, corde absente'],
+'Arbalète':['EXIGENCE FORTE : silhouette immédiatement reconnaissable comme une arbalète','fût rigide longitudinal','arc transversal perpendiculaire au fût','corde tendue reliant les deux branches','mécanisme de détente','carreau aligné sur le rail de tir','tenue à deux mains','INTERDIT : arc vertical classique, fusil dépourvu d’arc transversal'],
+'Pistolet':['silhouette immédiatement reconnaissable comme un pistolet','un seul canon COURT aligné avec la culasse/carcasse','poignée inclinée sous l’arrière de la carcasse','détente et pontet correctement placés','AUCUNE crosse longue','INTERDIT : canon de fusil, chargeur courbe externe dominant, lame fusionnée'],
+'Fusil':['silhouette immédiatement reconnaissable comme un fusil','UN canon long et rectiligne','boîtier mécanique','crosse clairement épaulée derrière le mécanisme','poignée/détente fonctionnelles','deux mains : main arrière à la poignée/détente, main avant sous le garde-main','INTERDIT : pistolet agrandi, crosse absente, lame principale, canon tordu'],
+'Fusil de précision':['UN très long canon rectiligne','crosse épaulée alignée avec le canon','lunette tubulaire montée AU-DESSUS du boîtier et alignée avec le canon','poignée/détente et garde-main fonctionnels','deux mains en position de tir stable','INTERDIT : lunette flottante ou latérale, canon court, silhouette de fusil d’assaut générique'],
+'Fusil à pompe':['silhouette immédiatement reconnaissable comme un fusil à pompe','UN canon long et relativement large','UN tube-magasin parallèle directement SOUS le canon','UN garde-main coulissant / pompe distinct autour ou le long du tube-magasin','crosse épaulée','main arrière sur poignée/détente ET main avant SUR LA POMPE','INTERDIT : chargeur courbe type fusil d’assaut, pompe absente, tube-magasin absent, lunette de précision obligatoire, lame'],
+'Mitrailleuse':['arme à feu lourde immédiatement reconnaissable','canon long et lourd','boîtier massif','alimentation visible et plausible par bande ou grand chargeur','crosse, poignées ou support cohérents','tenue/support à deux mains','INTERDIT : petit fusil d’assaut générique, pistolet, alimentation incohérente, lame'],
+'Lance-roquettes':['GRAND tube de lancement rigide et rectiligne constituant la forme principale','large bouche de lancement visible à l’avant et axe continu','zone arrière d’évacuation cohérente','porté/épaulé et contrôlé à deux mains','viseur/poignées fixés au tube','INTERDIT : fusil conventionnel à canon fin, chargeur de fusil, lance de mêlée, lame'],
+'Arme énergétique':['arme technologique construite autour d’un émetteur ou cœur énergétique physiquement identifiable','poignée/zone de contrôle et structure porteuse cohérentes','partie émettrice clairement connectée au corps de l’arme','l’énergie complète la structure mais ne remplace pas sa mécanique','INTERDIT : simple arme classique entourée d’une aura, composants flottants, lame ajoutée arbitrairement'],
+'Grimoire / catalyseur':['objet magique PHYSIQUE clairement identifiable','si grimoire : couverture, épaisseur et pages visibles; si catalyseur : foyer matériel distinct','tenu ou flottant à proximité immédiate du porteur','la manifestation magique émane de cet objet','INTERDIT : simple halo ou pages isolées sans objet source'],
+'Arme improvisée':['le SOUS-TYPE réellement tiré doit rester immédiatement reconnaissable comme l’objet d’origine','sa forme réelle est conservée même s’il est renforcé ou enchanté','utilisé directement pour combattre','INTERDIT : transformation spontanée en épée, lance, hache ou autre arme conventionnelle'],
+'Aucune arme':['AUCUNE arme tenue, portée, attachée, posée comme équipement ou flottant autour du personnage','mains sans arme','dos et ceinture sans arme'],
+'Arme unique':['la description unique générée définit obligatoirement la topologie de l’arme','nombre de pièces, lames/projectiles, poignées/manches et connexions décrits doivent rester cohérents et lisibles','une seule identité fonctionnelle','INTERDIT : assemblage aléatoire de plusieurs armes incompatibles ou disparition des composants majeurs décrits']};
 const NEXUS_WEAPON_TRAITS={
 'Lame':['lame techno-organique','matière noire ou graphite','tranchant ou réseau énergétique doré','structure continue et organique','aucune apparence d’épée métallique conventionnelle'],
 'Griffes':['griffes intégrées aux mains ou avant-bras','plusieurs lames organiques','matière techno-organique sombre','énergie dorée interne','aucune arme séparée tenue en main'],
@@ -425,7 +458,35 @@ function dragonComponentsFromCharacter(c){
 }
 function dragonVisualTraitsFromCharacter(c){const out=[];for(const d of dragonComponentsFromCharacter(c)){const blood=String(d.dragonBlood||'Ancestral'),st=superiorStage(d);if(blood==='Ancestral'){if(st<3)out.push('Lignée draconique ancestrale: UNE PAIRE DE GRANDES AILES DRACONIQUES MEMBRANEUSES clairement visibles et anatomiquement attachées au dos, même sous forme humanoïde; ne jamais les omettre ni les remplacer par une aura');else out.push('Dragon ancestral pur: véritable dragon non humanoïde à EXACTEMENT SIX MEMBRES — quatre pattes distinctes + deux grandes ailes draconiques membraneuses — avec longue queue et corps colossal')}else{if(st<3)out.push('Lignée draconique originelle: AUCUNE AILE; conserver une morphologie humanoïde avec caractères draconiques sans inventer d’ailes');else out.push('Dragon originel pur: véritable dragon non humanoïde au corps long et serpentin, EXACTEMENT QUATRE MEMBRES et AUCUNE AILE')}}return out;}
 function dragonValidationRulesFromCharacter(c){const out=[];for(const d of dragonComponentsFromCharacter(c)){const blood=String(d.dragonBlood||'Ancestral'),st=superiorStage(d);if(blood==='Ancestral'){out.push(st<3?'VALIDATION DRAGON ANCESTRAL — même en forme humanoïde/basique, une paire de grandes ailes draconiques membraneuses doit être clairement visible et reliée anatomiquement au dos. Si les deux ailes sont absentes, cachées, réduites à des effets d’énergie ou non reconnaissables, CRITICAL FAIL.':'VALIDATION DRAGON ANCESTRAL PUR — vérifier exactement quatre pattes + deux ailes draconiques, soit six membres. Toute aile manquante ou tout nombre de membres incorrect = CRITICAL FAIL.')}else out.push(st<3?'VALIDATION DRAGON ORIGINEL — aucune aile ne doit être présente. Des ailes inventées = CRITICAL FAIL.':'VALIDATION DRAGON ORIGINEL PUR — corps serpentin, exactement quatre membres, aucune aile. Toute aile = CRITICAL FAIL.')}return out;}
-function weaponValidationRulesFromCharacter(c){const out=[];const firearmNames=['Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes'];for(const w of (c?.weapons||[])){const n=String(w?.name||'');if(!n||n==='Aucune arme')continue;const traits=(w.mandatoryWeaponTraits?.length?w.mandatoryWeaponTraits:weaponTraitsFor(n,w.weaponSystem||'classic'));if(traits.length)out.push(`VALIDATION ARME — ${n}: tous les traits structurels listés sont obligatoires. Si la silhouette, le nombre de composants, leurs connexions ou leur géométrie ne correspondent pas, considérer l'arme comme incorrecte et demander une correction.`);if(firearmNames.includes(n))out.push(`VALIDATION ARME À FEU — ${n}: vérifier explicitement une géométrie mécanique plausible et lisible (axe du canon, bouche, boîtier, poignée/détente, crosse si requise). Rejeter toute arme fondue, tordue, hybride avec une lame, ou dont le type exact n'est pas immédiatement reconnaissable.`);if(n==='Hache à deux mains')out.push('VALIDATION HACHE À DEUX MAINS : exiger un très long manche droit tenu simultanément par les DEUX mains avec une prise espacée, et une grosse tête de hache de guerre lourde à large lame montée à son extrémité. Rejeter si le manche est court, si une seule main tient activement l’arme, si la tête est petite ou ambiguë, ou si la silhouette ressemble à une hachette, une hache à une main, une hallebarde ou une lance.');if(n==='Nunchaku')out.push('VALIDATION NUNCHAKU : il doit y avoir exactement DEUX bâtons COURTS distincts reliés par UNE liaison souple courte et visible. Rejeter si un bâton est long, si la liaison manque, ou si l’objet ressemble à une canne, une lance, un bâton ou deux armes séparées.');if(n==='Rope Dart / Corde-dard')out.push('VALIDATION ROPE DART / CORDE-DARD : la corde doit être visiblement enroulée plusieurs fois autour de l’avant-bras, passer par la main qui la contrôle, puis continuer sans interruption jusqu’à UNE SEULE pointe, dard ou petite lame terminale. Si l’enroulement autour de l’avant-bras manque, si la continuité de la corde est illisible, si le projectile n’est pas terminal, ou si l’arme ressemble à une lance, un fouet à poignée rigide ou une chaîne, demander une correction.');if(['Arbalète','Chaîne / Kusarigama','Rope Dart / Corde-dard','Fouet','Arc'].includes(n))out.push(`VALIDATION ARME COMPLEXE — ${n}: contrôler explicitement la topologie de l'arme (nombre de pièces, orientation et connexions). Le nom seul ne suffit pas.`)}return out;}
+function weaponValidationRulesFromCharacter(c){
+  const out=[];
+  const firearmNames=['Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes'];
+  const topologyNames=['Arc','Arbalète','Nunchaku','Chaîne / Kusarigama','Rope Dart / Corde-dard','Fouet','Hallebarde','Faux'];
+  const exact={
+    'Épée à deux mains':'VALIDATION ÉPÉE À DEUX MAINS — très longue lame, longue poignée et DEUX mains simultanément sur la poignée. Une prise à une main ou des proportions d’épée normale = FAIL.',
+    'Hache à deux mains':'VALIDATION HACHE À DEUX MAINS — très long manche tenu simultanément par les DEUX mains avec prise espacée + grosse tête de hache lourde à large lame. Manche court, une seule main, petite tête, hallebarde ou lance = FAIL.',
+    'Nunchaku':'VALIDATION NUNCHAKU — EXACTEMENT deux bâtons COURTS reliés directement par UNE liaison souple courte visible. Bâton long, troisième segment, liaison absente ou armes séparées = FAIL.',
+    'Chaîne / Kusarigama':'VALIDATION KUSARIGAMA — exiger EXACTEMENT une faucille à manche court + une longue chaîne souple directement reliée à la faucille + un poids métallique distinct à l’autre extrémité. La chaîne ne doit traverser ni ceinture ni anneau de vêtement. Faux longue, seconde faucille, simple chaîne, fouet ou connexion incorrecte = CRITICAL FAIL.',
+    'Rope Dart / Corde-dard':'VALIDATION ROPE DART — corde souple continue enroulée autour de l’avant-bras, passant par la main puis allant sans interruption jusqu’à UNE SEULE petite pointe terminale. Hampe rigide, chaîne, multiples pointes ou continuité illisible = FAIL.',
+    'Arc':'VALIDATION ARC — corps courbe + corde réellement tendue entre les deux extrémités; en tir, une main tient l’arc et l’autre tire la corde avec la flèche encochée. Corde absente ou mécanique d’arbalète = FAIL.',
+    'Arbalète':'VALIDATION ARBALÈTE — fût longitudinal + arc transversal + corde + détente + carreau aligné. Si l’arc transversal ou sa connexion au fût manque, = FAIL.',
+    'Fusil à pompe':'VALIDATION FUSIL À POMPE — exiger canon long + tube-magasin parallèle SOUS le canon + pompe coulissante distincte + crosse; main avant sur la pompe. Chargeur courbe type fusil d’assaut, tube absent ou pompe absente = CRITICAL FAIL.',
+    'Fusil de précision':'VALIDATION FUSIL DE PRÉCISION — très long canon + crosse épaulée + lunette tubulaire fixée au-dessus et alignée avec le canon. Lunette flottante/décalée ou canon court = FAIL.',
+    'Lance-roquettes':'VALIDATION LANCE-ROQUETTES — grand tube de lancement constituant la silhouette principale, épaulé et contrôlé de façon plausible. Silhouette de fusil conventionnel ou canon fin = FAIL.',
+    'Aucune arme':'VALIDATION AUCUNE ARME — aucune arme ne doit apparaître dans les mains, sur le dos, à la ceinture ou flottant autour du personnage.'
+  };
+  for(const w of (c?.weapons||[])){
+    const n=String(w?.name||''); if(!n)continue;
+    const traits=(w.mandatoryWeaponTraits?.length?w.mandatoryWeaponTraits:weaponTraitsFor(n,w.weaponSystem||'classic'));
+    if(traits.length)out.push(`VALIDATION ARME — ${n}: vérifier CHAQUE trait structurel obligatoire séparément (nombre de composants, proportions, connexions, orientation et prise en main). Un enchantement ou effet visuel ne peut jamais remplacer, masquer ou modifier la topologie fondamentale de l’arme.`);
+    if(firearmNames.includes(n))out.push(`VALIDATION ARME À FEU — ${n}: axe du canon continu jusqu’à la bouche, boîtier, poignée/détente et crosse si requise doivent former une mécanique plausible et connectée. Rejeter arme fondue, tordue, hybride avec une lame ou type exact non reconnaissable.`);
+    if(topologyNames.includes(n))out.push(`VALIDATION TOPOLOGIE — ${n}: compter explicitement les pièces et vérifier leurs connexions physiques. Le nom ou la ressemblance générale ne suffit pas.`);
+    if(exact[n])out.push(exact[n]);
+    if(n==='Arme improvisée'&&w.detail)out.push(`VALIDATION ARME IMPROVISÉE — l’objet tiré « ${w.detail} » doit rester physiquement reconnaissable comme cet objet précis; l’enchantement ne peut pas le transformer en arme conventionnelle.`);
+    if(n==='Arme unique'&&w.detail)out.push(`VALIDATION ARME UNIQUE — respecter littéralement la structure décrite par « ${w.detail} » et rejeter toute disparition, fusion ou ajout incohérent d’un composant majeur.`);
+  }
+  return out;
+}
 function weaponHandlingRulesFromCharacter(c){
   const normText=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const ws=(c?.weapons||[]).filter(w=>w?.name&&normText(w.name)!=='aucune arme');
