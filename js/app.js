@@ -1542,9 +1542,7 @@ function openCharacterDetail(id){
       <div class="detail-box"><h4>Historique exact</h4>${exactHistoryHtml(s)}</div>
     </div>
   </div>
-  <div class="detail-export-actions" style="display:flex;justify-content:center;margin:18px 0 8px">
-    <button class="smallbtn" onclick="exportCharacterSheetImage('${id}')">📥 Exporter fiche perso</button>
-  </div>`;
+`;
   characterDetail.classList.add('active');
   rosterList.style.display='none';
   document.getElementById('detailBackBtn').onclick=closeCharacterDetail;
@@ -2426,6 +2424,7 @@ function illustrationControlsHtml(characterId){
       <div class="illustration-actions">
         <button class="smallbtn" onclick="regenerateCharacterIllustration('${characterId}')">🔄 Régénérer l’illustration</button>
         <button class="smallbtn" onclick="removeIllustrationFor('${characterId}')">🗑️ Retirer l’illustration</button>
+        <button class="smallbtn" onclick="exportCharacterSheetImage('${characterId}')">📥 Exporter fiche perso</button>
         <button class="smallbtn" onclick="exportCharacterJson('${characterId}')">💾 Exporter cette fiche en JSON</button>
       </div>
     </div>`;
