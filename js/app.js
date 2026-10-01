@@ -2494,6 +2494,19 @@ function illustrationThumbHtml(characterId){
   </span>`;
 }
 
+async function clearLocalIllustrationCache(characterId){
+  try{
+    const db=await openIllustrationDB();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(ILLUSTRATION_STORE,'readwrite');
+      tx.objectStore(ILLUSTRATION_STORE).delete(characterImageIdentity(characterId));
+      tx.objectStore(ILLUSTRATION_STORE).delete(characterId);
+      tx.oncomplete=()=>resolve(true);
+      tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){console.warn('Nettoyage cache illustration impossible',characterId,e)}
+}
+
 async function refreshIllustrationFor(characterId){
   const img=document.querySelector(`[data-illustration-for="${characterId}"]`);
   const ph=document.querySelector(`[data-illustration-placeholder-for="${characterId}"]`);
@@ -2502,18 +2515,29 @@ async function refreshIllustrationFor(characterId){
     URL.revokeObjectURL(img.dataset.objectUrl);
     delete img.dataset.objectUrl;
   }
+  const showRetry=()=>{
+    img.removeAttribute('src');
+    img.style.display='none';
+    if(ph)ph.style.display='flex';
+    updateIllustrationPlaceholderState(characterId);
+  };
   const blob=await getIllustration(characterId);
-  if(blob){
+  if(blob&&blob.size>0){
     const url=URL.createObjectURL(blob);
+    img.onerror=async()=>{
+      if(img.dataset.objectUrl){URL.revokeObjectURL(img.dataset.objectUrl);delete img.dataset.objectUrl}
+      await clearLocalIllustrationCache(characterId);
+      showRetry();
+      illustrationStatus(characterId,'⚠️ Illustration absente ou invalide — tu peux relancer la première génération.');
+    };
+    img.onload=()=>{img.onerror=null};
     img.src=url;
     img.dataset.objectUrl=url;
     img.style.display='block';
-    if(ph) ph.style.display='none';
+    if(ph)ph.style.display='none';
   }else{
-    img.removeAttribute('src');
-    img.style.display='none';
-    if(ph) ph.style.display='flex';
-    updateIllustrationPlaceholderState(characterId);
+    if(blob)await clearLocalIllustrationCache(characterId);
+    showRetry();
   }
   setTimeout(()=>renderPortraitGallery(characterId),0);
 }
@@ -5705,7 +5729,22 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
     else c.imageGeneration.initialGeneratedAt=c.imageGeneration.initialGeneratedAt||new Date().toISOString();
     const rr=loadRoster();rr[c.id]=JSON.parse(JSON.stringify(c));saveRoster(rr);queueCloudCharacterSave(c);
     await refreshIllustrationFor(characterId);setTimeout(()=>refreshIllustrationThumbsFor(characterId),0);illustrationStatus(characterId,regenerate?`✅ Image régénérée • ${regenCounterFor(c)}/5 aujourd’hui`:'✅ Illustration générée automatiquement');await refreshNeuronStatus();return true;
-  }catch(e){console.error('Génération illustration',e);const msg=e?.message||String(e);illustrationStatus(characterId,`⚠️ Génération impossible : ${msg.slice(0,220)}`);return false}
+  }catch(e){
+    console.error('Génération illustration',e);
+    const msg=e?.message||String(e);
+    // Une première génération échouée (quota 429, Edge Function, timeout…) ne doit
+    // jamais laisser un portrait fantôme : on retire uniquement le cache local puis
+    // on réaffiche le bouton ↻. Les éventuels vrais portraits cloud ne sont pas supprimés.
+    if(!champion&&!regenerate){
+      await clearLocalIllustrationCache(characterId);
+      const img=document.querySelector(`[data-illustration-for="${characterId}"]`);
+      if(img){img.removeAttribute('src');img.style.display='none'}
+      const ph=document.querySelector(`[data-illustration-placeholder-for="${characterId}"]`);
+      if(ph)ph.style.display='flex';
+    }
+    illustrationStatus(characterId,`⚠️ Génération impossible : ${msg.slice(0,220)}`);
+    return false
+  }
   finally{__imageGenerationBusy.delete(busyKey);updateIllustrationPlaceholderState(characterId)}
 }
 async function ensureChampionPortrait(characterId,season){
