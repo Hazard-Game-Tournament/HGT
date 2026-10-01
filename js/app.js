@@ -5703,13 +5703,10 @@ if ('serviceWorker' in navigator) {
     if(!fn)return false;
     fn();return true;
   }
-  // Capture avant les décorations/pseudo-éléments et avant les handlers locaux.
-  document.addEventListener('pointerdown',e=>{
-    if(closeFromTarget(e.target)){e.preventDefault();e.stopImmediatePropagation();}
-  },true);
-  // Secours clavier/souris pour les navigateurs sans Pointer Events fiables.
+  // Fermer au CLICK (et non au pointerdown) évite que le même geste tactile
+  // traverse la modale après sa disparition et active un bouton situé derrière.
   document.addEventListener('click',e=>{
-    if(closeFromTarget(e.target)){e.preventDefault();e.stopImmediatePropagation();}
+    if(closeFromTarget(e.target)){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();}
   },true);
 
   const style=document.createElement('style');
@@ -5771,7 +5768,8 @@ if ('serviceWorker' in navigator) {
   }
   document.addEventListener('click',e=>{
     const b=findCloseButton(e);if(!b)return;
-    e.preventDefault();e.stopImmediatePropagation();actions[b.id]?.();
+    // Le bouton derrière la modale ne doit jamais recevoir ce même clic.
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();actions[b.id]?.();
   },true);
   const style=document.createElement('style');
   style.textContent=`
