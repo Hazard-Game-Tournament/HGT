@@ -64,7 +64,7 @@ const BEAST_FANTASY=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix
 // Traits anatomiques/visuels obligatoires des lignées Homme-bête.
 // Ils sont conservés dans le JSON du personnage et transmis au prompt d'image.
 const BEAST_MANDATORY_TRAITS={
-'Lion':['faciès léonin','oreilles félines arrondies','pelage court','longue queue terminée par un pinceau de poils','griffes'],
+'Lion':['faciès léonin large et immédiatement identifiable comme celui d’un lion','museau léonin large avec nez de lion','oreilles félines arrondies','pelage fauve court et uniforme, sans taches ni rayures','mâchoire léonine robuste','longue queue fauve non annelée terminée par un pinceau de poils sombre','griffes'],
 'Tigre':['faciès félin','oreilles félines arrondies','pelage obligatoirement rayé','longue queue rayée','griffes','canines développées'],
 'Loup':['museau lupin','oreilles triangulaires dressées','fourrure','longue queue touffue','griffes','crocs développés'],
 'Renard':['museau vulpin fin','grandes oreilles triangulaires','fourrure','longue queue très touffue','griffes','silhouette naturellement plus fine'],
@@ -127,6 +127,43 @@ function hasFinalRaceAlteration(c){
   const logs=Array.isArray(c?.logs)?c.logs:[];
   return logs.some(x=>String(x?.cat||'')==='Résurrection — Race ajoutée') ||
     (Array.isArray(c?.extraDetail)&&c.extraDetail.some(x=>x?.kind==='Conséquence de résurrection'&&x?.result==='Race altérée'));
+}
+
+const RACE_MANDATORY_VISUAL_TRAITS={
+  'Nain':['petite stature nettement visible','proportions naines compactes : torse relativement large et membres plus courts','carrure dense et robuste','centre de gravité bas'],
+  'Elfe':['oreilles nettement pointues','silhouette élancée et traits fins'],
+  'Orc':['mâchoire robuste','défenses inférieures visibles','carrure puissante'],
+  'Gobelin':['petite stature','grandes oreilles pointues','traits faciaux gobelins marqués'],
+  'Fée':['traits féeriques clairement visibles','ailes féeriques anatomiquement attachées au dos'],
+  'Neoxus':['peau noire, graphite ou bleu-noir techno-organique','réseau énergétique doré sous-cutané visible','yeux noirs cosmiques étoilés','quatre doigts aux mains','structures crâniennes organiques']
+};
+function activeRaceComponentsFromCharacter(c){
+  if(hasFinalRaceAlteration(c)){
+    const finalRace=String(c?.race||'');
+    return finalRace&&finalRace!=='Hybride'?[{race:finalRace,component:{race:finalRace}}]:[];
+  }
+  const L=c?.lineage||{},out=[];
+  const add=x=>{if(!x)return;const o=typeof x==='string'?{race:x}:x;if(o.race)out.push({race:o.race,component:o})};
+  if(c?.race==='Hybride'){add(L.hybridCompA);add(L.hybridCompB)}
+  else if(L.primaryComponent)add(L.primaryComponent);
+  else add(c?.race);
+  return out;
+}
+function nonBeastRacialVisualTraitsFromCharacter(c){
+  const out=[];
+  for(const {race} of activeRaceComponentsFromCharacter(c)){
+    if(race==='Homme-bête')continue;
+    for(const trait of (RACE_MANDATORY_VISUAL_TRAITS[race]||[]))out.push(`${race}: ${trait}`);
+  }
+  return [...new Set(out)];
+}
+function hybridScaleVisualRules(c){
+  const comps=activeRaceComponentsFromCharacter(c).map(x=>x.race);
+  const h=Number.parseFloat(String(c?.size||'').replace(',','.'));
+  const rules=[];
+  if(comps.length>1)rules.push(`HYBRID FUSION — the final body must visibly combine BOTH racial components (${comps.join(' + ')}); neither component may be reduced to a hidden lore note.`);
+  if(Number.isFinite(h)&&h<=1.2)rules.push(`MANDATORY SCALE — the character is only ${String(c.size)} tall. Make this unmistakable with nearby standard-size architecture, furniture, equipment or a secondary humanoid scale reference; do not frame them so they read as average human height.`);
+  return rules;
 }
 function beastComponentsFromCharacter(c){
   // Une résurrection « Race altérée » remplace la morphologie raciale précédente.
@@ -5242,6 +5279,8 @@ function characterPortraitPrompt(c){
 
   const beastComponents=beastComponentsFromCharacter(c);
   const beastTraitLines=beastComponents.map(b=>`HOMME-BÊTE ${b.species.toUpperCase()} — MANDATORY RACIAL ANATOMY: ${b.traits.join('; ')}. Every listed trait must be visibly present and anatomically coherent.`);
+  const otherRacialTraitLines=nonBeastRacialVisualTraitsFromCharacter(c).map(t=>`MANDATORY RACIAL ANATOMY: ${t}.`);
+  const hybridScaleLines=hybridScaleVisualRules(c);
 
   return `Create one standalone vertical 2:3 full-body cinematic dark-fantasy character illustration. No text, UI, card layout, border or logo.
 
@@ -5254,6 +5293,8 @@ CLOTHING STYLE: ${clean(c.clothingStyle)}. Respect this clothing category unless
 Dominant character colors: ${colors}.
 ${signLine}
 ${beastTraitLines.join('\n')}
+${otherRacialTraitLines.join('\n')}
+${hybridScaleLines.join('\n')}
 
 MANDATORY ABILITIES:
 POWER: ${power}. Show it as a specific controlled physical/magical phenomenon appropriate to the named ability, not a generic glow.
@@ -5393,7 +5434,7 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
       ? String(c?.imageGeneration?.lastCorrectionPrompt||'')
       : '';
     const generationCharacter=JSON.parse(JSON.stringify(c));
-    generationCharacter.racialVisualTraits=[...beastComponentsFromCharacter(generationCharacter).flatMap(b=>b.traits.map(t=>`${b.species}: ${t}`)),...dragonVisualTraitsFromCharacter(generationCharacter)];
+    generationCharacter.racialVisualTraits=[...beastComponentsFromCharacter(generationCharacter).flatMap(b=>b.traits.map(t=>`${b.species}: ${t}`)),...nonBeastRacialVisualTraitsFromCharacter(generationCharacter),...hybridScaleVisualRules(generationCharacter),...dragonVisualTraitsFromCharacter(generationCharacter)];
     generationCharacter.racialValidationRules=dragonValidationRulesFromCharacter(generationCharacter);
     generationCharacter.weaponVisualTraits=weaponVisualTraitsFromCharacter(generationCharacter);
     generationCharacter.weaponValidationRules=weaponValidationRulesFromCharacter(generationCharacter);
