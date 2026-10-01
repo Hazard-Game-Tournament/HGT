@@ -123,7 +123,15 @@ function beastMandatoryTraits(species,gender=''){
   if(species==='Paon'&&male)out.push('grande traîne ocellée');
   return out;
 }
+function hasFinalRaceAlteration(c){
+  const logs=Array.isArray(c?.logs)?c.logs:[];
+  return logs.some(x=>String(x?.cat||'')==='Résurrection — Race ajoutée') ||
+    (Array.isArray(c?.extraDetail)&&c.extraDetail.some(x=>x?.kind==='Conséquence de résurrection'&&x?.result==='Race altérée'));
+}
 function beastComponentsFromCharacter(c){
+  // Une résurrection « Race altérée » remplace la morphologie raciale précédente.
+  // L'ancienne lignée reste historique, mais ne doit plus alimenter le prompt/QA visuel.
+  if(hasFinalRaceAlteration(c))return [];
   const out=[],seen=new Set();
   const walk=x=>{if(!x||typeof x!=='object')return;if(x.race==='Homme-bête'&&x.species&&!seen.has(x.species)){seen.add(x.species);out.push({species:x.species,traits:beastMandatoryTraits(x.species,c?.gender)})}walk(x.compA);walk(x.compB);walk(x.originComponent)};
   const L=c?.lineage||{};walk(L.primaryComponent);walk(L.hybridCompA);walk(L.hybridCompB);walk(L.originComponent);
@@ -345,7 +353,7 @@ const DRAGON_TAIL_WEAPON_TRAITS={
 'Dard caudal':['queue terminée par un aiguillon recourbé','réservoir ou glande anatomique associé','silhouette rappelant un dard de scorpion'],
 'Foreuse caudale':['extrémité formant une pointe hélicoïdale ou cornée','plusieurs reliefs spiralés','structure destinée à perforer les protections'],
 'Arme caudale unique':['mutation offensive originale de la queue','entièrement organique et anatomiquement intégrée','fonction clairement lisible','ne correspond à aucune des neuf catégories précédentes']};
-function finalDragonComponent(c=state){const L=c?.lineage||{};const all=[L.primaryComponent,L.hybridCompA,L.hybridCompB,L.originComponent].filter(Boolean);return all.find(x=>x?.race==='Dragon humanoïde'&&Number(x?.power)>90)||null}
+function finalDragonComponent(c=state){if(hasFinalRaceAlteration(c))return null;const L=c?.lineage||{};const all=[L.primaryComponent,L.hybridCompA,L.hybridCompB,L.originComponent].filter(Boolean);return all.find(x=>x?.race==='Dragon humanoïde'&&Number(x?.power)>90)||null}
 function weaponTraitsFor(name,system='classic'){const map=system==='neoxus'?NEXUS_WEAPON_TRAITS:system==='cyborg'?CYBORG_WEAPON_TRAITS:system==='dragon-tail'?DRAGON_TAIL_WEAPON_TRAITS:CLASSIC_WEAPON_TRAITS;return [...(map[name]||[])];}
 function weaponOptionsForCurrent(forceRanged=false){return finalDragonComponent()?EQ(DRAGON_TAIL_WEAPONS):weaponOptions(forceRanged)}
 function attachWeaponTraits(w,system='classic'){w.weaponSystem=system;w.mandatoryWeaponTraits=weaponTraitsFor(w.name,system);return w}
@@ -373,6 +381,7 @@ function regionVisualIdentityFor(c){const r=String(c?.birthRegion||'').trim();re
 
 function weaponVisualTraitsFromCharacter(c){const out=[];for(const w of (c?.weapons||[])){let system=w.weaponSystem||'classic';if(w.racial&&!w.weaponSystem){const comp=c?.lineage?.primaryComponent;system=comp?.race==='Cyborg'&&Number(comp?.power)<50?'cyborg':'neoxus'}if(DRAGON_TAIL_WEAPONS.includes(w.name))system='dragon-tail';const traits=(w.mandatoryWeaponTraits?.length?w.mandatoryWeaponTraits:weaponTraitsFor(w.name,system));if(traits.length)out.push(...traits.map(t=>`${w.name}: ${t}`))}return out;}
 function dragonComponentsFromCharacter(c){
+  if(hasFinalRaceAlteration(c))return [];
   const L=c?.lineage||{},out=[],seen=new Set();
   const walk=x=>{if(!x||typeof x!=='object'||seen.has(x))return;seen.add(x);if(x.race==='Dragon humanoïde')out.push(x);walk(x.compA);walk(x.compB);walk(x.originComponent)};
   walk(L.primaryComponent);walk(L.hybridCompA);walk(L.hybridCompB);walk(L.originComponent);return out;
@@ -3274,7 +3283,16 @@ function addResurrectionHistory(){
     else if(x==='Stat diminuée')addHistoryStatChange('Résurrection — Stat diminuée',-1);
     else if(x==='Stat augmentée')addHistoryStatChange('Résurrection — Stat augmentée',1);
     else if(x==='Trait surnaturel'||x==='Corps altéré'||x==='Affinité avec la mort'||x==='Immortalité partielle'||x==='Régénération')insert([task(`Résurrection — ${x}`,EQ(supernaturalTraits),v=>rec.detail=v)]);
-    else if(x==='Race altérée')insert([task('Résurrection — Race ajoutée',raceOptions(),v=>addRaceResult(v))]);
+    else if(x==='Race altérée')insert([task('Résurrection — Race ajoutée',raceOptions(),v=>{
+      // La nouvelle race remplace réellement l'ancienne. On archive l'état précédent
+      // dans la conséquence de résurrection, puis on repart sur une lignée active propre.
+      rec.previousRace=state.race||'';
+      rec.previousRaceParts=JSON.parse(JSON.stringify(state.raceParts||[]));
+      rec.previousLineage=JSON.parse(JSON.stringify(state.lineage||{}));
+      state.race=''; state.raceParts=[]; state.lineage={};
+      delete state.mandatoryRacialTraits;
+      addRaceResult(v);
+    })]);
     else if(x==='Marqué par une entité')insert([task('Résurrection — Entité',EQ(possessionEntities),v=>rec.entity=v)]);
   })]);
 }
