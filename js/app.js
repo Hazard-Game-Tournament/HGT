@@ -1541,6 +1541,9 @@ function openCharacterDetail(id){
       </div>
       <div class="detail-box"><h4>Historique exact</h4>${exactHistoryHtml(s)}</div>
     </div>
+  </div>
+  <div class="detail-export-actions" style="display:flex;justify-content:center;margin:18px 0 8px">
+    <button class="smallbtn" onclick="exportCharacterSheetImage('${id}')">📥 Exporter fiche perso</button>
   </div>`;
   characterDetail.classList.add('active');
   rosterList.style.display='none';
@@ -2416,17 +2419,33 @@ function illustrationControlsHtml(characterId){
     <div class="illustration-block">
       <div class="illustration-frame">
         <img class="character-illustration" data-illustration-for="${characterId}" alt="Illustration du personnage" style="display:none">
-        <div class="illustration-placeholder" data-illustration-placeholder-for="${characterId}">Aucune illustration</div>
+        <div class="illustration-placeholder" data-illustration-placeholder-for="${characterId}"><button type="button" class="secondary illustration-first-retry" onclick="retryInitialCharacterIllustration('${characterId}')" title="Relancer la première génération" aria-label="Relancer la première génération de l’illustration" style="font-size:2rem;line-height:1;padding:.55rem .8rem;border-radius:999px">↻</button></div>
       </div>
       <div class="illustration-status" data-illustration-status-for="${characterId}"></div>
       <div data-portrait-gallery-for="${characterId}"></div>
       <div class="illustration-actions">
         <button class="smallbtn" onclick="regenerateCharacterIllustration('${characterId}')">🔄 Régénérer l’illustration</button>
-        <button class="smallbtn" onclick="chooseIllustrationFor('${characterId}')">🖼️ Importer une image</button>
         <button class="smallbtn" onclick="removeIllustrationFor('${characterId}')">🗑️ Retirer l’illustration</button>
         <button class="smallbtn" onclick="exportCharacterJson('${characterId}')">💾 Exporter cette fiche en JSON</button>
       </div>
     </div>`;
+}
+
+function updateIllustrationPlaceholderState(characterId){
+  const ph=document.querySelector(`[data-illustration-placeholder-for="${characterId}"]`);
+  if(!ph)return;
+  const busy=__imageGenerationBusy?.has?.(characterId);
+  if(busy){
+    ph.innerHTML='<span class="muted">🎨 Illustration automatique en cours…</span>';
+    return;
+  }
+  ph.innerHTML=`<button type="button" class="secondary illustration-first-retry" onclick="retryInitialCharacterIllustration('${characterId}')" title="Relancer la première génération" aria-label="Relancer la première génération de l’illustration" style="font-size:2rem;line-height:1;padding:.55rem .8rem;border-radius:999px">↻</button>`;
+}
+async function retryInitialCharacterIllustration(characterId){
+  if(__imageGenerationBusy.has(characterId)){illustrationStatus(characterId,'⏳ Une génération est déjà en cours…');updateIllustrationPlaceholderState(characterId);return false}
+  illustrationStatus(characterId,'🎨 Illustration automatique en cours…');
+  updateIllustrationPlaceholderState(characterId);
+  return invokeCharacterImageGeneration(characterId,{regenerate:false});
 }
 
 function illustrationThumbHtml(characterId){
@@ -2455,6 +2474,7 @@ async function refreshIllustrationFor(characterId){
     img.removeAttribute('src');
     img.style.display='none';
     if(ph) ph.style.display='flex';
+    updateIllustrationPlaceholderState(characterId);
   }
   setTimeout(()=>renderPortraitGallery(characterId),0);
 }
@@ -4886,6 +4906,45 @@ body>img,#portrait{display:block;width:min(100%,512px);margin:0 auto 18px;backgr
 h1,.detail-title{font-family:Georgia,'Times New Roman',serif;color:var(--gold2);text-shadow:0 1px #000,0 0 14px #d7ad5526}.detail-title{font-size:clamp(25px,6vw,42px);font-weight:800;margin-top:2px}.muted{color:var(--muted)!important}.detail-sheet{margin-top:16px}.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.detail-box{position:relative;padding:14px 15px;background:linear-gradient(145deg,rgba(26,19,18,.96),rgba(12,10,12,.98));border:1px solid var(--line);box-shadow:inset 0 0 0 1px #000,0 5px 16px #0005}.detail-box:before{content:'';position:absolute;inset:4px;pointer-events:none;border:1px solid rgba(215,173,85,.12)}.detail-box h4{position:relative;margin:0 0 10px;padding-bottom:7px;color:var(--gold2);font-size:18px;border-bottom:1px solid rgba(215,173,85,.28)}.detail-row{position:relative;line-height:1.42;padding:2px 0}.detail-row b,.shared-object-row>b,.shared-kv>b{color:#ead39c}.shared-object,.shared-kv-list{display:grid;gap:4px}.shared-object-row,.shared-kv{display:grid;grid-template-columns:minmax(105px,.7fr) 1fr;gap:8px;padding:5px 0;border-bottom:1px solid #352820}.shared-tags{display:flex;flex-wrap:wrap;gap:5px}.shared-tags>span{padding:3px 8px;border:1px solid #4e3928;background:#211812;color:#e8d4ab}.shared-subcard{padding:8px;border:1px solid #3c2c23;background:#0c0a0b}.shared-empty{opacity:.55}
 @media(max-width:650px){body{padding:12px 10px 24px}.detail-grid{grid-template-columns:1fr}.detail-box{padding:12px}.shared-object-row,.shared-kv{grid-template-columns:1fr}}
 </style>`}
+let __hgtHtml2CanvasPromise=null;
+function ensureHgtHtml2Canvas(){
+  if(window.html2canvas)return Promise.resolve(window.html2canvas);
+  if(__hgtHtml2CanvasPromise)return __hgtHtml2CanvasPromise;
+  __hgtHtml2CanvasPromise=new Promise((resolve,reject)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    sc.onload=()=>window.html2canvas?resolve(window.html2canvas):reject(new Error('html2canvas indisponible.'));
+    sc.onerror=()=>reject(new Error('Impossible de charger le moteur d’export image.'));
+    document.head.appendChild(sc);
+  });
+  return __hgtHtml2CanvasPromise;
+}
+async function blobToDataUrl(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(blob)})}
+async function exportCharacterSheetImage(characterId){
+  const c=loadRoster()[characterId];if(!c){alert('Personnage introuvable.');return}
+  const btn=document.querySelector(`button[onclick="exportCharacterSheetImage('${characterId}')"]`),old=btn?.textContent;
+  try{
+    if(btn){btn.disabled=true;btn.textContent='⏳ Préparation de la fiche…'}
+    const html2canvas=await ensureHgtHtml2Canvas();
+    let portrait='';try{const blob=await getIllustration(characterId);if(blob)portrait=await blobToDataUrl(blob)}catch(_){}
+    const snapshot=JSON.parse(JSON.stringify({...c,id:characterId}));
+    const frame=document.createElement('iframe');
+    frame.setAttribute('aria-hidden','true');
+    frame.style.cssText='position:fixed;left:-10000px;top:0;width:920px;height:1200px;border:0;opacity:0;pointer-events:none;';
+    document.body.appendChild(frame);
+    const doc=frame.contentDocument;
+    doc.open();doc.write(`<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(c.name||characterId)}</title>${sharedCharacterWindowCss()}${portrait?`<img src="${portrait}" alt="Portrait">`:''}${sharedCharacterReadOnlyHtml(snapshot)}`);doc.close();
+    await new Promise(r=>setTimeout(r,100));
+    await Promise.all([...doc.images].map(img=>img.complete?Promise.resolve():new Promise(res=>{img.onload=img.onerror=res})));
+    const h=Math.max(doc.documentElement.scrollHeight,doc.body.scrollHeight,1200);frame.style.height=h+'px';
+    const canvas=await html2canvas(doc.body,{backgroundColor:'#09080a',scale:2,useCORS:true,logging:false,width:920,height:h,windowWidth:920,windowHeight:h});
+    frame.remove();
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Création PNG impossible.')),'image/png'));
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${characterId}-${String(c.name||'personnage').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'-')}-fiche.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }catch(e){console.error('Export fiche perso',e);alert('Export de la fiche impossible : '+(e?.message||e))}
+  finally{if(btn){btn.disabled=false;btn.textContent=old||'📥 Exporter fiche perso'}}
+}
+
 function bindSharedCharacters(root){hydrateSharedCharacterImages(root);root.querySelectorAll('[data-shared-character]').forEach(e=>e.onclick=async()=>{try{const c=JSON.parse(decodeURIComponent(e.dataset.sharedCharacter));const w=window.open('','_blank','width=820,height=940');if(!w)return;const src=sharedCharacterImageSrc(c);w.document.write(`<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(c.name||'Personnage')}</title>${sharedCharacterWindowCss()}${src?`<img src="${escapeHtml(src)}" alt="Portrait">`:'<div id="portrait"></div>'}${sharedCharacterReadOnlyHtml(c)}`);w.document.close();if(!src&&c.imagePath){const blob=await cloudDownloadPortraitPath(c.imagePath);if(blob&&!w.closed){const u=URL.createObjectURL(blob),img=w.document.createElement('img');img.src=u;img.onload=()=>URL.revokeObjectURL(u);w.document.getElementById('portrait')?.appendChild(img)}}}catch(_){}})}
 async function characterShareImagePath(id,c){const fixed=c?.imageGeneration?.championPath||c?.imageGeneration?.selectedPortrait;if(fixed)return fixed;try{const list=await cloudListGeneratedPortraits(id);return list.length?list[list.length-1].path:null}catch(_){return null}}
 async function shareImageDataUrl(path){if(!path)return null;try{const blob=await cloudDownloadPortraitPath(path);if(!blob)return null;const bmp=await createImageBitmap(blob),maxW=620,maxH=920,scale=Math.min(1,maxW/bmp.width,maxH/bmp.height),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bmp.width*scale));canvas.height=Math.max(1,Math.round(bmp.height*scale));canvas.getContext('2d').drawImage(bmp,0,0,canvas.width,canvas.height);bmp.close?.();return canvas.toDataURL('image/jpeg',.78)}catch(_){return null}}
@@ -5475,6 +5534,7 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
   if(!champion&&regenerate&&regenCounterFor(c)>=IMAGE_REGEN_LIMIT_PER_DAY){illustrationStatus(characterId,'Limite atteinte : 5 régénérations aujourd’hui.');return false}
   if(!champion&&!regenerate){const existing=await getIllustration(characterId);if(existing)return true}
   __imageGenerationBusy.add(busyKey);
+  updateIllustrationPlaceholderState(characterId);
   illustrationStatus(characterId,champion?'🏆 Portrait champion 9B en cours…':(regenerate?'🎨 Régénération en cours…':'🎨 Illustration automatique en cours…'));
   try{
     const {data:{session}}=await cloudClient.auth.getSession();
@@ -5607,7 +5667,7 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
     const rr=loadRoster();rr[c.id]=JSON.parse(JSON.stringify(c));saveRoster(rr);queueCloudCharacterSave(c);
     await refreshIllustrationFor(characterId);setTimeout(()=>refreshIllustrationThumbsFor(characterId),0);illustrationStatus(characterId,regenerate?`✅ Image régénérée • ${regenCounterFor(c)}/5 aujourd’hui`:'✅ Illustration générée automatiquement');await refreshNeuronStatus();return true;
   }catch(e){console.error('Génération illustration',e);const msg=e?.message||String(e);illustrationStatus(characterId,`⚠️ Génération impossible : ${msg.slice(0,220)}`);return false}
-  finally{__imageGenerationBusy.delete(busyKey)}
+  finally{__imageGenerationBusy.delete(busyKey);updateIllustrationPlaceholderState(characterId)}
 }
 async function ensureChampionPortrait(characterId,season){
   const c=loadRoster()[characterId];if(!c)return false;
