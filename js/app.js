@@ -2789,10 +2789,32 @@ function summonRaceMods(parts){
 function summonTraits(parts){
   let out=[];
   for(const p of parts||[]){
+    const species=beastAnimal(p);
+    if(species){
+      for(const t of beastMandatoryTraits(species))if(!out.includes(t))out.push(t);
+      continue;
+    }
     const k=raceKey(p);
-    for(const t of (RACIAL_TRAITS[k]||[]))if(!out.includes(t))out.push(t);
+    for(const t of (RACIAL_TRAITS[k]||[]))if(t&& !out.includes(t))out.push(t);
   }
   return out;
+}
+function summonVisualConstraint(s){
+  if(!s)return '';
+  const parts=s.raceParts||[];
+  const lines=[];
+  for(const p of parts){
+    const species=beastAnimal(p);
+    if(species){
+      const traits=beastMandatoryTraits(species);
+      if(traits.length)lines.push(`HOMME-BÊTE ${species.toUpperCase()} — MANDATORY RACIAL ANATOMY: ${traits.join('; ')}. Every listed trait must be visibly present and anatomically coherent.`);
+      continue;
+    }
+    const traits=(RACIAL_TRAITS[raceKey(p)]||[]).filter(Boolean);
+    if(traits.length)lines.push(`${p} — MANDATORY RACIAL TRAITS: ${traits.join('; ')}. Make every physically visible racial trait clearly readable on the summoned being.`);
+  }
+  if(s.alienTrait)lines.push(`EXTRATERRESTRIAL BIOLOGY — MANDATORY: ${s.alienTrait}. This biological trait must visibly shape the summoned being.`);
+  return lines.join('\n');
 }
 function beginSummonerInvocation(){
   if(state.summon)return;
@@ -5149,7 +5171,7 @@ function characterPortraitPrompt(c){
     const abilities=(x?.abilities||[]).map(a=>visualTerm(a?.name||a)).filter(Boolean);
     familiar.push(`MANDATORY COMPANION: one ${clean(x?.type)} familiar, visibly separate and secondary to the protagonist${abilities.length?`; traits: ${abilities.join(', ')}`:''}.`);
   }
-  const summon=c?.summon?`MANDATORY SUMMON: one ${clean(c.summon.race)} subordinate summon, visibly separate and secondary.`:'';
+  const summon=c?.summon?`MANDATORY SUMMON: one ${clean(c.summon.race)} subordinate summon, visibly separate and secondary.\n${summonVisualConstraint(c.summon)}\nThe summon must preserve its stated race and all mandatory racial anatomy/traits; do not simplify it into a generic humanoid, animal, spirit or monster.`:'';
 
   const histories=(c?.history||[]).map(String), historyVisual=[];
   if(histories.some(h=>norm(h).includes('cree artificiellement')))historyVisual.push('ORIGIN DETAIL: subtle engineered visual details integrated into the character design while preserving the stated race.');
