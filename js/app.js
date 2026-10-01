@@ -5676,48 +5676,39 @@ if ('serviceWorker' in navigator) {
   else apply();
 })();
 
-/* HGT — correctif local : largeur des conversations + fermeture fiable des modales */
-(function hgtCommunityWidthAndModalCloseFix(){
-  const install=()=>{
-    if(!document.getElementById('hgt-community-width-fix')){
-      const style=document.createElement('style');
-      style.id='hgt-community-width-fix';
-      style.textContent=`
-#communityTab,#communityTab .panel,#communityConversationsPane,#communityGlobalPane,
-#communityConversationsPane .conversation-layout,#communityConversationsPane .conversation-layout>div,
-#communityConversationsPane .community-chat-wrap,#communityGlobalPane .community-chat-wrap,
-#privateChatBox,#globalChatBox,.chat-box,.chat-message,.shared-character-card,.chat-compose{
-  box-sizing:border-box;max-width:100%;min-width:0;
-}
-#communityConversationsPane,#communityGlobalPane{width:100%;overflow-x:hidden;}
-#communityConversationsPane .conversation-layout{width:100%;min-width:0;overflow-x:hidden;}
-#communityConversationsPane .conversation-layout>div{min-width:0;max-width:100%;overflow-x:hidden;}
-#communityConversationsPane .community-chat-wrap,#communityGlobalPane .community-chat-wrap{width:100%;overflow-x:hidden;}
-#privateChatBox,#globalChatBox,.chat-box{width:100%;overflow-x:hidden;}
-.chat-message{width:100%;overflow-wrap:anywhere;word-break:break-word;}
-.shared-character-card{width:100%;overflow:hidden;}
-.shared-character-card>div:last-child{min-width:0;overflow:hidden;}
-.shared-character-card .muted,.shared-character-card b,.shared-character-card small{max-width:100%;overflow-wrap:anywhere;word-break:break-word;}
-.chat-compose{width:100%;min-width:0;display:flex;overflow:hidden;}
-.chat-compose input{min-width:0;max-width:100%;}
-@media(max-width:700px){
-  #communityConversationsPane .conversation-layout{grid-template-columns:minmax(0,1fr)!important;}
-  #communityConversationsPane .conversation-list{width:100%;max-width:100%;min-width:0;}
-}
-`;
-      document.head.appendChild(style);
-    }
+/* HGT — correctif chirurgical des croix de modales (2026-10-01)
+   Capture pointerdown avant les handlers locaux/rendus dynamiques. */
+(function hgtModalCloseCrossFix(){
+  if(window.__hgtModalCloseCrossFixInstalled)return;
+  window.__hgtModalCloseCrossFixInstalled=true;
 
-    // Délégation ciblée : seuls les trois boutons problématiques sont interceptés.
-    document.addEventListener('click',function(e){
-      const close=e.target && e.target.closest ? e.target.closest('#notificationCloseBtn,#cloudCloseBtn,#regionStyleCloseBtn') : null;
-      if(!close)return;
-      e.preventDefault();
-      if(close.id==='notificationCloseBtn') closeNotifications();
-      else if(close.id==='cloudCloseBtn') closeCloudModal();
-      else if(close.id==='regionStyleCloseBtn') closeRegionStyleModal(false);
-    },true);
-  };
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
-  else install();
+  const style=document.createElement('style');
+  style.id='hgt-modal-close-cross-fix-style';
+  style.textContent=`
+    #notificationCloseBtn,#regionStyleCloseBtn,#cloudCloseBtn{
+      position:relative!important;
+      z-index:2147483647!important;
+      pointer-events:auto!important;
+      touch-action:manipulation!important;
+      cursor:pointer!important;
+    }
+    #notificationCloseBtn::before,#notificationCloseBtn::after,
+    #regionStyleCloseBtn::before,#regionStyleCloseBtn::after,
+    #cloudCloseBtn::before,#cloudCloseBtn::after{pointer-events:none!important;}
+  `;
+  document.head.appendChild(style);
+
+  document.addEventListener('pointerdown',function(e){
+    const btn=e.target?.closest?.('#notificationCloseBtn,#regionStyleCloseBtn,#cloudCloseBtn');
+    if(!btn)return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if(btn.id==='notificationCloseBtn'){
+      closeNotifications();
+    }else if(btn.id==='regionStyleCloseBtn'){
+      closeRegionStyleModal(false);
+    }else if(btn.id==='cloudCloseBtn'){
+      closeCloudModal();
+    }
+  },true);
 })();
