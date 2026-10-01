@@ -5751,3 +5751,37 @@ if ('serviceWorker' in navigator) {
   const raceBox=document.getElementById('raceCodexDetail');
   if(raceBox && raceBox.parentElement!==document.body)document.body.appendChild(raceBox);
 })();
+
+/* HGT V16 — correctif ciblé des 4 croix validées */
+(function hgtV16FourModalCrosses(){
+  const actions={
+    notificationCloseBtn:()=>closeNotifications(),
+    cloudCloseBtn:()=>closeCloudModal(),
+    regionStyleCloseBtn:()=>closeRegionStyleModal(false),
+    neuronDetailClose:()=>closeNeuronDetail(),
+    neuronDetailCloseBtn:()=>closeNeuronDetail()
+  };
+  const ids=new Set(Object.keys(actions));
+  function findCloseButton(e){
+    const path=typeof e.composedPath==='function'?e.composedPath():[];
+    for(const n of path){if(n?.id&&ids.has(n.id))return n;}
+    const el=document.elementFromPoint?.(e.clientX,e.clientY);
+    const b=el?.closest?.('#notificationCloseBtn,#cloudCloseBtn,#regionStyleCloseBtn,#neuronDetailClose,#neuronDetailCloseBtn');
+    return b||null;
+  }
+  document.addEventListener('click',e=>{
+    const b=findCloseButton(e);if(!b)return;
+    e.preventDefault();e.stopImmediatePropagation();actions[b.id]?.();
+  },true);
+  const style=document.createElement('style');
+  style.textContent=`
+    #notificationModal .modal-card::before,#notificationModal .modal-card::after,
+    #cloudModal .modal-card::before,#cloudModal .modal-card::after,
+    #regionStyleModal .modal-card::before,#regionStyleModal .modal-card::after,
+    #neuronDetailModal .modal-card::before,#neuronDetailModal .modal-card::after{pointer-events:none!important}
+    #notificationCloseBtn,#cloudCloseBtn,#regionStyleCloseBtn,#neuronDetailClose,#neuronDetailCloseBtn{
+      position:relative!important;z-index:100002!important;pointer-events:auto!important;touch-action:manipulation!important;
+    }
+  `;
+  document.head.appendChild(style);
+})();
