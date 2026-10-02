@@ -4320,7 +4320,7 @@ function resolveTournamentBattleInto(t,ri,mi,roster,{replace=false}={}){
   const prepared=hgtPrepareBattleContext(ctx,t,roster[a],roster[b],a,b,baseProbA),probA=prepared.analysis.finalProbability.a,roll=Math.random(),winner=roll<probA?a:b,loser=winner===a?b:a;
   const lr=Number(roster[loser]?.stats?.['Résilience'])||0,deathChance=Math.max(.01,Math.min(.18,.10-lr*.006+Math.abs(diff)*.002)),died=Math.random()<deathChance;
   const battle={a,b,winner,loser,region:ctx.region,regionSlug:ctx.regionSlug,terrain,distanceLabel:d[0],distance:d[1],knowledgeA:ctx.knowledgeA,knowledgeB:ctx.knowledgeB,probA:+probA.toFixed(4),baseProbA:+baseProbA.toFixed(4),roll:+roll.toFixed(4),death:died?loser:null,conditions:prepared.conditions,analysis:prepared.analysis,engine:{version:HGT_COMBAT_ENGINE_VERSION,rulesVersion:HGT_COMBAT_RULES_VERSION,characterA:hgtSnapshot(prepared.profiles.a),characterB:hgtSnapshot(prepared.profiles.b)},at:new Date().toISOString()};
-  battle.narrative=hgtNarrativeFromBattle(battle,prepared.profiles.a,prepared.profiles.b);t.battles[key]=battle;
+  battle.narrative=null;battle.narrativeStatus='pending';t.battles[key]=battle;
   if(died&&!t.deaths.includes(loser))t.deaths.push(loser);t.winners[key]=winner;return true;
 }
 function simulateTournamentBattle(ri,mi){
@@ -4491,17 +4491,60 @@ function combatantComparisonHtml(ca,cb,idA='',idB=''){
     <div class="combat-compare-masteries"><div><small>MAÎTRISES</small><br>${mastery(ca)}</div><span>VS</span><div><small>MAÎTRISES</small><br>${mastery(cb)}</div></div>
   </div>`;
 }
+function hgtNarrativeHtml(battle){
+  if(battle.narrative?.chronicle)return `<div class="combat-param combat-chronicle"><b>📜 Chronique du combat</b><div style="white-space:pre-line;margin-top:8px">${escapeHtml(battle.narrative.chronicle)}</div><div style="margin-top:10px"><strong>${escapeHtml(battle.narrative.closingLine||'')}</strong></div><div class="muted" style="margin-top:8px">Narration : ${escapeHtml(battle.narrative.model||'OpenRouter')}</div></div>`;
+  if(battle.narrativeStatus==='generating')return `<div class="combat-param combat-chronicle" data-narrative-slot><b>📜 Chronique du combat</b><div class="muted" style="margin-top:8px">Génération de la chronique cinématique…</div></div>`;
+  if(battle.narrativeStatus==='error')return `<div class="combat-param combat-chronicle" data-narrative-slot><b>📜 Chronique du combat</b><div class="muted" style="margin-top:8px">La génération a échoué. Tu peux réessayer.</div><button type="button" class="secondary hgt-narrative-retry" style="margin-top:8px">↻ Réessayer</button></div>`;
+  return `<div class="combat-param combat-chronicle" data-narrative-slot><b>📜 Chronique du combat</b><div class="muted" style="margin-top:8px">Préparation de la chronique cinématique…</div></div>`;
+}
+function hgtPersistBattleNarrative(battle){
+  try{
+    const t=loadTournament();if(!t?.battles)return false;
+    const hit=Object.entries(t.battles).find(([,x])=>x&&(x===battle||(x.a===battle.a&&x.b===battle.b&&x.at===battle.at)));
+    if(!hit)return false;
+    hit[1].narrative=battle.narrative||null;hit[1].narrativeStatus=battle.narrativeStatus||'pending';
+    localStorage.setItem(TOURNAMENT_KEY,JSON.stringify(t));archiveTournament(t);if(typeof queueCloudTournamentSave==='function')queueCloudTournamentSave(t);return true;
+  }catch(e){return false}
+}
+const __hgtNarrativeRequests=new Map();
+async function hgtGenerateBattleNarrative(battle,roster=loadRoster()){
+  if(battle?.narrative?.chronicle)return battle.narrative;
+  const requestKey=[battle?.a,battle?.b,battle?.winner,battle?.roll,battle?.at].join('|');
+  if(__hgtNarrativeRequests.has(requestKey))return __hgtNarrativeRequests.get(requestKey);
+  const task=(async()=>{
+    if(!cloudClient)throw new Error('Connexion Supabase indisponible.');
+    battle.narrativeStatus='generating';hgtPersistBattleNarrative(battle);
+    const characterA=roster?.[battle.a]||battle.characterA||{},characterB=roster?.[battle.b]||battle.characterB||{};
+    const {data,error}=await cloudClient.functions.invoke('Generate-battle-narrative',{body:{battle,characterA,characterB}});
+    if(error)throw error;if(!data?.success||!data?.narrative)throw new Error(data?.error||'Narration indisponible.');
+    battle.narrative=data.narrative;battle.narrativeStatus='ready';hgtPersistBattleNarrative(battle);return battle.narrative;
+  })().catch(e=>{battle.narrativeStatus='error';battle.narrativeError=String(e?.message||e);hgtPersistBattleNarrative(battle);throw e}).finally(()=>__hgtNarrativeRequests.delete(requestKey));
+  __hgtNarrativeRequests.set(requestKey,task);return task;
+}
+function hgtRefreshNarrativeSlot(m,battle,roster){
+  if(!m?.isConnected)return;const old=m.querySelector('[data-narrative-slot],.combat-chronicle');if(!old)return;
+  const wrap=document.createElement('div');wrap.innerHTML=hgtNarrativeHtml(battle);const fresh=wrap.firstElementChild;if(fresh)old.replaceWith(fresh);
+  const retry=m.querySelector('.hgt-narrative-retry');if(retry)retry.onclick=()=>hgtStartNarrativeForScene(m,battle,roster);
+}
+async function hgtStartNarrativeForScene(m,battle,roster){
+  if(battle?.narrative?.chronicle){hgtRefreshNarrativeSlot(m,battle,roster);return}
+  battle.narrativeStatus='generating';hgtRefreshNarrativeSlot(m,battle,roster);
+  try{await hgtGenerateBattleNarrative(battle,roster)}catch(e){}
+  hgtRefreshNarrativeSlot(m,battle,roster);
+}
 function openCombatScene(battle,roster=loadRoster()){
   closeCombatScene();if(!battle)return;
   const regionSlug=battle.regionSlug||String(battle.region||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   const m=document.createElement('div');m.id='combatSceneModal';m.className='combat-scene-modal open';
   const a=roster[battle.a]||battle.characterA||{},b=roster[battle.b]||battle.characterB||{};
   const pa=Math.round((Number(battle.probA)||.5)*100);
-  m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">⚔️ ${escapeHtml(battle.region||'Combat')}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="combat-stage" style="background-image:url('assets/universe/regions/${escapeHtml(regionSlug)}.webp')"><div class="combat-scene-result">🏆 ${escapeHtml(battle.winner||'')}</div><div class="combat-fighter-scene a"></div><div class="combat-fighter-scene b"></div></div><div class="combat-params">${combatantComparisonHtml(a,b,battle.a||'',battle.b||'')}<div class="combat-param"><b>Région</b>${escapeHtml(battle.region||'—')}</div><div class="combat-param"><b>Terrain</b>${escapeHtml(battle.terrain||'—')}</div><div class="combat-param"><b>Distance</b>${escapeHtml(battle.distanceLabel||'—')}${battle.distance!=null?` • ${battle.distance} m`:''}</div><div class="combat-param"><b>Informations</b>${escapeHtml(battle.knowledgeA||'—')} / ${escapeHtml(battle.knowledgeB||'—')}</div><div class="combat-param"><b>Chances avant tirage</b>${escapeHtml(battle.a||'A')} ${pa}% • ${escapeHtml(battle.b||'B')} ${100-pa}%${battle.baseProbA!=null?`<br><span class="muted">Base HGT : ${Math.round(Number(battle.baseProbA)*100)}% / ${100-Math.round(Number(battle.baseProbA)*100)}% • contexte : ${(Number(battle.analysis?.relativeModifierPoints)||0)>=0?'+':''}${escapeHtml(String(Number(battle.analysis?.relativeModifierPoints)||0))} pt</span>`:''}</div>${hgtConditionsHtml(battle.conditions)}${battle.narrative?.chronicle?`<div class="combat-param combat-chronicle"><b>📜 Chronique du combat</b><div style="white-space:pre-line;margin-top:8px">${escapeHtml(battle.narrative.chronicle)}</div><div style="margin-top:10px"><strong>${escapeHtml(battle.narrative.closingLine||'')}</strong></div></div>`:''}</div></div>`;
+  m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">⚔️ ${escapeHtml(battle.region||'Combat')}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="combat-stage" style="background-image:url('assets/universe/regions/${escapeHtml(regionSlug)}.webp')"><div class="combat-scene-result">🏆 ${escapeHtml(battle.winner||'')}</div><div class="combat-fighter-scene a"></div><div class="combat-fighter-scene b"></div></div><div class="combat-params">${combatantComparisonHtml(a,b,battle.a||'',battle.b||'')}<div class="combat-param"><b>Région</b>${escapeHtml(battle.region||'—')}</div><div class="combat-param"><b>Terrain</b>${escapeHtml(battle.terrain||'—')}</div><div class="combat-param"><b>Distance</b>${escapeHtml(battle.distanceLabel||'—')}${battle.distance!=null?` • ${battle.distance} m`:''}</div><div class="combat-param"><b>Informations</b>${escapeHtml(battle.knowledgeA||'—')} / ${escapeHtml(battle.knowledgeB||'—')}</div><div class="combat-param"><b>Chances avant tirage</b>${escapeHtml(battle.a||'A')} ${pa}% • ${escapeHtml(battle.b||'B')} ${100-pa}%${battle.baseProbA!=null?`<br><span class="muted">Base HGT : ${Math.round(Number(battle.baseProbA)*100)}% / ${100-Math.round(Number(battle.baseProbA)*100)}% • contexte : ${(Number(battle.analysis?.relativeModifierPoints)||0)>=0?'+':''}${escapeHtml(String(Number(battle.analysis?.relativeModifierPoints)||0))} pt</span>`:''}</div>${hgtConditionsHtml(battle.conditions)}${hgtNarrativeHtml(battle)}</div></div>`;
   document.body.appendChild(m);m.querySelectorAll('[data-character-id]').forEach(el=>el.onclick=()=>openCharacterFromCombat(el.dataset.characterId));
   m.querySelectorAll('[data-combat-character]').forEach(el=>el.onclick=()=>openCharacterFromCombat(el.dataset.combatCharacter));
   m.querySelector('.combat-scene-top button').onclick=closeCombatScene;m.onclick=e=>{if(e.target===m)closeCombatScene()};
+  const retry=m.querySelector('.hgt-narrative-retry');if(retry)retry.onclick=()=>hgtStartNarrativeForScene(m,battle,roster);
   combatScenePortrait(m.querySelector('.combat-fighter-scene.a'),battle.a);combatScenePortrait(m.querySelector('.combat-fighter-scene.b'),battle.b);
+  if(!battle.narrative?.chronicle)hgtStartNarrativeForScene(m,battle,roster);
 }
 function hallDuelBattle(aId,bId){
   const roster=loadRoster(),a=roster[aId],b=roster[bId];if(!a||!b||aId===bId)return null;
@@ -4512,7 +4555,7 @@ function hallDuelBattle(aId,bId){
   if(ctx.knowledgeB==='Informations partielles')vb+=1.5;else if(ctx.knowledgeB==='Bonne connaissance de l’adversaire')vb+=3;
   const diff=va-vb,baseProbA=Math.max(.1,Math.min(.9,1/(1+Math.exp(-diff/10)))),prepared=hgtPrepareBattleContext(ctx,{season:tournamentSeason()},a,b,aId,bId,baseProbA),probA=prepared.analysis.finalProbability.a,roll=Math.random(),winner=roll<probA?aId:bId;
   const battle={a:aId,b:bId,winner,loser:winner===aId?bId:aId,region:ctx.region,regionSlug:ctx.regionSlug,terrain,distanceLabel:d[0],distance:d[1],knowledgeA:ctx.knowledgeA,knowledgeB:ctx.knowledgeB,probA:+probA.toFixed(4),baseProbA:+baseProbA.toFixed(4),roll:+roll.toFixed(4),conditions:prepared.conditions,analysis:prepared.analysis,engine:{version:HGT_COMBAT_ENGINE_VERSION,rulesVersion:HGT_COMBAT_RULES_VERSION,characterA:hgtSnapshot(prepared.profiles.a),characterB:hgtSnapshot(prepared.profiles.b)},at:new Date().toISOString()};
-  battle.narrative=hgtNarrativeFromBattle(battle,prepared.profiles.a,prepared.profiles.b);return battle;
+  battle.narrative=null;battle.narrativeStatus='pending';return battle;
 }
 
 function recordTeamMultiplayerResult(won){const m=universeMeta();m.multiplayerStats??={};m.multiplayerStats[won?'teamWins':'teamLosses']=(Number(m.multiplayerStats[won?'teamWins':'teamLosses'])||0)+1;saveUniverseMeta(m);if(typeof queueCloudGameStateSave==='function')queueCloudGameStateSave();renderHallOfFame()}
