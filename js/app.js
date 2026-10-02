@@ -2294,7 +2294,7 @@ function drawGenealogyConnectors(){
     parents.forEach(p=>path(`M ${p.x} ${p.yBottom} V ${joinY} H ${familyX}`));
     path(`M ${familyX} ${joinY} V ${splitY}`);dot(familyX,joinY);
     if(children.length===1){const c=children[0];path(`M ${familyX} ${splitY} H ${c.x} V ${c.yTop}`);return}
-    const xs=children.map(c=>c.x),minX=Math.min(...xs),maxX=Math.max(...xs);path(`M ${familyX} ${splitY} V ${splitY}`);path(`M ${minX} ${splitY} H ${maxX}`);children.forEach(c=>path(`M ${c.x} ${splitY} V ${c.yTop}`));
+    const xs=children.map(c=>c.x),minX=Math.min(familyX,...xs),maxX=Math.max(familyX,...xs);path(`M ${minX} ${splitY} H ${maxX}`);children.forEach(c=>path(`M ${c.x} ${splitY} V ${c.yTop}`));
   });
 }
 function addGenealogyPath(d){
