@@ -2137,12 +2137,7 @@ function genealogyEntityMap(){
     const explicitSource=x.descendantSourceId?d[x.descendantSourceId]:null;
     const historicalSource=!explicitSource?Object.values(d).find(z=>z?.fighterId===x.id && sameDescendantFighter(z,x)):null;
     const source=explicitSource||historicalSource;
-    // Pour un descendant promu en combattant, la fiche DESC d'origine reste la source
-    // canonique de sa filiation. La copie genealogy.parents de la fiche Sx peut être
-    // ancienne (ou avoir été reconstruite différemment) et plaçait alors l'enfant
-    // sous la mauvaise famille dans l'arbre.
-    const sourceParents=source ? (Array.isArray(source.parentIds)&&source.parentIds.length ? source.parentIds : (source.genealogy?.parents||[])) : [];
-    const rawParents=sourceParents.length ? sourceParents : (x.genealogy?.parents||[]);
+    const rawParents=x.genealogy?.parents?.length ? x.genealogy.parents : (source?.parentIds||source?.genealogy?.parents||[]);
     map[x.id]={...x,_kind:'roster',_parents:canonicalParents(rawParents,x.id),_descendantSourceId:source?.id||x.descendantSourceId||null};
   });
   Object.values(n).forEach(x=>{
@@ -2155,6 +2150,34 @@ function genealogyEntityMap(){
     if(descendantAliases[x.id])return;
     const explicit=Array.isArray(x.parentIds)?x.parentIds:x.genealogy?.parents;
     map[x.id]={...x,_kind:'desc',_parents:canonicalParents(explicit,x.id)};
+  });
+
+  // Réconciliation de filiation : lors de la naissance, HGT enregistre aussi l'enfant
+  // dans genealogy.children de chacun de ses parents. Cette information parent -> enfant
+  // est plus robuste pour les anciennes sauvegardes où parentIds/genealogy.parents d'un
+  // DESC promu a pu être écrasé. Si DEUX parents revendiquent le même enfant, on utilise
+  // ce couple comme filiation canonique pour l'arbre.
+  const claimedParents=new Map();
+  const registerChildClaims=parent=>{
+    if(!parent?.id)return;
+    const parentId=canonicalId(parent.id);
+    const kids=Array.isArray(parent.genealogy?.children)?parent.genealogy.children:[];
+    kids.forEach(rawChildId=>{
+      const childId=canonicalId(rawChildId);
+      if(!childId||childId===parentId||!map[childId]||!map[parentId])return;
+      if(!claimedParents.has(childId))claimedParents.set(childId,new Set());
+      claimedParents.get(childId).add(parentId);
+    });
+  };
+  Object.values(roster).forEach(registerChildClaims);
+  Object.values(n).forEach(registerChildClaims);
+  Object.values(d).forEach(registerChildClaims);
+  claimedParents.forEach((claims,childId)=>{
+    const ps=[...claims].filter(pid=>pid&&pid!==childId&&map[pid]);
+    // Deux revendications concordantes = le couple qui a réellement créé cet enfant.
+    // On ne remplace jamais une filiation complète par une revendication isolée.
+    if(ps.length>=2)map[childId]._parents=ps.slice(0,2);
+    else if(ps.length===1&&!(map[childId]._parents||[]).length)map[childId]._parents=ps;
   });
 
   // Placeholder uniquement lorsqu'un enfant réel référence un parent dont la fiche manque.
