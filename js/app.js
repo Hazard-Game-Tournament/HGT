@@ -4494,7 +4494,7 @@ function combatantComparisonHtml(ca,cb,idA='',idB=''){
 function hgtNarrativeHtml(battle){
   if(battle.narrative?.chronicle)return `<div class="combat-param combat-chronicle"><b>📜 Chronique du combat</b><div style="white-space:pre-line;margin-top:8px">${escapeHtml(battle.narrative.chronicle)}</div><div style="margin-top:10px"><strong>${escapeHtml(battle.narrative.closingLine||'')}</strong></div><div class="muted" style="margin-top:8px">Narration : ${escapeHtml(battle.narrative.model||'OpenRouter')}</div></div>`;
   if(battle.narrativeStatus==='generating')return `<div class="combat-param combat-chronicle" data-narrative-slot><b>📜 Chronique du combat</b><div class="muted" style="margin-top:8px">Génération de la chronique cinématique…</div></div>`;
-  if(battle.narrativeStatus==='error')return `<div class="combat-param combat-chronicle" data-narrative-slot><b>📜 Chronique du combat</b><div class="muted" style="margin-top:8px">La génération a échoué. Tu peux réessayer.</div><button type="button" class="secondary hgt-narrative-retry" style="margin-top:8px">↻ Réessayer</button></div>`;
+  if(battle.narrativeStatus==='error')return `<div class="combat-param combat-chronicle" data-narrative-slot><b>📜 Le Chroniqueur est parti en vacances…</b><div class="muted" style="margin-top:8px">Aucun de nos chroniqueurs n’est disponible pour le moment. Le combat reste enregistré : revenez plus tard pour découvrir son récit.</div><button type="button" class="secondary hgt-narrative-retry" style="margin-top:8px">↻ Réveiller le Chroniqueur</button></div>`;
   return `<div class="combat-param combat-chronicle" data-narrative-slot><b>📜 Chronique du combat</b><div class="muted" style="margin-top:8px">Préparation de la chronique cinématique…</div></div>`;
 }
 function hgtPersistBattleNarrative(battle){
@@ -4516,7 +4516,7 @@ async function hgtGenerateBattleNarrative(battle,roster=loadRoster()){
     battle.narrativeStatus='generating';hgtPersistBattleNarrative(battle);
     const characterA=roster?.[battle.a]||battle.characterA||{},characterB=roster?.[battle.b]||battle.characterB||{};
     const {data,error}=await cloudClient.functions.invoke('Generate-battle-narrative',{body:{battle,characterA,characterB}});
-    if(error)throw error;if(!data?.success||!data?.narrative)throw new Error(data?.error||'Narration indisponible.');
+    if(error)throw error;if(!data?.success||!data?.narrative)throw new Error(data?.userMessage||data?.error||'Narration indisponible.');
     battle.narrative=data.narrative;battle.narrativeStatus='ready';hgtPersistBattleNarrative(battle);return battle.narrative;
   })().catch(e=>{battle.narrativeStatus='error';battle.narrativeError=String(e?.message||e);hgtPersistBattleNarrative(battle);throw e}).finally(()=>__hgtNarrativeRequests.delete(requestKey));
   __hgtNarrativeRequests.set(requestKey,task);return task;
