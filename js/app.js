@@ -2239,6 +2239,37 @@ function renderGenealogyTree(){
     const rowWidth=ids.length*cardW+Math.max(0,ids.length-1)*gap,start=Math.max(leftPad,(canvasW-rowWidth)/2);
     ids.forEach((id,i)=>{const node=makeGenealogyNode(map[id]);const x=start+i*(cardW+gap),y=topPad+(g-1)*bandH;node.style.left=x+'px';node.style.top=y+'px';root.appendChild(node);positions[id]={x:x+cardW/2,yTop:y,yBottom:y+108}});
   });
+
+  // Recentrer les enfants uniques sous leur couple quand cette branche est isolée.
+  // Sans cela, l'ordre global d'une génération peut envoyer l'enfant très loin
+  // horizontalement : on voit alors un couple avec une branche qui semble "vide".
+  // On ne déplace que les cas sans ambiguïté afin de ne pas modifier les familles
+  // déjà correctement disposées.
+  const childrenByParent=new Map();
+  [...relevant].forEach(cid=>{
+    const child=map[cid];
+    const ps=[...new Set((child?._parents||[]).filter(pid=>pid&&positions[pid]))].slice(0,2);
+    ps.forEach(pid=>{if(!childrenByParent.has(pid))childrenByParent.set(pid,[]);childrenByParent.get(pid).push(cid)});
+  });
+  [...relevant].forEach(cid=>{
+    const child=map[cid],cp=positions[cid];if(!child||!cp)return;
+    const ps=[...new Set((child._parents||[]).filter(pid=>pid&&positions[pid]))].slice(0,2);
+    if(ps.length!==2)return;
+    const siblings=[...relevant].filter(id=>id!==cid&&genealogyParentKey(map[id],map)===genealogyParentKey(child,map));
+    if(siblings.length)return;
+    // Les deux parents ne doivent pas alimenter d'autre branche dans l'arbre affiché.
+    if(ps.some(pid=>(childrenByParent.get(pid)||[]).some(id=>id!==cid)))return;
+    const target=(positions[ps[0]].x+positions[ps[1]].x)/2;
+    const rowIds=ordered.get(genOf[cid])||[];
+    const half=cardW/2,safeMin=leftPad+half,safeMax=canvasW-leftPad-half;
+    const wanted=Math.max(safeMin,Math.min(safeMax,target));
+    const collision=rowIds.some(id=>id!==cid&&positions[id]&&Math.abs(positions[id].x-wanted)<cardW+gap*.55);
+    if(collision)return;
+    cp.x=wanted;
+    const node=root.querySelector(`[data-genealogy-id="${CSS.escape(cid)}"]`);
+    if(node)node.style.left=(wanted-half)+'px';
+  });
+
   root.__genealogyLayout={map,genOf,positions,canvasW,canvasH,cardW,bandH};
   requestAnimationFrame(()=>requestAnimationFrame(drawGenealogyConnectors));
 }
