@@ -2167,47 +2167,81 @@ function genealogyGenerationOf(x,map,seen=new Set()){
   const ps=(x._parents||[]).map(id=>map[id]).filter(Boolean);if(!ps.length)return 1;
   return Math.max(...ps.map(p=>genealogyGenerationOf(p,map,new Set(seen))))+1;
 }
+function ensureGenealogyClarityStyles(){
+  if(document.getElementById('hgtGenealogyClarityStyles'))return;
+  const style=document.createElement('style');style.id='hgtGenealogyClarityStyles';
+  style.textContent=`
+    .genealogy-tree{display:block!important;min-width:0!important;padding:10px 8px 24px!important}
+    .genealogy-family-section{margin:0 0 26px;position:relative;z-index:2}
+    .genealogy-family-section>h4{text-align:center;color:#d4b36d;margin:0 0 12px;font-family:"Cinzel",serif}
+    .genealogy-family-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;align-items:start}
+    .genealogy-family{border:1px solid #493944;border-radius:14px;padding:14px;background:linear-gradient(145deg,rgba(23,21,27,.96),rgba(14,13,17,.96));box-shadow:0 10px 28px #0007;min-width:0}
+    .genealogy-family-role{font-size:.72rem;text-transform:uppercase;letter-spacing:.11em;color:#9f8a62;text-align:center;margin:0 0 8px}
+    .genealogy-family-parents,.genealogy-family-children{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:stretch}
+    .genealogy-family .genealogy-node{min-width:0;height:100%;box-sizing:border-box}
+    .genealogy-family-link{position:relative;height:38px;margin:4px 0}
+    .genealogy-family-link:before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:3px solid #d6b56c;filter:drop-shadow(0 0 3px rgba(214,181,108,.7))}
+    .genealogy-family-link:after{content:"◆";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#d6b56c;background:#151218;padding:0 4px;font-size:.7rem}
+    .genealogy-family-empty{padding:8px;text-align:center;color:var(--muted)}
+    @media(max-width:720px){.genealogy-tree-wrap{padding:12px 6px 20px!important;overflow-x:hidden!important}.genealogy-family-list{grid-template-columns:1fr}.genealogy-family{padding:12px}.genealogy-family-parents,.genealogy-family-children{grid-template-columns:repeat(2,minmax(0,1fr))}.genealogy-family .gn-name{font-size:.88rem}.genealogy-family .gn-meta{font-size:.72rem}}
+    @media(max-width:430px){.genealogy-family-parents,.genealogy-family-children{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(style);
+}
 function renderGenealogyTree(){
   const root=document.getElementById('genealogyTree'),wrap=document.getElementById('genealogyTreeWrap');if(!root||!wrap)return;
-  const map=genealogyEntityMap(), linked=new Set();
+  ensureGenealogyClarityStyles();
+  const map=genealogyEntityMap();
+  const families=new Map();
   Object.values(map).forEach(child=>{
-    const parents=(child._parents||[]).filter(pid=>pid&&pid!==child.id);
+    const parents=[...new Set((child._parents||[]).filter(pid=>pid&&pid!==child.id&&map[pid]))].slice(0,2);
     if(!parents.length)return;
-    linked.add(child.id);parents.forEach(pid=>linked.add(pid));
+    const key=[...parents].sort().join('|');
+    if(!families.has(key))families.set(key,{parents:[...parents],children:[]});
+    families.get(key).children.push(child.id);
   });
-  const nodes=Object.values(map).filter(x=>linked.has(x.id));
-  if(!nodes.length){root.innerHTML='<div class="genealogy-tree-empty">Aucun lien familial à afficher pour le moment.</div>';drawGenealogyConnectors();return}
+  if(!families.size){root.innerHTML='<div class="genealogy-tree-empty">Aucun lien familial à afficher pour le moment.</div>';const svg=document.getElementById('genealogyConnectors');if(svg)svg.innerHTML='';return}
 
-  const groups={};nodes.forEach(x=>{const g=genealogyGenerationOf(x,map);(groups[g]??=[]).push(x)});
+  // Une famille = un couple (ou parent unique) puis ses enfants immédiatement dessous.
+  // Les familles sont rangées selon la génération des enfants : aucun croisement de branches,
+  // et un descendant qui devient ensuite parent réapparaît naturellement dans la section suivante.
+  const ordered=[...families.values()].map(f=>{
+    f.parents=[...new Set(f.parents)].filter(id=>map[id]);
+    f.children=[...new Set(f.children)].filter(id=>map[id]);
+    f.childGeneration=Math.min(...f.children.map(id=>genealogyGenerationOf(map[id],map)));
+    return f;
+  }).sort((a,b)=>a.childGeneration-b.childGeneration || a.parents.join('|').localeCompare(b.parents.join('|')));
+
+  const byGeneration=new Map();
+  ordered.forEach(f=>{if(!byGeneration.has(f.childGeneration))byGeneration.set(f.childGeneration,[]);byGeneration.get(f.childGeneration).push(f)});
   root.innerHTML='';
-  const gens=Object.keys(groups).map(Number).sort((a,b)=>a-b);
-  gens.forEach(g=>{
-    const col=document.createElement('div');col.className='genealogy-generation';
-    col.innerHTML=`<h4>Génération ${g}</h4><div class="genealogy-generation-body"></div>`;
-    const body=col.lastElementChild;
-    const arr=groups[g];
-    // Regrouper les enfants d'une même fratrie afin que chaque famille reste visuellement séparée.
-    const families=new Map(), singles=[];
-    arr.forEach(x=>{
-      const ps=(x._parents||[]).filter(Boolean).slice(0,2);
-      if(ps.length){const key=[...ps].sort().join('|');(families.get(key)??families.set(key,[]).get(key)).push(x)}
-      else singles.push(x);
+  [...byGeneration.entries()].sort((a,b)=>a[0]-b[0]).forEach(([generation,list])=>{
+    const section=document.createElement('section');section.className='genealogy-family-section';
+    section.innerHTML=`<h4>Génération ${generation}</h4><div class="genealogy-family-list"></div>`;
+    const familyList=section.querySelector('.genealogy-family-list');
+    list.forEach(f=>{
+      const card=document.createElement('div');card.className='genealogy-family';
+      const parents=document.createElement('div');parents.className='genealogy-family-parents';
+      f.parents.map(id=>map[id]).filter(Boolean).sort((a,b)=>(a.id||'').localeCompare(b.id||'')).forEach(x=>parents.appendChild(makeGenealogyNode(x)));
+      const children=document.createElement('div');children.className='genealogy-family-children';
+      f.children.map(id=>map[id]).filter(Boolean).sort((a,b)=>(a.id||'').localeCompare(b.id||'')).forEach(x=>children.appendChild(makeGenealogyNode(x)));
+      card.innerHTML='<div class="genealogy-family-role">Parents</div>';
+      card.appendChild(parents);
+      const link=document.createElement('div');link.className='genealogy-family-link';link.setAttribute('aria-hidden','true');card.appendChild(link);
+      const childLabel=document.createElement('div');childLabel.className='genealogy-family-role';childLabel.textContent=f.children.length>1?'Enfants':'Enfant';card.appendChild(childLabel);
+      card.appendChild(children);
+      familyList.appendChild(card);
     });
-    singles.sort((a,b)=>(a.id||'').localeCompare(b.id||'')).forEach(x=>body.appendChild(makeGenealogyNode(x)));
-    [...families.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([key,kids])=>{
-      const block=document.createElement('div');block.className='genealogy-family-block';block.dataset.familyKey=key;
-      kids.sort((a,b)=>(a.id||'').localeCompare(b.id||'')).forEach(x=>block.appendChild(makeGenealogyNode(x)));
-      body.appendChild(block);
-    });
-    root.appendChild(col);
+    root.appendChild(section);
   });
-  requestAnimationFrame(()=>requestAnimationFrame(drawGenealogyConnectors));
+  const svg=document.getElementById('genealogyConnectors');if(svg)svg.innerHTML='';
 }
+
 function makeGenealogyNode(x){
   const node=document.createElement('div');
   node.className=`genealogy-node ${x._kind==='roster'?'roster-node':x._kind==='desc'?'desc-node':x._kind==='npc'?'npc-node':'placeholder-node'}`;
   node.dataset.genealogyId=x.id;
-  node.innerHTML=`<div class="gn-name">${x._kind==='desc'?'👶 ':x._kind==='npc'?'🧑 ':'⚔️ '}${x.name||'Sans nom'}</div><div class="gn-id">${x.id}</div><div class="gn-meta">${x.race||x.status||'—'}</div>`;
+  node.innerHTML=`<div class="gn-name">${x._kind==='desc'?'👶 ':x._kind==='npc'?'🧑 ':'⚔️ '}${escapeHtml(x.name||'Sans nom')}</div><div class="gn-id">${escapeHtml(x.id||'—')}</div><div class="gn-meta">${escapeHtml(x.race||x.status||'—')}</div>`;
   if(x._kind==='roster')node.onclick=()=>{showTab('list');openCharacterDetail(x.id)};
   return node;
 }
@@ -2461,7 +2495,7 @@ function illustrationControlsHtml(characterId){
   return `
     <div class="illustration-block">
       <div class="illustration-frame">
-        <img class="character-illustration" data-illustration-for="${characterId}" alt="Illustration du personnage" style="display:none">
+        <img class="character-illustration" data-illustration-for="${characterId}" alt="" aria-label="Illustration du personnage" style="display:none">
         <div class="illustration-placeholder" data-illustration-placeholder-for="${characterId}"><button type="button" class="secondary illustration-first-retry" onclick="retryInitialCharacterIllustration('${characterId}')" title="Relancer la première génération" aria-label="Relancer la première génération de l’illustration" style="font-size:2rem;line-height:1;padding:.55rem .8rem;border-radius:999px">↻</button></div>
       </div>
       <div class="illustration-status" data-illustration-status-for="${characterId}"></div>
