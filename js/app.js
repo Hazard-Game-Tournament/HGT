@@ -1549,13 +1549,13 @@ function openCharacterDetail(id){
     </div>
   </div>
   <div class="detail-sheet">
-    <div class="detail-title">${s.name||'Sans nom'}</div><div class="muted">${id} • ${s.title||'Sans titre'}</div>
+    <div class="detail-title">${escapeHtml(s.name||'Sans nom')}</div><div class="muted">${escapeHtml(id)} • ${escapeHtml(s.title||'Sans titre')}</div>
     <div class="detail-grid">
       <div class="detail-box"><h4>Identité</h4>
-        <div class="detail-row"><b>Race :</b> ${s.race||'—'}</div><div class="detail-row"><b>Bonus de race :</b> ${characterSheetBonusHtml(s,'race')}</div><div class="detail-row"><b>Genre :</b> ${s.gender||'—'}</div>
-        <div class="detail-row"><b>Taille :</b> ${s.size||'—'}</div><div class="detail-row"><b>Archétype :</b> ${s.arch||'—'}${s.slayerTarget?` — cible ${s.slayerTarget}`:''}</div><div class="detail-row"><b>Bonus archétype :</b> ${characterSheetBonusHtml(s,'arch')}</div>${s.summon?summonerSummaryHtml(s):''}
-        <div class="detail-row"><b>Métier :</b> ${s.job||'—'}</div>${historyConsequencesHtml(s)}
-        <div class="detail-row"><b>Personnalité :</b> ${s.personality||'—'}</div>
+        <div class="detail-row"><b>Race :</b> ${escapeHtml(s.race||'—')}</div><div class="detail-row"><b>Bonus de race :</b> ${characterSheetBonusHtml(s,'race')}</div><div class="detail-row"><b>Genre :</b> ${escapeHtml(s.gender||'—')}</div>
+        <div class="detail-row"><b>Taille :</b> ${escapeHtml(s.size||'—')}</div><div class="detail-row"><b>Archétype :</b> ${escapeHtml(s.arch||'—')}${s.slayerTarget?` — cible ${escapeHtml(s.slayerTarget)}`:''}</div><div class="detail-row"><b>Bonus archétype :</b> ${characterSheetBonusHtml(s,'arch')}</div>${s.summon?summonerSummaryHtml(s):''}
+        <div class="detail-row"><b>Métier :</b> ${escapeHtml(s.job||'—')}</div>${historyConsequencesHtml(s)}
+        <div class="detail-row"><b>Personnalité :</b> ${escapeHtml(s.personality||'—')}</div>
       </div>
       <div class="detail-box"><h4>🧬 Origines & lignée</h4>${characterOriginsLineageHtml(s)}</div>
       <div class="detail-box"><h4>Stats</h4>${statsFull}</div>
@@ -5014,7 +5014,7 @@ async function exportCharacterSheetImage(characterId){
     frame.style.cssText='position:fixed;left:-10000px;top:0;width:920px;height:1200px;border:0;opacity:0;pointer-events:none;';
     document.body.appendChild(frame);
     const doc=frame.contentDocument;
-    doc.open();doc.write(`<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(c.name||characterId)}</title>${sharedCharacterWindowCss()}${portrait?`<img src="${portrait}" alt="Portrait">`:''}${sharedCharacterReadOnlyHtml(snapshot)}`);doc.close();
+    doc.open();doc.write(`<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(c.name||characterId)}</title>${sharedCharacterWindowCss()}${portrait?`<img src="${escapeHtml(portrait)}" alt="Portrait">`:''}${sharedCharacterReadOnlyHtml(snapshot)}`);doc.close();
     await new Promise(r=>setTimeout(r,100));
     await Promise.all([...doc.images].map(img=>img.complete?Promise.resolve():new Promise(res=>{img.onload=img.onerror=res})));
     const h=Math.max(doc.documentElement.scrollHeight,doc.body.scrollHeight,1200);frame.style.height=h+'px';
@@ -5630,7 +5630,7 @@ async function hgtInvokeImageWithRecovery(characterId,payload){
         try{if(result.error.context&&typeof result.error.context.json==='function'){const b=await result.error.context.json();detail=b?.error||b?.message||detail;code=b?.code||b?.errorCode||code}}catch(_){ }
         const invokeError=new Error(detail);if(code)invokeError.code=String(code);throw invokeError;
       }
-      if(!result?.data?.success)throw new Error(result?.data?.error||'generation failed');
+      if(!result?.data?.success){const dataError=new Error(result?.data?.error||result?.data?.message||result?.data?.code||'generation failed');if(result?.data?.code)dataError.code=String(result.data.code);throw dataError;}
       return result.data;
     }catch(e){
       if(hgtImageIsQuota(e))throw Object.assign(new Error(await hgtVaeloriaQuotaMessage()),{hgtFriendly:true,hgtQuota:true,cause:e});
