@@ -1532,7 +1532,7 @@ function openCharacterDetail(id){
   ensureGenealogyShape(s);
   const g=s.genealogy||{};
   const powers=s.chi?[`Chi — rang ${s.chi.rank}/10 : ${s.chi.label}`]:(s.powers||[]).map(p=>`${p.name} — maîtrise ${p.mastery??'…'}`);
-  const weapons=(s.weapons||[]).map(w=>`${w.name}${w.mastery!==null&&w.mastery!=='—'?` — maîtrise ${w.mastery}`:''}${w.ench?.length?` — ${w.ench.join(', ')}`:''}`);
+  const weapons=(s.weapons||[]).map(w=>`${w.name}${w.mastery!==null&&w.mastery!=='—'?` — maîtrise ${escapeHtml(String(w.mastery))}`:''}${w.ench?.length?` — ${w.ench.join(', ')}`:''}`);
   const links=(s.relationships||[]).map(r=>`${r.type||r.kind||'Lien'} ↔ ${r.targetId||r.targetName||r.status||'inconnu'}`);
   const statsFull=['Combat','Force','Intelligence','Résilience','Vitesse'].map(k=>{
     const d=s.stats?.[k+'_detail'], br=d?.breakdown?.map(b=>`${b.source} ${b.value>=0?'+':''}${b.value}`).join(' • ')||'';
@@ -1568,7 +1568,7 @@ function openCharacterDetail(id){
       <div class="detail-box"><h4>Famille & lignée</h4>
         <div class="detail-row"><b>Parents :</b> ${g.parents?.length?g.parents.join(', '):'—'}</div>
         <div class="detail-row"><b>Enfants :</b> ${g.children?.length?g.children.join(', '):'—'}</div>
-        <div class="detail-row"><b>Génération :</b> ${g.generation||1}</div>
+        <div class="detail-row"><b>Génération :</b> ${escapeHtml(String(g.generation||1))}</div>
         <div class="detail-row"><b>Lignée :</b> ${g.lineage?.length?g.lineage.join(' → '):'—'}</div>
         <div class="detail-row"><b>Liens :</b> ${links.length?links.join('<br>'):'—'}${needsMysticExistingTargetRepair(s)?`<br><span class="muted">Cible du lien mystique non définie.</span><br><button class="secondary" onclick="repairMysticExistingTarget('${id}')">🔗 Choisir le personnage lié</button>`:''}</div>
       </div>
@@ -4607,7 +4607,8 @@ function raceCodexData(){
 }
 function raceCodexTile(name,extra=''){
  const dragonCross=DRAGON_CODEX_CROSSES.find(x=>x.label===name);
- const escaped=name.replace(/"/g,'&quot;');
+ const safeName=escapeHtml(String(name||'')),safeExtra=escapeHtml(String(extra||''));
+ const escaped=safeName;
  if(name==='Squelette'){
   return `<button type="button" class="race-codex-tile secondary" data-race-codex="Squelette"><span class="race-codex-icon" style="display:grid;grid-template-columns:1fr 1fr;overflow:hidden"><img src="assets/universe/races/squelette.webp" alt="Squelette" style="width:100%;height:100%;object-fit:cover;min-width:0" onerror="this.style.display='none'"><img src="assets/universe/races/liche.webp" alt="Liche — évolution du Squelette" style="width:100%;height:100%;object-fit:cover;min-width:0" onerror="this.style.display='none'"></span><span class="race-codex-name">Squelette</span><small class="muted">Évolution : Liche</small></button>`;
  }
@@ -4621,10 +4622,10 @@ function raceCodexTile(name,extra=''){
   const slug=raceCodexSlug(name);
   const ancestral=`assets/universe/races/${slug}-ancestral.webp`;
   const originel=`assets/universe/races/${slug}-originel.webp`;
-  return `<button type="button" class="race-codex-tile secondary" data-race-codex="${escaped}"><span class="race-codex-icon" style="display:grid;grid-template-columns:1fr 1fr;overflow:hidden"><img src="${ancestral}" alt="${name} ancestral" style="width:100%;height:100%;object-fit:cover;min-width:0" onerror="this.style.display='none'"><img src="${originel}" alt="${name} originel" style="width:100%;height:100%;object-fit:cover;min-width:0" onerror="this.style.display='none'"></span><span class="race-codex-name">${name}</span>${extra?`<small class="muted">${extra}</small>`:''}</button>`;
+  return `<button type="button" class="race-codex-tile secondary" data-race-codex="${escaped}"><span class="race-codex-icon" style="display:grid;grid-template-columns:1fr 1fr;overflow:hidden"><img src="${ancestral}" alt="${safeName} ancestral" style="width:100%;height:100%;object-fit:cover;min-width:0" onerror="this.style.display='none'"><img src="${originel}" alt="${safeName} originel" style="width:100%;height:100%;object-fit:cover;min-width:0" onerror="this.style.display='none'"></span><span class="race-codex-name">${safeName}</span>${extra?`<small class="muted">${safeExtra}</small>`:''}</button>`;
  }
  const src=`assets/universe/races/${raceCodexSlug(name)}.webp`;
- return `<button type="button" class="race-codex-tile secondary" data-race-codex="${escaped}"><span class="race-codex-icon"><img src="${src}" alt="${name}" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span style="display:none">🧬</span></span><span class="race-codex-name">${name}</span>${extra?`<small class="muted">${extra}</small>`:''}</button>`;
+ return `<button type="button" class="race-codex-tile secondary" data-race-codex="${escaped}"><span class="race-codex-icon"><img src="${src}" alt="${safeName}" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span style="display:none">🧬</span></span><span class="race-codex-name">${safeName}</span>${extra?`<small class="muted">${safeExtra}</small>`:''}</button>`;
 }
 function renderRaceCodex(){
  const root=document.getElementById('raceCodexGrid'); if(!root)return;
@@ -4650,13 +4651,13 @@ function renderRaceCodex(){
 function openRaceCodex(name){
  const box=document.getElementById('raceCodexDetail'); if(!box)return; const lore=RACE_CODEX_LORE[name]||{}; const src=`assets/universe/races/${raceCodexSlug(name)}.webp`;
  const dragonCross=DRAGON_CODEX_CROSSES.find(x=>x.label===name);
- const block=(title,val)=>`<div class="race-detail-block"><h4>${title}</h4><p class="${!val||val==='À développer.'?'race-detail-missing':''}">${val||'À développer.'}</p></div>`;
- const onePortrait=(path,label)=>`<div class="race-detail-portrait"><img src="${path}" alt="${label}" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="vae-placeholder" style="display:none"><div><b>Portrait prévu</b><br>${label}<br><small>${path}</small></div></div><small class="muted" style="display:block;text-align:center;margin-top:8px">${label}</small></div>`;
+ const block=(title,val)=>`<div class="race-detail-block"><h4>${escapeHtml(String(title||''))}</h4><p class="${!val||val==='À développer.'?'race-detail-missing':''}">${escapeHtml(String(val||'À développer.'))}</p></div>`;
+ const onePortrait=(path,label)=>{const safePath=escapeHtml(String(path||'')),safeLabel=escapeHtml(String(label||''));return `<div class="race-detail-portrait"><img src="${safePath}" alt="${safeLabel}" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="vae-placeholder" style="display:none"><div><b>Portrait prévu</b><br>${safeLabel}<br><small>${safePath}</small></div></div><small class="muted" style="display:block;text-align:center;margin-top:8px">${safeLabel}</small></div>`};
  const portraits=name==='Squelette'?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">${onePortrait('assets/universe/races/squelette.webp','Squelette — forme de base')}${onePortrait('assets/universe/races/liche.webp','Liche — évolution du Squelette')}</div>`:
   name==='Ange'?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">${onePortrait('assets/universe/races/ange.webp','Ange — forme de base')}${onePortrait('assets/universe/races/archange.webp','Archange — évolution de l’Ange')}</div>`:
   name==='Démon'?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">${onePortrait('assets/universe/races/demon.webp','Démon — forme de base')}${onePortrait('assets/universe/races/archdemon.webp','Archdémon — évolution du Démon')}</div>`:
   (dragonCross?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">${onePortrait(`assets/universe/races/${raceCodexSlug(name)}-ancestral.webp`,`${name} — lignée ancestrale`)}${onePortrait(`assets/universe/races/${raceCodexSlug(name)}-originel.webp`,`${name} — lignée originelle`)}</div>`:onePortrait(src,`Portrait — ${name}`));
- box.innerHTML=`<div class="race-detail-shell"><button type="button" class="race-detail-close secondary" aria-label="Fermer" title="Fermer">×</button><div class="race-detail-layout"><div>${portraits}</div><div class="race-detail-copy"><h2>${name}</h2>${block('Origines',lore.origin)}${block('Développement',lore.development)}${block('Répartition géographique',lore.geography)}${block('Biologie',lore.biology)}${lore.evolution?block('Évolution',lore.evolution):''}</div></div></div>`;
+ box.innerHTML=`<div class="race-detail-shell"><button type="button" class="race-detail-close secondary" aria-label="Fermer" title="Fermer">×</button><div class="race-detail-layout"><div>${portraits}</div><div class="race-detail-copy"><h2>${escapeHtml(String(name||''))}</h2>${block('Origines',lore.origin)}${block('Développement',lore.development)}${block('Répartition géographique',lore.geography)}${block('Biologie',lore.biology)}${lore.evolution?block('Évolution',lore.evolution):''}</div></div></div>`;
  box.classList.add('active'); document.body.style.overflow='hidden'; box.scrollTop=0;
  const close=()=>{box.classList.remove('active');box.innerHTML='';document.body.style.overflow=''};
  box.querySelector('.race-detail-close')?.addEventListener('click',close);
@@ -4905,12 +4906,12 @@ function sharedPrettyValue(v,depth=0){if(v===null||v===undefined||v==='')return 
 function sharedPrettyObject(o,depth=0){return `<div class="shared-object">${Object.entries(o||{}).map(([k,v])=>`<div class="shared-object-row"><b>${escapeHtml(prettyDetailKey(k))}</b><div>${sharedPrettyValue(v,depth+1)}</div></div>`).join('')}</div>`}
 function sharedCharacterReadOnlyHtml(c){
   const g=c?.genealogy||{};
-  const powers=c?.chi?[`Chi — rang ${c.chi.rank}/10 : ${c.chi.label}`]:(c?.powers||[]).map(p=>`${escapeHtml(p.name||'Pouvoir')} — maîtrise ${p.mastery??'…'}`);
-  const weapons=(c?.weapons||[]).map(w=>`${escapeHtml(w.name||'Arme')}${w.mastery!==null&&w.mastery!==undefined&&w.mastery!=='—'?` — maîtrise ${w.mastery}`:''}${w.ench?.length?` — ${w.ench.map(escapeHtml).join(', ')}`:''}`);
+  const powers=c?.chi?[`Chi — rang ${escapeHtml(String(c.chi.rank??'—'))}/10 : ${escapeHtml(String(c.chi.label||'—'))}`]:(c?.powers||[]).map(p=>`${escapeHtml(p.name||'Pouvoir')} — maîtrise ${escapeHtml(String(p.mastery??'…'))}`);
+  const weapons=(c?.weapons||[]).map(w=>`${escapeHtml(w.name||'Arme')}${w.mastery!==null&&w.mastery!==undefined&&w.mastery!=='—'?` — maîtrise ${escapeHtml(String(w.mastery))}`:''}${w.ench?.length?` — ${w.ench.map(escapeHtml).join(', ')}`:''}`);
   const links=(c?.relationships||[]).map(r=>`${escapeHtml(r.type||r.kind||'Lien')} ↔ ${escapeHtml(r.targetId||r.targetName||r.status||'inconnu')}`);
   const statsFull=['Combat','Force','Intelligence','Résilience','Vitesse'].map(k=>{
-    const d=c?.stats?.[k+'_detail'],br=d?.breakdown?.map(b=>`${escapeHtml(b.source||'')} ${Number(b.value)>=0?'+':''}${b.value}`).join(' • ')||'';
-    return `<div class="detail-row"><b>${k}</b> : ${c?.stats?.[k]??'—'}${d?` <span class="muted">(jet ${d.base}${br?' • '+br:''})</span>`:''}</div>`;
+    const d=c?.stats?.[k+'_detail'],br=d?.breakdown?.map(b=>`${escapeHtml(b.source||'')} ${Number(b.value)>=0?'+':''}${escapeHtml(String(b.value??'—'))}`).join(' • ')||'';
+    return `<div class="detail-row"><b>${k}</b> : ${escapeHtml(String(c?.stats?.[k]??'—'))}${d?` <span class="muted">(jet ${escapeHtml(String(d.base??'—'))}${br?' • '+br:''})</span>`:''}</div>`;
   }).join('');
   let origins='—', extras='';
   try{origins=characterOriginsLineageHtml(c)}catch(_){origins=sharedPrettyValue(c?.genealogy||c?.origins)}
@@ -4937,7 +4938,7 @@ function sharedCharacterReadOnlyHtml(c){
       <div class="detail-box"><h4>Famille & lignée</h4>
         <div class="detail-row"><b>Parents :</b> ${g.parents?.length?g.parents.map(escapeHtml).join(', '):'—'}</div>
         <div class="detail-row"><b>Enfants :</b> ${g.children?.length?g.children.map(escapeHtml).join(', '):'—'}</div>
-        <div class="detail-row"><b>Génération :</b> ${g.generation||1}</div>
+        <div class="detail-row"><b>Génération :</b> ${escapeHtml(String(g.generation||1))}</div>
         <div class="detail-row"><b>Lignée :</b> ${g.lineage?.length?g.lineage.map(escapeHtml).join(' → '):'—'}</div>
         <div class="detail-row"><b>Liens :</b> ${links.length?links.join('<br>'):'—'}</div>
       </div>
@@ -5576,11 +5577,10 @@ async function scheduleAutomaticCharacterImageGeneration(characterId){
   illustrationStatus(id,'⚠️ Portrait automatique non lancé. La régénération manuelle reste disponible.');
   return false;
 }
-const HGT_IMAGE_FLAGGED_MAX_RETRIES=20;
 const HGT_IMAGE_TRANSIENT_MAX_RETRIES=3;
 const hgtImageRetrySleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function hgtImageErrorText(err){return String(err?.message||err||'').toLowerCase()}
-function hgtImageIsFlagged(err){const t=hgtImageErrorText(err);return /flagged|safety|moderation|unsafe|content.?filter|output.?refus|image.?refus/.test(t)}
+function hgtImageIsFlagged(err){const code=String(err?.code||err?.hgtCode||'').toUpperCase();if(code==='3030_RETRY_FLAGGED'||code==='3030')return true;const t=hgtImageErrorText(err);return /3030_retry_flagged|cloudflare 3030|retry_also_flagged/.test(t)}
 function hgtImageIsQuota(err){const t=hgtImageErrorText(err);return /429|4006|daily free allocation|quota|neurons? used|allocation.*used|too many requests/.test(t)}
 function hgtImageIsTransient(err){const t=hgtImageErrorText(err);return /failed to fetch|network|timeout|timed out|d[ée]pass[ée]|temporar|unavailable|502|503|504|gateway|connection|edge function/.test(t)}
 async function hgtVaeloriaQuotaMessage(){
@@ -5599,9 +5599,9 @@ async function hgtInvokeImageWithRecovery(characterId,payload){
       const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('generation timeout')),240000));
       const result=await Promise.race([invokePromise,timeoutPromise]);
       if(result?.error){
-        let detail=result.error.message||String(result.error);
-        try{if(result.error.context&&typeof result.error.context.json==='function'){const b=await result.error.context.json();detail=b?.error||b?.message||detail}}catch(_){ }
-        throw new Error(detail);
+        let detail=result.error.message||String(result.error),code=result.error?.code||'';
+        try{if(result.error.context&&typeof result.error.context.json==='function'){const b=await result.error.context.json();detail=b?.error||b?.message||detail;code=b?.code||b?.errorCode||code}}catch(_){ }
+        const invokeError=new Error(detail);if(code)invokeError.code=String(code);throw invokeError;
       }
       if(!result?.data?.success)throw new Error(result?.data?.error||'generation failed');
       return result.data;
@@ -5609,7 +5609,6 @@ async function hgtInvokeImageWithRecovery(characterId,payload){
       if(hgtImageIsQuota(e))throw Object.assign(new Error(await hgtVaeloriaQuotaMessage()),{hgtFriendly:true,hgtQuota:true,cause:e});
       if(hgtImageIsFlagged(e)){
         flaggedCount++;
-        if(flaggedCount>=HGT_IMAGE_FLAGGED_MAX_RETRIES)throw Object.assign(new Error('🛡️ Les Arbitres ont rejeté 20 visions d’affilée. Même eux trouvent ça suspect. Génération interrompue pour éviter une consommation anormale.'),{hgtFriendly:true,cause:e});
         const variants=['🛡️ Les Arbitres de Vaeloria ont refusé cette vision… Nouvelle tentative en cours.','🛡️ Encore rejetée par les Arbitres. Ils sont difficiles aujourd’hui… Nouvelle tentative en cours.','🛡️ Cette vision n’a pas franchi les portes de Vaeloria… Nouvelle tentative en cours.'];
         illustrationStatus(characterId,variants[(flaggedCount-1)%variants.length]);
         await hgtImageRetrySleep(Math.min(5000,1000+flaggedCount*250));
