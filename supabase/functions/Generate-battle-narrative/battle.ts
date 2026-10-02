@@ -3,10 +3,10 @@
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODELS = [
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
   'nvidia/nemotron-3-super-120b-a12b:free',
-  'nvidia/nemotron-3.5-lightning:free',
+  'inclusionai/ling-3.0-flash:free',
 ];
+const REQUEST_TIMEOUT_MS = 45_000;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,68 +35,15 @@ function resultReading(battle: any) {
   return { pA, expectedWinner, winner: battle.winner, loser: battle.loser, upset, balance, resultRarity: rarity, estimatedDurationSec };
 }
 
-const narrativeTool = {
-  type: 'function',
-  function: {
-    name: 'submit_hgt_battle_narrative',
-    description: 'Return the final HGT battle chronicle and a filmable storyboard. The winner is immutable.',
-    parameters: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['chronicle', 'closingLine', 'direction', 'sequences'],
-      properties: {
-        chronicle: { type: 'string', minLength: 300 },
-        closingLine: { type: 'string', minLength: 10 },
-        direction: {
-          type: 'object', additionalProperties: false,
-          required: ['tone', 'estimatedDurationSec', 'intensity', 'pacing'],
-          properties: {
-            tone: { type: 'string' },
-            estimatedDurationSec: { type: 'integer', minimum: 25, maximum: 240 },
-            intensity: { type: 'string' },
-            pacing: { type: 'string' },
-          },
-        },
-        sequences: {
-          type: 'array', minItems: 4, maxItems: 10,
-          items: {
-            type: 'object', additionalProperties: false,
-            required: ['id', 'title', 'durationSec', 'location', 'characters', 'startState', 'action', 'reaction', 'consequence', 'camera', 'visualEffects', 'environmentEffects', 'dialogue', 'shots', 'endState'],
-            properties: {
-              id: { type: 'integer' }, title: { type: 'string' }, durationSec: { type: 'integer', minimum: 2, maximum: 90 },
-              location: { type: 'string' }, timeOfDay: { type: ['string', 'null'] }, weather: { type: ['string', 'null'] },
-              characters: { type: 'array', items: { type: 'string' } },
-              startState: { type: 'object' }, action: { type: 'string' }, reaction: { type: 'string' }, consequence: { type: 'string' },
-              camera: {
-                type: 'object', additionalProperties: false, required: ['framing', 'movement', 'focus'],
-                properties: { framing: { type: 'string' }, movement: { type: 'string' }, focus: { type: 'string' } },
-              },
-              visualEffects: { type: 'array', items: { type: 'string' } }, environmentEffects: { type: 'array', items: { type: 'string' } },
-              dialogue: { type: ['string', 'null'] },
-              shots: {
-                type: 'array', minItems: 1, maxItems: 8,
-                items: {
-                  type: 'object', additionalProperties: false, required: ['id', 'durationSec', 'shotType', 'camera', 'subject', 'visibleAction'],
-                  properties: { id: { type: 'string' }, durationSec: { type: 'integer', minimum: 1, maximum: 30 }, shotType: { type: 'string' }, camera: { type: 'string' }, subject: { type: 'string' }, visibleAction: { type: 'string' } },
-                },
-              },
-              endState: { type: 'object' },
-            },
-          },
-        },
-      },
-    },
-  },
-};
-
-function extractToolArguments(data: any) {
-  const msg = data?.choices?.[0]?.message;
-  const call = msg?.tool_calls?.find((x: any) => x?.function?.name === 'submit_hgt_battle_narrative');
-  if (call?.function?.arguments) return JSON.parse(call.function.arguments);
-  const content = typeof msg?.content === 'string' ? msg.content.trim() : '';
-  if (!content) throw new Error('Réponse OpenRouter vide.');
-  const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1] ?? content;
-  return JSON.parse(fenced);
+function extractJson(data: any) {
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content !== 'string' || !content.trim()) throw new Error('Réponse OpenRouter vide.');
+  const raw = content.trim();
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim() ?? raw;
+  try { return JSON.parse(fenced); } catch (_) {}
+  const start = fenced.indexOf('{'), end = fenced.lastIndexOf('}');
+  if (start >= 0 && end > start) return JSON.parse(fenced.slice(start, end + 1));
+  throw new Error('Réponse du Chroniqueur non exploitable.');
 }
 
 function validateNarrative(n: any) {
@@ -109,6 +56,42 @@ function validateNarrative(n: any) {
     if (!Array.isArray(s.shots) || !s.shots.length) throw new Error(`Plans absents dans la séquence ${i + 1}.`);
   }
   return n;
+}
+
+function outputContract() {
+  return `Réponds UNIQUEMENT avec un objet JSON valide, sans markdown ni texte avant/après, selon cette structure :
+{
+  "chronicle": "narration continue en français, sans titres ni numéros d'étapes",
+  "closingLine": "courte phrase finale confirmant le vainqueur imposé",
+  "direction": {
+    "tone": "...",
+    "estimatedDurationSec": 95,
+    "intensity": "...",
+    "pacing": "..."
+  },
+  "sequences": [
+    {
+      "id": 1,
+      "title": "titre cinématographique bref",
+      "durationSec": 12,
+      "location": "...",
+      "timeOfDay": null,
+      "weather": null,
+      "characters": ["..."],
+      "startState": {},
+      "action": "...",
+      "reaction": "...",
+      "consequence": "...",
+      "camera": {"framing":"...","movement":"...","focus":"..."},
+      "visualEffects": [],
+      "environmentEffects": [],
+      "dialogue": null,
+      "shots": [{"id":"1A","durationSec":4,"shotType":"...","camera":"...","subject":"...","visibleAction":"..."}],
+      "endState": {}
+    }
+  ]
+}
+Le tableau sequences contient 4 à 10 séquences. Chaque séquence contient au moins un shot.`;
 }
 
 Deno.serve(async (req) => {
@@ -135,29 +118,68 @@ Deno.serve(async (req) => {
     const loserName = battle.loser === battle.a ? (characterA.name || battle.a) : (characterB.name || battle.b);
     const death = battle.death === battle.loser;
 
-    const system = `Tu es le réalisateur et chroniqueur officiel de Hazard Game Tournament (HGT), univers dark fantasy cinématique de Vaeloria.
-RÈGLE ABSOLUE : le moteur HGT a DÉJÀ calculé les probabilités, effectué le tirage et fixé le résultat. Tu n'arbitres jamais le combat et tu ne modifies jamais le vainqueur.
-Tu dois raconter COMMENT le résultat imposé s'est produit, en respectant strictement les fiches et les données HGT fournies.
+    const system = `Tu es le Chroniqueur officiel de Hazard Game Tournament (HGT), dans l'univers dark fantasy cinématique de Vaeloria.
 
-Contraintes canoniques :
-- Vainqueur immuable : ${winnerName} (${battle.winner}). Perdant : ${loserName} (${battle.loser}).
-- Mort définitive du perdant : ${death ? 'OUI, elle doit se produire dans le climax/aftermath' : 'NON, interdiction de tuer le perdant'}.
-- N'invente aucun pouvoir, arme, maîtrise, immunité, résistance, faiblesse, transformation, invocation ou équipement absent des données.
-- Tu peux seulement combiner de façon plausible des capacités réellement présentes.
-- Les statistiques numériques servent à comprendre le rapport de force : ne les récite pas dans la chronique.
-- Les interactions HGT et conditions environnementales doivent être montrées par des actions/réactions/conséquences concrètes.
+RÈGLE ABSOLUE DE FIDÉLITÉ :
+Tu es un chroniqueur, PAS le simulateur du combat. Le moteur HGT a déjà déterminé le résultat et toutes les données canoniques fournies. Tu embellis la FORME, jamais le CONTENU.
+
+RÉSULTAT IMMUABLE :
+- Vainqueur : ${winnerName} (${battle.winner}).
+- Perdant : ${loserName} (${battle.loser}).
+- Mort définitive du perdant : ${death ? 'OUI. Elle doit se produire au climax ou dans l\'aftermath.' : 'NON. Toute description suggérant sa mort ou une blessure normalement mortelle est interdite.'}
+
+TU PEUX inventer uniquement :
+- formulations, sensations et descriptions visuelles ;
+- transitions et mouvements mineurs nécessaires à la fluidité ;
+- réactions émotionnelles raisonnables ;
+- détails de mise en scène qui ne changent aucun fait du combat.
+
+TU NE PEUX JAMAIS inventer :
+- pouvoir, technique, sort, arme, équipement, transformation ou invocation absent des données ;
+- propriété nouvelle d'une arme, d'un corps, d'une race ou d'un pouvoir ;
+- immunité, résistance, faiblesse, absorption, canalisation ou capacité passive non fournie ;
+- passé, expérience ou connaissance non fournis ;
+- règle physique ou magique destinée à expliquer un résultat ;
+- blessure permanente, amputation, cicatrice permanente ou destruction permanente d'équipement sauf si HGT l'impose ;
+- changement d'état permanent d'un combattant ;
+- propriété environnementale absente des données : par exemple, un lac froid n'est pas nécessairement gelé.
+
+FIDÉLITÉ DES CAUSALITÉS :
+- Si une causalité n'est pas explicitement fournie, décris le résultat sans inventer d'explication scientifique, biologique ou magique.
+- Ne transforme jamais une corrélation ou un modificateur HGT en nouvelle loi de l'univers.
 - Une faiblesse n'agit que si elle est réellement exposée. Absence de résistance ≠ faiblesse.
-- La connaissance de l'adversaire influence seulement ce qu'un combattant peut volontairement anticiper/exploiter.
-- Si upset=true, montre précisément comment l'outsider exploite des circonstances/ouvertures sans prétendre qu'il était secrètement plus puissant.
-- Blessures temporaires, sang, fatigue et dégâts locaux sont permis. Mort, amputation, cicatrice permanente, destruction permanente d'équipement, nouveau pouvoir ou transformation permanente sont interdits sauf si HGT l'impose explicitement.
-- Dialogue rare, bref et cohérent avec le personnage.
-- Style filmable : mise en place → premier contact → développement → escalade → tournant → climax → aftermath. Chaque étape suit action → réaction → conséquence.
-- Continuité stricte : endState d'une séquence doit être compatible avec startState de la suivante. Suis positions, distance, blessures, équipement, effets actifs et environnement.
-- Les shots doivent être directement utilisables plus tard pour une génération vidéo.
-- Écris la chronique en français, immersive et précise, sans commentaire méta sur l'IA, le hasard ou le prompt.
-- La dernière ligne doit confirmer sans ambiguïté la victoire de ${winnerName}.
+- La connaissance de l'adversaire détermine seulement ce qu'un combattant peut raisonnablement anticiper ou exploiter.
+- Si upset=true, montre comment l'outsider obtient le résultat imposé grâce aux ouvertures et circonstances disponibles, sans prétendre qu'il était secrètement plus puissant.
 
-Durée cible : environ ${reading.estimatedDurationSec} secondes. Le rythme dépend du rapport de force, pas d'une obligation de longueur.`;
+COMBAT :
+- Les combattants agissent intelligemment selon leurs capacités réellement présentes.
+- Les statistiques numériques servent uniquement à comprendre le rapport de force : ne les récite jamais.
+- Tu peux décrire des impacts, douleur, essoufflement, fatigue, sang superficiel et dégâts temporaires raisonnables nécessaires à une scène de combat, mais jamais leur attribuer une conséquence canonique nouvelle ou permanente.
+- Si les données donnent explicitement une blessure, un emplacement de coup, un état ou une chronologie, conserve-les exactement.
+- Si le moteur indique qu'un combattant survit, aucune phrase ne doit suggérer une blessure normalement mortelle.
+- Dialogue rare, bref et cohérent.
+
+NARRATION :
+- Français exclusivement, sauf noms propres fournis.
+- Narration continue et naturelle : n'affiche jamais les numéros, étapes ou structure interne des données.
+- Aucun titre intermédiaire dans chronicle.
+- Style cinématographique dark fantasy, immersif et précis.
+- Évite la structure mécanique « A attaque / B attaque » : fais circuler initiative, terrain, distance, réactions et rythme naturellement.
+- Ne révèle pas prématurément le vainqueur ; la victoire doit devenir certaine au climax.
+- Mise en place → premier contact → développement → escalade → tournant → climax → aftermath.
+- Vise une chronique substantielle et fluide ; privilégie la fidélité aux données à la longueur.
+- Ne termine pas chronicle par une ligne technique du type « Vainqueur : X » ; closingLine remplit ce rôle naturellement.
+- Aucun commentaire méta sur l'IA, le prompt, les probabilités ou le tirage.
+
+STORYBOARD :
+- Les séquences sont une traduction filmable de la MÊME chronique, pas une seconde version du combat.
+- Continuité stricte entre endState et startState : positions, distance, blessures, équipement, effets actifs et environnement.
+- Les shots ne doivent ajouter aucun événement ou pouvoir absent de la chronique et des données HGT.
+
+En cas de conflit entre qualité littéraire et fidélité : LA FIDÉLITÉ AUX DONNÉES EST TOUJOURS PRIORITAIRE.
+Durée indicative : environ ${reading.estimatedDurationSec} secondes.
+
+${outputContract()}`;
 
     const payload = {
       result: reading,
@@ -167,38 +189,51 @@ Durée cible : environ ${reading.estimatedDurationSec} secondes. Le rythme dépe
 
     const errors: any[] = [];
     for (const model of MODELS) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
         const response = await fetch(OPENROUTER_URL, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
             model,
             messages: [
               { role: 'system', content: system },
-              { role: 'user', content: `Données canoniques HGT du combat :\n${JSON.stringify(payload)}` },
+              { role: 'user', content: `Voici les données canoniques HGT. Elles sont la seule source de vérité pour ce combat. Respecte-les strictement et retourne uniquement le JSON demandé.\n\n${JSON.stringify(payload)}` },
             ],
-            tools: [narrativeTool],
-            tool_choice: { type: 'function', function: { name: 'submit_hgt_battle_narrative' } },
-            temperature: 0.72,
+            temperature: 0.58,
             max_tokens: 7000,
           }),
         });
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(`OpenRouter ${response.status}: ${data?.error?.message || 'erreur inconnue'}`);
-        const narrative = validateNarrative(extractToolArguments(data));
-        narrative.version = 1;
+        const narrative = validateNarrative(extractJson(data));
+        narrative.version = 2;
         narrative.generatedAt = new Date().toISOString();
-        narrative.generator = 'openrouter-hgt-v1';
+        narrative.generator = 'openrouter-hgt-v2';
         narrative.provider = 'openrouter';
         narrative.model = data?.model || model;
         narrative.resultFingerprint = `${battle.a}|${battle.b}|${battle.winner}|${battle.roll ?? ''}|${battle.at ?? ''}`;
         return json({ success: true, narrative, model: narrative.model });
       } catch (e) {
-        errors.push({ model, error: e instanceof Error ? e.message : String(e) });
+        const message = e instanceof Error ? e.message : String(e);
+        errors.push({ model, error: message });
+      } finally {
+        clearTimeout(timer);
       }
     }
 
-    return json({ success: false, error: 'ALL_FREE_MODELS_FAILED', retryable: true, attempts: errors }, 503);
+    return json({
+      success: false,
+      error: 'ALL_CHRONICLERS_UNAVAILABLE',
+      retryable: true,
+      userMessage: '📜 Le Chroniqueur est parti en vacances… Aucun de nos chroniqueurs n’est disponible pour le moment. Le combat reste enregistré : revenez plus tard pour découvrir son récit.',
+      attempts: errors,
+    }, 503);
   } catch (e) {
     return json({ success: false, error: e instanceof Error ? e.message : String(e), retryable: true }, 500);
   }
