@@ -2137,7 +2137,12 @@ function genealogyEntityMap(){
     const explicitSource=x.descendantSourceId?d[x.descendantSourceId]:null;
     const historicalSource=!explicitSource?Object.values(d).find(z=>z?.fighterId===x.id && sameDescendantFighter(z,x)):null;
     const source=explicitSource||historicalSource;
-    const rawParents=x.genealogy?.parents?.length ? x.genealogy.parents : (source?.parentIds||source?.genealogy?.parents||[]);
+    // Pour un descendant matérialisé, la filiation de naissance (DESC) reste canonique.
+    // genealogy.parents de la fiche combattant peut ensuite contenir des données de couple/descendance
+    // héritées d'anciennes versions et ne doit jamais transformer un partenaire en parent.
+    const rawParents=source
+      ? (source.parentIds||source.genealogy?.parents||[])
+      : (x.genealogy?.parents||[]);
     map[x.id]={...x,_kind:'roster',_parents:canonicalParents(rawParents,x.id),_descendantSourceId:source?.id||x.descendantSourceId||null};
   });
   Object.values(n).forEach(x=>{
@@ -2152,33 +2157,9 @@ function genealogyEntityMap(){
     map[x.id]={...x,_kind:'desc',_parents:canonicalParents(explicit,x.id)};
   });
 
-  // Réconciliation de filiation : lors de la naissance, HGT enregistre aussi l'enfant
-  // dans genealogy.children de chacun de ses parents. Cette information parent -> enfant
-  // est plus robuste pour les anciennes sauvegardes où parentIds/genealogy.parents d'un
-  // DESC promu a pu être écrasé. Si DEUX parents revendiquent le même enfant, on utilise
-  // ce couple comme filiation canonique pour l'arbre.
-  const claimedParents=new Map();
-  const registerChildClaims=parent=>{
-    if(!parent?.id)return;
-    const parentId=canonicalId(parent.id);
-    const kids=Array.isArray(parent.genealogy?.children)?parent.genealogy.children:[];
-    kids.forEach(rawChildId=>{
-      const childId=canonicalId(rawChildId);
-      if(!childId||childId===parentId||!map[childId]||!map[parentId])return;
-      if(!claimedParents.has(childId))claimedParents.set(childId,new Set());
-      claimedParents.get(childId).add(parentId);
-    });
-  };
-  Object.values(roster).forEach(registerChildClaims);
-  Object.values(n).forEach(registerChildClaims);
-  Object.values(d).forEach(registerChildClaims);
-  claimedParents.forEach((claims,childId)=>{
-    const ps=[...claims].filter(pid=>pid&&pid!==childId&&map[pid]);
-    // Deux revendications concordantes = le couple qui a réellement créé cet enfant.
-    // On ne remplace jamais une filiation complète par une revendication isolée.
-    if(ps.length>=2)map[childId]._parents=ps.slice(0,2);
-    else if(ps.length===1&&!(map[childId]._parents||[]).length)map[childId]._parents=ps;
-  });
+  // IMPORTANT : la relation parent → enfant stockée sur les parents n'est PAS utilisée
+  // pour reconstruire la filiation. Un personnage peut être à la fois enfant d'un couple et
+  // partenaire dans un autre couple ; seule la filiation portée par l'enfant fait foi.
 
   // Placeholder uniquement lorsqu'un enfant réel référence un parent dont la fiche manque.
   const refs=[];
@@ -2207,40 +2188,61 @@ function ensureGenealogyClarityStyles(){
     .genealogy-pedigree-svg circle{fill:#d6b56c;filter:drop-shadow(0 0 3px rgba(214,181,108,.55))}
     .genealogy-generation-label{position:absolute;left:18px;z-index:3;color:#d4b36d;font-family:"Cinzel",serif;font-size:1.02rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;text-shadow:0 2px 8px #000;background:linear-gradient(90deg,#100d10 78%,transparent);padding:3px 22px 3px 0;pointer-events:none}
     .genealogy-tree .genealogy-node{position:absolute!important;z-index:2!important;width:210px!important;min-width:210px!important;min-height:108px;height:auto!important;box-sizing:border-box;box-shadow:0 7px 20px #0007;background:#110e12}
-    @media(max-width:720px){
-      .genealogy-tree .genealogy-node{width:184px!important;min-width:184px!important;min-height:102px}
-      .genealogy-tree .gn-name{font-size:.88rem}.genealogy-tree .gn-meta{font-size:.73rem}
-      .genealogy-generation-label{left:12px;font-size:.92rem}
-    }
+    /* Un seul rendu sur téléphone et PC : le téléphone fait simplement glisser la même toile. */
+    @media(max-width:720px){.genealogy-generation-label{left:18px}}
   `;
   document.head.appendChild(style);
 }
-function genealogyPedigreeGeneration(id,map,memo=new Map(),stack=new Set()){
-  if(memo.has(id))return memo.get(id);if(stack.has(id))return 1;
-  const x=map[id];if(!x)return 1;const next=new Set(stack);next.add(id);
-  const ps=(x._parents||[]).filter(pid=>pid&&pid!==id&&map[pid]);
-  const g=ps.length?Math.max(...ps.map(pid=>genealogyPedigreeGeneration(pid,map,memo,next)))+1:1;
-  memo.set(id,g);return g;
+function genealogyFamilyGraph(map,relevant){
+  const families=new Map(),partners=new Map();
+  const addPartner=(a,b)=>{if(!partners.has(a))partners.set(a,new Set());partners.get(a).add(b)};
+  [...relevant].forEach(id=>{
+    const child=map[id];if(!child)return;
+    const ps=[...new Set((child._parents||[]).filter(pid=>pid&&pid!==id&&relevant.has(pid)&&map[pid]))].slice(0,2);
+    if(!ps.length)return;
+    const key=ps.slice().sort().join('|');
+    if(!families.has(key))families.set(key,{key,parents:ps,children:[]});
+    families.get(key).children.push(id);
+    if(ps.length===2){addPartner(ps[0],ps[1]);addPartner(ps[1],ps[0])}
+  });
+  return{families,partners};
 }
-function genealogyParentKey(x,map){
-  const ps=[...new Set((x?._parents||[]).filter(pid=>pid&&map[pid]))].sort();return ps.join('|');
-}
-function genealogyOrderGeneration(ids,g,map,genOf,previousOrder){
-  const prevPos=new Map((previousOrder||[]).map((id,i)=>[id,i]));
-  const childGroups=new Map();
-  ids.forEach(id=>{const key=genealogyParentKey(map[id],map)||`~${id}`;if(!childGroups.has(key))childGroups.set(key,[]);childGroups.get(key).push(id)});
-  const groups=[...childGroups.entries()].map(([key,members])=>{
-    const parents=key[0]==='~'?[]:key.split('|').filter(Boolean);
-    const score=parents.length&&parents.some(p=>prevPos.has(p))?parents.filter(p=>prevPos.has(p)).reduce((n,p)=>n+prevPos.get(p),0)/parents.filter(p=>prevPos.has(p)).length:1e6;
-    return{key,members:members.sort((a,b)=>String(a).localeCompare(String(b))),score};
-  }).sort((a,b)=>a.score-b.score||a.key.localeCompare(b.key));
-  let ordered=groups.flatMap(x=>x.members);
-  // Dans une même génération, deux personnes ayant des enfants ensemble doivent rester voisines.
-  const couples=[];Object.values(map).forEach(ch=>{const ps=[...new Set((ch._parents||[]).filter(p=>genOf[p]===g&&ids.includes(p)))];if(ps.length===2)couples.push(ps)});
-  for(let pass=0;pass<3;pass++)for(const [a,b] of couples){
-    let ia=ordered.indexOf(a),ib=ordered.indexOf(b);if(ia<0||ib<0||Math.abs(ia-ib)<=1)continue;
-    const moving=ordered.splice(ib,1)[0];ia=ordered.indexOf(a);ordered.splice(ia+1,0,moving);
+function genealogyGraphGenerations(map,relevant,graph){
+  const gen={};[...relevant].forEach(id=>gen[id]=1);
+  // Contraintes : deux partenaires sont sur la même rangée ; leurs enfants sont sur la suivante.
+  // On itère jusqu'à stabilisation. Les relations sont déjà résolues AVANT toute coordonnée écran.
+  for(let pass=0;pass<Math.max(8,relevant.size*3);pass++){
+    let changed=false;
+    graph.families.forEach(f=>{
+      const pg=Math.max(...f.parents.map(p=>gen[p]||1));
+      f.parents.forEach(p=>{if((gen[p]||1)<pg){gen[p]=pg;changed=true}});
+      f.children.forEach(c=>{const want=pg+1;if((gen[c]||1)<want){gen[c]=want;changed=true}});
+    });
+    if(!changed)break;
   }
+  return gen;
+}
+function genealogyOrderRows(map,relevant,graph,gen){
+  const rows=new Map();[...relevant].forEach(id=>{const g=gen[id]||1;if(!rows.has(g))rows.set(g,[]);rows.get(g).push(id)});
+  const ordered=new Map();let prevCenters=new Map();
+  [...rows.keys()].sort((a,b)=>a-b).forEach(g=>{
+    const ids=rows.get(g),remaining=new Set(ids),units=[];
+    // Les couples de cette rangée constituent des unités insécables : enfant et partenaire
+    // ne peuvent donc plus être confondus par le layout.
+    graph.families.forEach(f=>{
+      const ps=f.parents.filter(p=>remaining.has(p)&&gen[p]===g);
+      if(ps.length===2){units.push(ps);ps.forEach(p=>remaining.delete(p))}
+    });
+    remaining.forEach(id=>units.push([id]));
+    const parentScore=unit=>{
+      const scores=[];
+      unit.forEach(id=>(map[id]?._parents||[]).forEach(p=>{if(prevCenters.has(p))scores.push(prevCenters.get(p))}));
+      return scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:1e9;
+    };
+    units.sort((a,b)=>parentScore(a)-parentScore(b)||String(a[0]).localeCompare(String(b[0])));
+    const row=units.flat();ordered.set(g,row);
+    prevCenters=new Map(row.map((id,i)=>[id,i]));
+  });
   return ordered;
 }
 function renderGenealogyTree(){
@@ -2250,27 +2252,24 @@ function renderGenealogyTree(){
   const addAncestors=id=>{const x=map[id];if(!x)return;(x._parents||[]).forEach(pid=>{if(!map[pid]||relevant.has(pid))return;relevant.add(pid);addAncestors(pid)})};[...relevant].forEach(addAncestors);
   const oldSvg=document.getElementById('genealogyConnectors');if(oldSvg){oldSvg.innerHTML='';oldSvg.setAttribute('width','0');oldSvg.setAttribute('height','0')}
   if(!relevant.size){root.innerHTML='<div class="genealogy-tree-empty">Aucun lien familial à afficher pour le moment.</div>';return}
-  const memo=new Map(),genOf={};[...relevant].forEach(id=>genOf[id]=genealogyPedigreeGeneration(id,map,memo));
-  const generations=new Map();[...relevant].forEach(id=>{const g=genOf[id]||1;if(!generations.has(g))generations.set(g,[]);generations.get(g).push(id)});
-  const ordered=new Map();let previous=[];
-  [...generations.keys()].sort((a,b)=>a-b).forEach(g=>{const row=genealogyOrderGeneration(generations.get(g)||[],g,map,genOf,previous);ordered.set(g,row);previous=row});
 
-  const mobile=window.matchMedia?.('(max-width:720px)')?.matches,cardW=mobile?184:210,gap=mobile?26:34,leftPad=mobile?24:34,topPad=52,bandH=mobile?205:218;
+  const graph=genealogyFamilyGraph(map,relevant),genOf=genealogyGraphGenerations(map,relevant,graph),ordered=genealogyOrderRows(map,relevant,graph,genOf);
+  // Dimensions IDENTIQUES sur téléphone et PC. Seule la fenêtre visible change.
+  const cardW=210,gap=34,leftPad=34,topPad=52,bandH=218;
   const maxCount=Math.max(1,...[...ordered.values()].map(a=>a.length));
-  const canvasW=Math.max(wrap.clientWidth||0,leftPad*2+maxCount*cardW+Math.max(0,maxCount-1)*gap);
-  const maxGen=Math.max(...ordered.keys()),canvasH=topPad+maxGen*bandH+28;
+  const contentW=leftPad*2+maxCount*cardW+Math.max(0,maxCount-1)*gap;
+  const canvasW=Math.max(wrap.clientWidth||0,contentW),maxGen=Math.max(...ordered.keys()),canvasH=topPad+maxGen*bandH+28;
   root.innerHTML='';root.style.width=canvasW+'px';root.style.minWidth=canvasW+'px';root.style.height=canvasH+'px';
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('genealogy-pedigree-svg');svg.setAttribute('aria-hidden','true');root.appendChild(svg);
   const positions={};
   [...ordered.entries()].sort((a,b)=>a[0]-b[0]).forEach(([g,ids])=>{
     const label=document.createElement('div');label.className='genealogy-generation-label';label.style.top=(topPad+(g-1)*bandH-36)+'px';label.textContent=`Génération ${g}`;root.appendChild(label);
     const rowWidth=ids.length*cardW+Math.max(0,ids.length-1)*gap,start=Math.max(leftPad,(canvasW-rowWidth)/2);
-    ids.forEach((id,i)=>{const node=makeGenealogyNode(map[id]);const x=start+i*(cardW+gap),y=topPad+(g-1)*bandH;node.style.left=x+'px';node.style.top=y+'px';root.appendChild(node);positions[id]={x:x+cardW/2,yTop:y,yBottom:y+108}});
+    ids.forEach((id,i)=>{const node=makeGenealogyNode(map[id]),x=start+i*(cardW+gap),y=topPad+(g-1)*bandH;node.style.left=x+'px';node.style.top=y+'px';root.appendChild(node);positions[id]={x:x+cardW/2,yTop:y,yBottom:y+108}});
   });
-  root.__genealogyLayout={map,genOf,positions,canvasW,canvasH,cardW,bandH};
+  root.__genealogyLayout={map,genOf,positions,canvasW,canvasH,cardW,bandH,families:graph.families};
   requestAnimationFrame(()=>requestAnimationFrame(drawGenealogyConnectors));
 }
-
 function makeGenealogyNode(x){
   const node=document.createElement('div');
   node.className=`genealogy-node ${x._kind==='roster'?'roster-node':x._kind==='desc'?'desc-node':x._kind==='npc'?'npc-node':'placeholder-node'}`;
@@ -2281,25 +2280,21 @@ function makeGenealogyNode(x){
 }
 function drawGenealogyConnectors(){
   const root=document.getElementById('genealogyTree');if(!root)return;const svg=root.querySelector('.genealogy-pedigree-svg'),layout=root.__genealogyLayout;if(!svg||!layout)return;
-  const {map,genOf,positions,canvasW,canvasH}=layout;svg.setAttribute('width',String(canvasW));svg.setAttribute('height',String(canvasH));svg.setAttribute('viewBox',`0 0 ${canvasW} ${canvasH}`);svg.innerHTML='';
+  const {positions,canvasW,canvasH,families}=layout;svg.setAttribute('width',String(canvasW));svg.setAttribute('height',String(canvasH));svg.setAttribute('viewBox',`0 0 ${canvasW} ${canvasH}`);svg.innerHTML='';
   const path=d=>{const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',d);svg.appendChild(p)};
   const dot=(x,y)=>{const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r','3');svg.appendChild(c)};
-  // Une seule branche par famille : les frères/sœurs partagent le même nœud familial.
-  const families=new Map();Object.values(map).forEach(child=>{
-    if(!positions[child.id])return;const ps=[...new Set((child._parents||[]).filter(pid=>pid&&pid!==child.id&&positions[pid]))].slice(0,2);if(!ps.length)return;
-    const key=ps.slice().sort().join('|');if(!families.has(key))families.set(key,{parents:ps,children:[]});families.get(key).children.push(child.id);
-  });
+  // Chaque famille possède son propre nœud. Une branche entrante (mes parents) et une
+  // branche sortante (moi + mon partenaire → nos enfants) ne sont jamais fusionnées.
   families.forEach(f=>{
-    const parents=f.parents.map(id=>({id,...positions[id]})).filter(Boolean),children=f.children.map(id=>({id,...positions[id]})).filter(Boolean);if(!parents.length||!children.length)return;
-    const parentBottom=Math.max(...parents.map(p=>p.yBottom));const childTop=Math.min(...children.map(c=>c.yTop));
-    // Le nœud familial est centré entre les parents (ou sous le parent unique), dans l'espace libre entre générations.
-    const familyX=parents.reduce((n,p)=>n+p.x,0)/parents.length;
-    const joinY=parentBottom+Math.max(22,Math.min(48,(childTop-parentBottom)*.34));
-    const splitY=childTop-Math.max(22,Math.min(48,(childTop-parentBottom)*.34));
+    const parents=f.parents.map(id=>positions[id]).filter(Boolean),children=f.children.map(id=>positions[id]).filter(Boolean);if(!parents.length||!children.length)return;
+    const parentBottom=Math.max(...parents.map(p=>p.yBottom)),childTop=Math.min(...children.map(c=>c.yTop));
+    if(childTop<=parentBottom)return;
+    const familyX=parents.reduce((n,p)=>n+p.x,0)/parents.length,space=childTop-parentBottom;
+    const joinY=parentBottom+Math.max(24,Math.min(48,space*.32)),splitY=childTop-Math.max(24,Math.min(48,space*.32));
     parents.forEach(p=>path(`M ${p.x} ${p.yBottom} V ${joinY} H ${familyX}`));
     path(`M ${familyX} ${joinY} V ${splitY}`);dot(familyX,joinY);
     if(children.length===1){const c=children[0];path(`M ${familyX} ${splitY} H ${c.x} V ${c.yTop}`);return}
-    const xs=children.map(c=>c.x),minX=Math.min(...xs),maxX=Math.max(...xs);path(`M ${minX} ${splitY} H ${maxX}`);children.forEach(c=>path(`M ${c.x} ${splitY} V ${c.yTop}`));
+    const xs=children.map(c=>c.x),minX=Math.min(...xs),maxX=Math.max(...xs);path(`M ${familyX} ${splitY} V ${splitY}`);path(`M ${minX} ${splitY} H ${maxX}`);children.forEach(c=>path(`M ${c.x} ${splitY} V ${c.yTop}`));
   });
 }
 function addGenealogyPath(d){
