@@ -1300,6 +1300,25 @@ Deno.serve(async (req) => {
     }
 
     const warnings: string[] = [];
+
+    // Lightweight Champion preflight used by the front-end before starting a 9B
+    // generation. The cost is computed from the references that are actually
+    // available and would be sent to FLUX, using the same billing formula as the
+    // real generation. No Gemini/FLUX inference is performed by this action.
+    if (action === "estimateChampionCost") {
+      if (!character) return jsonResponse({ success: false, error: "Character JSON required for Champion cost estimate" }, 400);
+      const estimateRefs = await loadCharacterReferences(character, warnings);
+      const referenceCount = Math.min(estimateRefs.length, 4);
+      const estimatedCost = await fluxNeuronCost(CF_MODEL_CHAMPION, estimateRefs);
+      return jsonResponse({
+        success: true,
+        model: CF_MODEL_CHAMPION,
+        reference_count: referenceCount,
+        estimated_cost: estimatedCost,
+        warnings,
+      });
+    }
+
     let director: any = null;
     let fluxPrompt = incomingCorrectionPrompt || legacyPrompt;
 
