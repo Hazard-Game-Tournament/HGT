@@ -2137,7 +2137,12 @@ function genealogyEntityMap(){
     const explicitSource=x.descendantSourceId?d[x.descendantSourceId]:null;
     const historicalSource=!explicitSource?Object.values(d).find(z=>z?.fighterId===x.id && sameDescendantFighter(z,x)):null;
     const source=explicitSource||historicalSource;
-    const rawParents=x.genealogy?.parents?.length ? x.genealogy.parents : (source?.parentIds||source?.genealogy?.parents||[]);
+    // Pour un descendant promu en combattant, la fiche DESC d'origine reste la source
+    // canonique de sa filiation. La copie genealogy.parents de la fiche Sx peut être
+    // ancienne (ou avoir été reconstruite différemment) et plaçait alors l'enfant
+    // sous la mauvaise famille dans l'arbre.
+    const sourceParents=source ? (Array.isArray(source.parentIds)&&source.parentIds.length ? source.parentIds : (source.genealogy?.parents||[])) : [];
+    const rawParents=sourceParents.length ? sourceParents : (x.genealogy?.parents||[]);
     map[x.id]={...x,_kind:'roster',_parents:canonicalParents(rawParents,x.id),_descendantSourceId:source?.id||x.descendantSourceId||null};
   });
   Object.values(n).forEach(x=>{
@@ -2234,51 +2239,11 @@ function renderGenealogyTree(){
   root.innerHTML='';root.style.width=canvasW+'px';root.style.minWidth=canvasW+'px';root.style.height=canvasH+'px';
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('genealogy-pedigree-svg');svg.setAttribute('aria-hidden','true');root.appendChild(svg);
   const positions={};
-  // Placement piloté par la parenté : on place d'abord les générations anciennes,
-  // puis chaque groupe de frères/sœurs autour du centre RÉEL de ses parents.
-  // Les connecteurs ne décident plus de la géométrie après coup.
-  [...ordered.entries()].sort((a,b)=>a[0]-b[0]).forEach(([g,baseIds])=>{
+  [...ordered.entries()].sort((a,b)=>a[0]-b[0]).forEach(([g,ids])=>{
     const label=document.createElement('div');label.className='genealogy-generation-label';label.style.top=(topPad+(g-1)*bandH-36)+'px';label.textContent=`Génération ${g}`;root.appendChild(label);
-    const ids=[...baseIds];
-    const desiredCenter=id=>{
-      const ps=[...new Set((map[id]?._parents||[]).filter(pid=>positions[pid]))].slice(0,2);
-      return ps.length?ps.reduce((n,pid)=>n+positions[pid].x,0)/ps.length:null;
-    };
-    // Une famille reste un bloc : les frères/sœurs sont voisins et le bloc est trié
-    // selon le centre de ses parents dans la génération précédente.
-    const familyGroups=new Map();
-    ids.forEach(id=>{const key=genealogyParentKey(map[id],map)||`~${id}`;if(!familyGroups.has(key))familyGroups.set(key,[]);familyGroups.get(key).push(id)});
-    const groups=[...familyGroups.entries()].map(([key,members])=>{
-      const centers=members.map(desiredCenter).filter(Number.isFinite);
-      return{key,members:members.sort((a,b)=>String(a).localeCompare(String(b))),target:centers.length?centers.reduce((a,b)=>a+b,0)/centers.length:null};
-    }).sort((a,b)=>(a.target??1e12)-(b.target??1e12)||a.key.localeCompare(b.key));
-    const rowIds=groups.flatMap(x=>x.members);
-    const rowWidth=rowIds.length*cardW+Math.max(0,rowIds.length-1)*gap;
-    const defaultStart=Math.max(leftPad,(canvasW-rowWidth)/2);
-    const centers=[];
-    let cursor=leftPad+cardW/2;
-    groups.forEach(group=>{
-      const n=group.members.length,blockW=n*cardW+Math.max(0,n-1)*gap;
-      let blockCenter=Number.isFinite(group.target)?group.target:(defaultStart+(centers.length)*(cardW+gap)+blockW/2);
-      let blockLeft=blockCenter-blockW/2;
-      // Pas de chevauchement avec la famille précédente.
-      blockLeft=Math.max(blockLeft,cursor-cardW/2);
-      group.members.forEach((id,j)=>centers.push({id,x:blockLeft+cardW/2+j*(cardW+gap)}));
-      cursor=blockLeft+blockW+gap+cardW/2;
-    });
-    // Si la ligne dépasse à droite, on la translate d'un bloc sans modifier les
-    // distances internes : les enfants restent groupés sous leurs parents.
-    if(centers.length){
-      const maxX=Math.max(...centers.map(o=>o.x)),minX=Math.min(...centers.map(o=>o.x));
-      let shift=0;
-      if(maxX+cardW/2>canvasW-leftPad)shift=(canvasW-leftPad-cardW/2)-maxX;
-      if(minX+shift-cardW/2<leftPad)shift+=leftPad-(minX+shift-cardW/2);
-      centers.forEach(o=>o.x+=shift);
-    }
-    const y=topPad+(g-1)*bandH;
-    centers.forEach(({id,x})=>{const node=makeGenealogyNode(map[id]);node.style.left=(x-cardW/2)+'px';node.style.top=y+'px';root.appendChild(node);positions[id]={x,yTop:y,yBottom:y+108}});
+    const rowWidth=ids.length*cardW+Math.max(0,ids.length-1)*gap,start=Math.max(leftPad,(canvasW-rowWidth)/2);
+    ids.forEach((id,i)=>{const node=makeGenealogyNode(map[id]);const x=start+i*(cardW+gap),y=topPad+(g-1)*bandH;node.style.left=x+'px';node.style.top=y+'px';root.appendChild(node);positions[id]={x:x+cardW/2,yTop:y,yBottom:y+108}});
   });
-
   root.__genealogyLayout={map,genOf,positions,canvasW,canvasH,cardW,bandH};
   requestAnimationFrame(()=>requestAnimationFrame(drawGenealogyConnectors));
 }
