@@ -5633,6 +5633,26 @@ async function hgtDownloadPortraitWithRecovery(characterId,path){
   }
   throw Object.assign(new Error('📚 Les Archives refusent obstinément ce portrait. Impossible de l’enregistrer pour le moment.'),{hgtFriendly:true,cause:last});
 }
+async function champion9bPreflight(characterId,character){
+  const [usageResult,costResult]=await Promise.all([
+    getRollingNeuronUsage(),
+    cloudClient.functions.invoke('Generate-character-image',{body:{action:'estimateChampionCost',character}})
+  ]);
+  if(costResult?.error){
+    let detail=costResult.error.message||String(costResult.error);
+    try{if(costResult.error.context&&typeof costResult.error.context.json==='function'){const b=await costResult.error.context.json();detail=b?.error||b?.message||detail}}catch(_){}
+    throw new Error(`Estimation 9B indisponible : ${detail}`);
+  }
+  const estimate=costResult?.data;
+  if(!estimate?.success)throw new Error(estimate?.error||'Estimation 9B indisponible');
+  const cost=Number(estimate.estimated_cost||0),referenceCount=Math.max(0,Number(estimate.reference_count||0));
+  const remaining=Number(usageResult?.neurons_remaining??Math.max(0,Number(usageResult?.neurons_limit||10000)-Number(usageResult?.neurons_used||0)));
+  if(remaining+1e-9>=cost)return {ok:true,cost,referenceCount,remaining};
+  const needed=Math.max(0,cost-remaining),events=(Array.isArray(usageResult?.events)?usageResult.events:[]).filter(e=>new Date(e.releases_at).getTime()>Date.now()).sort((a,b)=>new Date(a.releases_at)-new Date(b.releases_at));
+  let released=0,availableAt=null;
+  for(const e of events){released+=Number(e.neurons||0);if(released+1e-9>=needed){availableAt=e.releases_at;break}}
+  return {ok:false,cost,referenceCount,remaining,availableAt};
+}
 async function invokeCharacterImageGeneration(characterId,{regenerate=false,champion=false,championSeason=null}={}){
   const busyKey=champion?`${characterId}::champion`:characterId;
   if(__imageGenerationBusy.has(busyKey)){illustrationStatus(characterId,'⏳ Une génération est déjà en cours…');return false}
@@ -5642,6 +5662,22 @@ async function invokeCharacterImageGeneration(characterId,{regenerate=false,cham
   if(!isCharacterGenerationComplete(c)){illustrationStatus(characterId,'⚠️ Fiche du personnage incomplète : génération impossible.');return false}
   if(!champion&&regenerate&&regenCounterFor(c)>=IMAGE_REGEN_LIMIT_PER_DAY){illustrationStatus(characterId,'Limite atteinte : 5 régénérations aujourd’hui.');return false}
   if(!champion&&!regenerate){const existing=await getIllustration(characterId);if(existing)return true}
+  if(champion){
+    illustrationStatus(characterId,'⚡ Vérification de l’Énergie de Vaeloria pour la 9B…');
+    try{
+      const preflight=await champion9bPreflight(characterId,c);
+      if(!preflight.ok){
+        const refs=`${preflight.referenceCount} référence${preflight.referenceCount>1?'s':''}`;
+        const when=preflight.availableAt?` Suffisamment d’EV devraient être libérés vers ${formatHgtDateTime(preflight.availableAt)}.`:'';
+        illustrationStatus(characterId,`⚡ Portrait Champion 9B en attente : ${preflight.cost.toLocaleString('fr-FR',{maximumFractionDigits:2})} EV nécessaires (${refs}), ${preflight.remaining.toLocaleString('fr-FR',{maximumFractionDigits:2})} EV disponibles.${when}`);
+        return false;
+      }
+    }catch(e){
+      console.warn('Pré-vérification EV 9B',e);
+      illustrationStatus(characterId,`⚠️ Impossible de vérifier le coût EV de la 9B : ${String(e?.message||e).slice(0,180)}`);
+      return false;
+    }
+  }
   __imageGenerationBusy.add(busyKey);
   updateIllustrationPlaceholderState(characterId);
   illustrationStatus(characterId,champion?'🏆 Portrait champion 9B en cours…':(regenerate?'🎨 Régénération en cours…':'🎨 Illustration automatique en cours…'));
