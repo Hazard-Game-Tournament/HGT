@@ -4497,14 +4497,26 @@ function hgtNarrativeHtml(battle){
   if(battle.narrativeStatus==='error')return `<div class="combat-param combat-chronicle" data-narrative-slot><b>📜 Le Chroniqueur est parti en vacances…</b><div class="muted" style="margin-top:8px">Aucun de nos chroniqueurs n’est disponible pour le moment. Le combat reste enregistré : revenez plus tard pour découvrir son récit.</div><button type="button" class="secondary hgt-narrative-retry" style="margin-top:8px">↻ Réveiller le Chroniqueur</button></div>`;
   return `<div class="combat-param combat-chronicle" data-narrative-slot><b>📜 Chronique du combat</b><div class="muted" style="margin-top:8px">Préparation de la chronique cinématique…</div></div>`;
 }
+const HGT_NARRATIVE_CACHE_KEY='hgt_battle_narratives_v1';
+function hgtBattleNarrativeKey(battle){
+  if(!battle)return'';
+  return [battle.matchId||battle.gameId||battle.id||'',battle.a||'',battle.b||'',battle.winner||'',battle.roll??'',battle.at||'',battle.region||'',battle.terrain||'',battle.distance??''].join('|');
+}
+function hgtLoadNarrativeCache(){try{return JSON.parse(localStorage.getItem(HGT_NARRATIVE_CACHE_KEY)||'{}')||{}}catch(e){return{}}}
+function hgtHydrateBattleNarrative(battle){
+  if(!battle||battle.narrative?.chronicle)return battle;
+  try{const saved=hgtLoadNarrativeCache()[hgtBattleNarrativeKey(battle)];if(saved){battle.narrative=saved.narrative||null;battle.narrativeStatus=saved.narrativeStatus||'pending';battle.narrativeError=saved.narrativeError||null}}catch(e){}
+  return battle;
+}
 function hgtPersistBattleNarrative(battle){
+  if(!battle)return false;let persisted=false;
   try{
-    const t=loadTournament();if(!t?.battles)return false;
-    const hit=Object.entries(t.battles).find(([,x])=>x&&(x===battle||(x.a===battle.a&&x.b===battle.b&&x.at===battle.at)));
-    if(!hit)return false;
-    hit[1].narrative=battle.narrative||null;hit[1].narrativeStatus=battle.narrativeStatus||'pending';
-    localStorage.setItem(TOURNAMENT_KEY,JSON.stringify(t));archiveTournament(t);if(typeof queueCloudTournamentSave==='function')queueCloudTournamentSave(t);return true;
-  }catch(e){return false}
+    const key=hgtBattleNarrativeKey(battle);if(key){const cache=hgtLoadNarrativeCache();cache[key]={narrative:battle.narrative||null,narrativeStatus:battle.narrativeStatus||'pending',narrativeError:battle.narrativeError||null,updatedAt:new Date().toISOString()};const keys=Object.keys(cache);if(keys.length>120)keys.sort((a,b)=>String(cache[a]?.updatedAt||'').localeCompare(String(cache[b]?.updatedAt||''))).slice(0,keys.length-120).forEach(k=>delete cache[k]);localStorage.setItem(HGT_NARRATIVE_CACHE_KEY,JSON.stringify(cache));persisted=true}
+  }catch(e){}
+  try{
+    const t=loadTournament();if(t?.battles){const hit=Object.entries(t.battles).find(([,x])=>x&&(x===battle||(x.a===battle.a&&x.b===battle.b&&x.at===battle.at)));if(hit){hit[1].narrative=battle.narrative||null;hit[1].narrativeStatus=battle.narrativeStatus||'pending';localStorage.setItem(TOURNAMENT_KEY,JSON.stringify(t));archiveTournament(t);if(typeof queueCloudTournamentSave==='function')queueCloudTournamentSave(t);persisted=true}}
+  }catch(e){}
+  return persisted;
 }
 const __hgtNarrativeRequests=new Map();
 async function hgtGenerateBattleNarrative(battle,roster=loadRoster()){
@@ -4533,7 +4545,7 @@ async function hgtStartNarrativeForScene(m,battle,roster){
   hgtRefreshNarrativeSlot(m,battle,roster);
 }
 function openCombatScene(battle,roster=loadRoster()){
-  closeCombatScene();if(!battle)return;
+  closeCombatScene();if(!battle)return;hgtHydrateBattleNarrative(battle);
   const regionSlug=battle.regionSlug||String(battle.region||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   const m=document.createElement('div');m.id='combatSceneModal';m.className='combat-scene-modal open';
   const a=roster[battle.a]||battle.characterA||{},b=roster[battle.b]||battle.characterB||{};
@@ -4583,9 +4595,11 @@ function onlineCommonHistoryHtml(){
 function openTeamBattleDetails(x){
   const b=x?.battle;if(!b)return;closeCombatScene();
   const m=document.createElement('div');m.id='combatSceneModal';m.className='combat-scene-modal open';
-  const rows=(b.duels||[]).map((d,i)=>`<div class="duel-history-item"><b>Duel ${i+1} — ${escapeHtml(d.characterA?.name||d.a||'Champion A')} vs ${escapeHtml(d.characterB?.name||d.b||'Champion B')}</b><br>🏆 ${escapeHtml(d.winner||'—')}<br><span class="muted">Région : ${escapeHtml(d.region||'—')} • Terrain : ${escapeHtml(d.terrain||'—')} • Distance : ${escapeHtml(d.distanceLabel||'—')}${d.distance!=null?` (${d.distance} m)`:''}<br>Informations : ${escapeHtml(d.knowledgeA||'—')} / ${escapeHtml(d.knowledgeB||'—')}</span></div>`).join('');
+  const duels=Array.isArray(b.duels)?b.duels:[];duels.forEach(hgtHydrateBattleNarrative);
+  const rows=duels.map((d,i)=>`<div class="duel-history-item"><b>Duel ${i+1} — ${escapeHtml(d.characterA?.name||d.a||'Champion A')} vs ${escapeHtml(d.characterB?.name||d.b||'Champion B')}</b><br>🏆 ${escapeHtml(d.winner||'—')}<br><span class="muted">Région : ${escapeHtml(d.region||'—')} • Terrain : ${escapeHtml(d.terrain||'—')} • Distance : ${escapeHtml(d.distanceLabel||'—')}${d.distance!=null?` (${d.distance} m)`:''}<br>Informations : ${escapeHtml(d.knowledgeA||'—')} / ${escapeHtml(d.knowledgeB||'—')}</span><button type="button" class="secondary combat-view-btn" data-team-duel="${i}" style="margin-top:8px">🎬 Voir le combat</button></div>`).join('');
   m.innerHTML=`<div class="combat-scene-card"><div class="combat-scene-top"><div class="title">👥 Combat d’équipe 5 vs 5 — ${escapeHtml(x.score||`${b.score1??0}-${b.score2??0}`)}</div><button class="secondary" type="button">✕ Fermer</button></div><div class="muted" style="margin-bottom:12px">${escapeHtml(b.player1Username||'Joueur 1')} vs ${escapeHtml(b.player2Username||'Joueur 2')} • ${x.at?new Date(x.at).toLocaleString('fr-FR'):''}</div><div class="duel-history-list">${rows||'<div class="muted">Aucun détail disponible.</div>'}</div></div>`;
   document.body.appendChild(m);m.querySelector('.combat-scene-top button').onclick=closeCombatScene;m.onclick=e=>{if(e.target===m)closeCombatScene()};
+  m.querySelectorAll('[data-team-duel]').forEach(btn=>btn.onclick=()=>{const d=duels[Number(btn.dataset.teamDuel)];if(!d)return;const roster={[d.a]:d.characterA||{},[d.b]:d.characterB||{}};openCombatScene(d,roster)});
 }
 let __onlineDuelStats=null,__onlineDuelPoll=null,__onlineDuelMatch=null;
 async function multiplayerDuelCall(action,extra={}){
