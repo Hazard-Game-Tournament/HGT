@@ -6,7 +6,7 @@ const MODELS = [
   'nvidia/nemotron-3-super-120b-a12b:free',
   'inclusionai/ling-3.0-flash:free',
 ];
-const REQUEST_TIMEOUT_MS = 45_000;
+const REQUEST_TIMEOUT_MS = 90_000;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -189,6 +189,8 @@ ${outputContract()}`;
 
     const errors: any[] = [];
     for (const model of MODELS) {
+      const attemptStartedAt = Date.now();
+      console.log(`[Chroniqueur] ${model} — démarrage`);
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
@@ -210,17 +212,30 @@ ${outputContract()}`;
           }),
         });
         const data = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(`OpenRouter ${response.status}: ${data?.error?.message || 'erreur inconnue'}`);
-        const narrative = validateNarrative(extractJson(data));
+        if (!response.ok) {
+          console.warn(`[Chroniqueur] ${model} — HTTP ${response.status} après ${Date.now() - attemptStartedAt} ms: ${data?.error?.message || 'erreur inconnue'}`);
+          throw new Error(`OpenRouter ${response.status}: ${data?.error?.message || 'erreur inconnue'}`);
+        }
+        let narrative;
+        try {
+          narrative = validateNarrative(extractJson(data));
+        } catch (validationError) {
+          const validationMessage = validationError instanceof Error ? validationError.message : String(validationError);
+          console.warn(`[Chroniqueur] ${model} — réponse/JSON invalide après ${Date.now() - attemptStartedAt} ms: ${validationMessage}`);
+          throw validationError;
+        }
         narrative.version = 2;
         narrative.generatedAt = new Date().toISOString();
         narrative.generator = 'openrouter-hgt-v2';
         narrative.provider = 'openrouter';
         narrative.model = data?.model || model;
         narrative.resultFingerprint = `${battle.a}|${battle.b}|${battle.winner}|${battle.roll ?? ''}|${battle.at ?? ''}`;
+        console.log(`[Chroniqueur] ${model} — succès en ${Date.now() - attemptStartedAt} ms`);
         return json({ success: true, narrative, model: narrative.model });
       } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
+        const isTimeout = e instanceof DOMException && e.name === 'AbortError';
+        const message = isTimeout ? `Timeout après ${REQUEST_TIMEOUT_MS / 1000} s` : (e instanceof Error ? e.message : String(e));
+        console.error(`[Chroniqueur] ${model} — ${isTimeout ? 'TIMEOUT' : 'échec'} après ${Date.now() - attemptStartedAt} ms: ${message}`);
         errors.push({ model, error: message });
       } finally {
         clearTimeout(timer);
