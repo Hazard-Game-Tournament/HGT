@@ -4,7 +4,7 @@
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODELS = [
   'nvidia/nemotron-3-super-120b-a12b:free',
-  'inclusionai/ling-3.0-flash:free',
+  'inclusionai/ling-3.0-flash-sante:free',
 ];
 const REQUEST_TIMEOUT_MS = 90_000;
 
@@ -50,48 +50,19 @@ function validateNarrative(n: any) {
   if (!n || typeof n !== 'object') throw new Error('Narration invalide.');
   if (typeof n.chronicle !== 'string' || n.chronicle.trim().length < 300) throw new Error('Chronique trop courte ou absente.');
   if (typeof n.closingLine !== 'string' || n.closingLine.trim().length < 10) throw new Error('Conclusion absente.');
-  if (!n.direction || !Array.isArray(n.sequences) || n.sequences.length < 4) throw new Error('Storyboard incomplet.');
-  for (const [i, s] of n.sequences.entries()) {
-    if (!s || typeof s.action !== 'string' || typeof s.reaction !== 'string' || typeof s.consequence !== 'string') throw new Error(`Séquence ${i + 1} invalide.`);
-    if (!Array.isArray(s.shots) || !s.shots.length) throw new Error(`Plans absents dans la séquence ${i + 1}.`);
-  }
-  return n;
+  return {
+    chronicle: n.chronicle.trim(),
+    closingLine: n.closingLine.trim(),
+  };
 }
 
 function outputContract() {
-  return `Réponds UNIQUEMENT avec un objet JSON valide, sans markdown ni texte avant/après, selon cette structure :
+  return `Réponds UNIQUEMENT avec un objet JSON valide, sans markdown ni texte avant/après, selon exactement cette structure :
 {
-  "chronicle": "narration continue en français, sans titres ni numéros d'étapes",
-  "closingLine": "courte phrase finale confirmant le vainqueur imposé",
-  "direction": {
-    "tone": "...",
-    "estimatedDurationSec": 95,
-    "intensity": "...",
-    "pacing": "..."
-  },
-  "sequences": [
-    {
-      "id": 1,
-      "title": "titre cinématographique bref",
-      "durationSec": 12,
-      "location": "...",
-      "timeOfDay": null,
-      "weather": null,
-      "characters": ["..."],
-      "startState": {},
-      "action": "...",
-      "reaction": "...",
-      "consequence": "...",
-      "camera": {"framing":"...","movement":"...","focus":"..."},
-      "visualEffects": [],
-      "environmentEffects": [],
-      "dialogue": null,
-      "shots": [{"id":"1A","durationSec":4,"shotType":"...","camera":"...","subject":"...","visibleAction":"..."}],
-      "endState": {}
-    }
-  ]
+  "chronicle": "narration continue et détaillée du combat en français, sans titres ni numéros d'étapes",
+  "closingLine": "courte phrase finale confirmant le vainqueur imposé"
 }
-Le tableau sequences contient 4 à 10 séquences. Chaque séquence contient au moins un shot.`;
+N'ajoute aucune autre clé. La chronique doit raconter fidèlement la chronologie déjà décidée par HGT, sans la recalculer.`;
 }
 
 Deno.serve(async (req) => {
@@ -208,7 +179,7 @@ ${outputContract()}`;
               { role: 'user', content: `Voici les données canoniques HGT. Elles sont la seule source de vérité pour ce combat. Respecte-les strictement et retourne uniquement le JSON demandé.\n\n${JSON.stringify(payload)}` },
             ],
             temperature: 0.58,
-            max_tokens: 7000,
+            max_tokens: 4000,
           }),
         });
         const data = await response.json().catch(() => null);
@@ -224,9 +195,9 @@ ${outputContract()}`;
           console.warn(`[Chroniqueur] ${model} — réponse/JSON invalide après ${Date.now() - attemptStartedAt} ms: ${validationMessage}`);
           throw validationError;
         }
-        narrative.version = 2;
+        narrative.version = 3;
         narrative.generatedAt = new Date().toISOString();
-        narrative.generator = 'openrouter-hgt-v2';
+        narrative.generator = 'openrouter-hgt-v3';
         narrative.provider = 'openrouter';
         narrative.model = data?.model || model;
         narrative.resultFingerprint = `${battle.a}|${battle.b}|${battle.winner}|${battle.roll ?? ''}|${battle.at ?? ''}`;
