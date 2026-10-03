@@ -4146,6 +4146,38 @@ function ensureAutomaticTournament(){
   saveTournament(t);return t;
 }
 const TOURNAMENT_TERRAINS=['Plaine ouverte','Forêt dense','Ruines','Ville','Montagne','Marais','Désert','Caverne','Arène fermée','Zone aquatique'];
+// Terrains de combat compatibles avec la géographie canonique de chaque région.
+// « Arène fermée » reste possible partout, mais seulement dans 5 % des combats.
+const COMBAT_TERRAINS_BY_REGION={
+ Aetherys:['Plaine ouverte','Ruines','Ville','Montagne'],
+ Thoryndra:['Plaine ouverte','Ruines','Montagne','Zone aquatique'],
+ Liorael:['Plaine ouverte','Forêt dense','Ruines','Zone aquatique'],
+ Caelorn:['Plaine ouverte','Ruines','Ville','Montagne'],
+ Sylvaeryn:['Forêt dense','Plaine ouverte','Ruines','Zone aquatique'],
+ Kharadryn:['Montagne','Caverne','Ruines','Ville'],
+ Avelorn:['Plaine ouverte','Ville','Ruines','Zone aquatique'],
+ Drakhenor:['Plaine ouverte','Désert','Montagne','Ruines'],
+ Maelora:['Forêt dense','Marais','Zone aquatique','Ruines'],
+ Iskarya:['Plaine ouverte','Montagne','Zone aquatique','Caverne'],
+ Nexara:['Plaine ouverte','Ruines','Ville','Caverne'],
+ Kaelora:['Zone aquatique','Ville','Ruines','Forêt dense'],
+ Vaerunn:['Zone aquatique','Montagne','Ruines','Ville'],
+ Varkhoryn:['Caverne','Montagne','Ruines','Ville'],
+ Kythera:['Caverne','Montagne','Zone aquatique','Ruines'],
+ Lumerys:['Caverne','Forêt dense','Marais','Zone aquatique'],
+ Naeroth:['Zone aquatique','Caverne','Montagne','Ruines'],
+ "Mor'Khal":['Caverne','Ruines','Montagne','Plaine ouverte']
+};
+const COMBAT_CLOSED_ARENA_PROBABILITY=.05;
+function randomCombatTerrain(regionName){
+ if(Math.random()<COMBAT_CLOSED_ARENA_PROBABILITY)return 'Arène fermée';
+ const pool=COMBAT_TERRAINS_BY_REGION[regionName];
+ // Une région connue ne retombe jamais sur la liste globale : cela empêcherait
+ // une combinaison géographiquement interdite (ex. Kaelora + Désert).
+ if(Array.isArray(pool)&&pool.length)return pool[Math.floor(Math.random()*pool.length)];
+ const fallback=TOURNAMENT_TERRAINS.filter(x=>x!=='Arène fermée');
+ return fallback[Math.floor(Math.random()*fallback.length)];
+}
 const TOURNAMENT_DISTANCES=[['Corps à corps',2],['Courte distance',8],['Distance moyenne',25],['Longue distance',60]];
 const TOURNAMENT_KNOWLEDGE=['Aucune information','Informations partielles','Bonne connaissance de l’adversaire'];
 const COMBAT_REGIONS=[
@@ -4311,7 +4343,7 @@ function resolveTournamentBattleInto(t,ri,mi,roster,{replace=false}={}){
   t.battles??={};t.deaths??=[];t.winners??={};
   const round=t.rounds[ri]||[],a=round[mi*2],b=round[mi*2+1];if(!a||!b)return false;
   const key=`${ri}-${mi}`;if(t.winners[key]&&!replace)return false;
-  const terrain=TOURNAMENT_TERRAINS[Math.floor(Math.random()*TOURNAMENT_TERRAINS.length)],d=TOURNAMENT_DISTANCES[Math.floor(Math.random()*TOURNAMENT_DISTANCES.length)],region=randomCombatRegion();
+  const region=randomCombatRegion(),terrain=randomCombatTerrain(region[0]),d=TOURNAMENT_DISTANCES[Math.floor(Math.random()*TOURNAMENT_DISTANCES.length)];
   const ctx={terrain,distanceLabel:d[0],distance:d[1],region:region[0],regionSlug:region[1],knowledgeA:TOURNAMENT_KNOWLEDGE[Math.floor(Math.random()*3)],knowledgeB:TOURNAMENT_KNOWLEDGE[Math.floor(Math.random()*3)]};
   let va=fighterValue(roster[a],ctx),vb=fighterValue(roster[b],ctx);
   if(ctx.knowledgeA==='Informations partielles')va+=1.5;else if(ctx.knowledgeA==='Bonne connaissance de l’adversaire')va+=3;
@@ -4560,7 +4592,7 @@ function openCombatScene(battle,roster=loadRoster()){
 }
 function hallDuelBattle(aId,bId){
   const roster=loadRoster(),a=roster[aId],b=roster[bId];if(!a||!b||aId===bId)return null;
-  const terrain=TOURNAMENT_TERRAINS[Math.floor(Math.random()*TOURNAMENT_TERRAINS.length)],d=TOURNAMENT_DISTANCES[Math.floor(Math.random()*TOURNAMENT_DISTANCES.length)],region=randomCombatRegion();
+  const region=randomCombatRegion(),terrain=randomCombatTerrain(region[0]),d=TOURNAMENT_DISTANCES[Math.floor(Math.random()*TOURNAMENT_DISTANCES.length)];
   const ctx={terrain,distanceLabel:d[0],distance:d[1],region:region[0],regionSlug:region[1],knowledgeA:TOURNAMENT_KNOWLEDGE[Math.floor(Math.random()*3)],knowledgeB:TOURNAMENT_KNOWLEDGE[Math.floor(Math.random()*3)]};
   let va=fighterValue(a,ctx),vb=fighterValue(b,ctx);
   if(ctx.knowledgeA==='Informations partielles')va+=1.5;else if(ctx.knowledgeA==='Bonne connaissance de l’adversaire')va+=3;
