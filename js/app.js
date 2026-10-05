@@ -1,4 +1,9 @@
 import {
+  contextualOutfitLabelFor,
+  resolveClothingStyleFor
+} from "./rules/appearance/clothing.js";
+
+import {
   baseComponentList as baseComponentListPure,
   singleParentRaceFromComponent,
   mergedLineage,
@@ -3580,21 +3585,27 @@ function addLegendaryExtra(){insert([task('Extra légendaire — Catégorie',()=
 
 
 function contextualOutfitLabel(kind){
- const raw=kind==='arch'
-   ? ((state.archParts||[]).filter(Boolean).join(' + ')||state.arch||'archétype')
-   : (state.job||'métier');
- const role=String(raw).trim();
- if(kind==='job' && /^Sans métier$/i.test(role))return 'Tenue civile (sans métier)';
- if(kind==='arch' && role.includes(' + '))return `Tenue d’archétype — ${role}`;
- const lower=role.charAt(0).toLowerCase()+role.slice(1);
- const elide=/^[aeiouyàâäéèêëîïôöùûüœh]/i.test(lower);
- return `Tenue ${elide?'d’':'de '}${lower}`;
+  return contextualOutfitLabelFor(
+    kind,
+    {
+      archParts:state.archParts||[],
+      arch:state.arch||'',
+      job:state.job||''
+    }
+  );
 }
+
 function resolveClothingStyle(choice){
- if(choice==='Tenue d’archétype')return contextualOutfitLabel('arch');
- if(choice==='Tenue de métier')return contextualOutfitLabel('job');
- return choice;
+  return resolveClothingStyleFor(
+    choice,
+    {
+      archParts:state.archParts||[],
+      arch:state.arch||'',
+      job:state.job||''
+    }
+  );
 }
+
 function clothingStyleOptions(){
  const score=Object.fromEntries(VAELORIA_CLOTHING_STYLES.map(x=>[x,1]));
  const boost=(names,m)=>names.forEach(n=>{if(score[n]!=null)score[n]*=m});
