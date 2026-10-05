@@ -12,3 +12,4 @@ export { BEAST_FORBIDDEN_VISUAL_CONFUSIONS } from "./beast/forbidden-confusions.
 export { BEAST_REAL_AFF } from "./beast/real-affinities.js";
 export { BEAST_FANTASY_AFF } from "./beast/fantasy-affinities.js";
 export { RACE_MANDATORY_VISUAL_TRAITS } from "./visual/mandatory-traits.js";
+export { RACIAL_TRAITS } from "./traits.js";

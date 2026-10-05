@@ -1,3 +1,9 @@
+import { RACIAL_TRAITS } from "./data/races/traits.js";
+import {
+  summonRaceMods,
+  summonTraits,
+  summonVisualConstraint
+} from "./rules/summoning/index.js";
 import {
   AFF,
   RACE_ORDER,
@@ -1606,30 +1612,7 @@ function closeCharacterDetail(){
   rosterList.style.display='';
 }
 
-const RACIAL_TRAITS={
-'Humain':['Adaptabilité'],'Elfe':['Sens aiguisés','Affinité naturelle','Longévité'],
-'Nain':['Corps robuste','Résistance aux toxines','Vision nocturne'],
-'Orc':['Force naturelle','Fureur de survie'],'Gobelin':['Ingéniosité','Vision nocturne','Survie opportuniste'],
-'Fée':['Vol','Poussière féerique','Affinité magique'],'Géant':['Force colossale','Masse gigantesque'],
-'Vampire':['Régénération','Sens surnaturels','Longévité'],'Loup-garou':['Transformation','Régénération','Sens surnaturels'],
-'Démon':['Résistance surnaturelle','Énergie démoniaque'],'Ange':['Vol','Énergie céleste','Perception surnaturelle'],
-'Esprit':['Intangibilité','Possession / traversée de matière','Aucun besoin biologique'],
-'Dragon humanoïde':['Souffle draconique','Écailles','Sens draconiques'],
-'Golem / Artificiel':['Aucun besoin biologique','Immunité poison / maladie','Corps artificiel'],
-'Extraterrestre':[0,0,0,0,0,0,0],'Demi-dieu':['Corps divin mineur','Longévité surnaturelle'],
-'Divinité':['Corps divin','Immortalité naturelle','Présence divine'],
-'Dieu céleste':['Corps divin céleste','Immortalité naturelle','Présence divine renforcée'],
-'Titan':['Puissance titanesque','Gigantisme'],'Titan primordial':['Puissance titanesque primordiale','Gigantisme primordial'],
-'Titan fondateur':['Puissance titanesque fondatrice','Gigantisme fondateur'],
-'Squelette':['Aucun besoin biologique','Immunité saignement / poison / maladie'],
-'Liche':['Phylactère','Nature morte-vivante','Magie innée'],
-'Cyborg':['Augmentations cybernétiques','Interface technologique'],
-'N.E.X.U.S.':['Corps techno-organique','Auto-réparation','Interface technologique'],
-'Neoxus':['Corps techno-organique renforcé','Auto-réparation supérieure','Interface technologique'],
-'Deus Machina':['Corps divin','Immortalité naturelle','Présence divine','Corps techno-organique','Auto-réparation','Interface technologique'],
-'Titan céleste':['Corps divin','Immortalité naturelle','Présence divine','Puissance titanesque primordiale','Gigantisme primordial'],
-'Colosse Nexus':['Corps techno-organique','Auto-réparation','Interface technologique','Puissance titanesque primordiale','Gigantisme primordial']
-};
+
 const ACTIVE_RACIAL_TRAITS=new Set(['Affinité naturelle','Fureur de survie','Vol','Poussière féerique','Régénération','Transformation','Énergie démoniaque','Énergie céleste','Intangibilité','Possession / traversée de matière','Souffle draconique','Phylactère','Magie innée','Auto-réparation','Auto-réparation supérieure']);
 const ORDINARY_COMPONENTS=['Humain','Elfe','Nain','Orc','Gobelin','Fée','Géant','Vampire','Loup-garou','Démon','Ange','Esprit','Dragon humanoïde','Golem / Artificiel','Extraterrestre','Squelette','Liche'];
 const LOW_CHAIN=new Set(['Demi-dieu','Cyborg','Titan']);
@@ -3078,44 +3061,9 @@ function vaeloriaArchetypeOptions(){
 function task(title,options,apply){return{title,options:()=>typeof options==='function'?options():options,apply,_subwheel:false}} function insert(tasks){for(const t of tasks||[])if(t)t._subwheel=true;queue.splice(index+1,0,...tasks)}
  
 
-function summonRaceMods(parts){
-  let s=[0,0,0,0,0];
-  for(const p of parts||[]){
-    const m=mods[raceKey(p)]||[0,0,0,0,0];
-    s=s.map((v,i)=>v+(m[i]||0));
-  }
-  return s;
-}
-function summonTraits(parts){
-  let out=[];
-  for(const p of parts||[]){
-    const species=beastAnimal(p);
-    if(species){
-      for(const t of beastMandatoryTraits(species))if(!out.includes(t))out.push(t);
-      continue;
-    }
-    const k=raceKey(p);
-    for(const t of (RACIAL_TRAITS[k]||[]))if(t&& !out.includes(t))out.push(t);
-  }
-  return out;
-}
-function summonVisualConstraint(s){
-  if(!s)return '';
-  const parts=s.raceParts||[];
-  const lines=[];
-  for(const p of parts){
-    const species=beastAnimal(p);
-    if(species){
-      const traits=beastMandatoryTraits(species);
-      if(traits.length)lines.push(`HOMME-BÊTE ${species.toUpperCase()} — MANDATORY RACIAL ANATOMY: ${traits.join('; ')}. Every listed trait must be visibly present and anatomically coherent.${beastForbiddenVisualConfusion(species)?' '+beastForbiddenVisualConfusion(species):''}`);
-      continue;
-    }
-    const traits=(RACIAL_TRAITS[raceKey(p)]||[]).filter(Boolean);
-    if(traits.length)lines.push(`${p} — MANDATORY RACIAL TRAITS: ${traits.join('; ')}. Make every physically visible racial trait clearly readable on the summoned being.`);
-  }
-  if(s.alienTrait)lines.push(`EXTRATERRESTRIAL BIOLOGY — MANDATORY: ${s.alienTrait}. This biological trait must visibly shape the summoned being.`);
-  return lines.join('\n');
-}
+
+
+
 function beginSummonerInvocation(){
   if(state.summon)return;
   state.summon={raceParts:[],race:null,statsRaw:[null,null,null,null,null],statsFinal:null,traits:[]};
