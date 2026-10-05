@@ -1,3 +1,22 @@
+import {
+  ORDINARY_COMPONENTS,
+  LOW_CHAIN,
+  HIGH_CHAIN,
+  REINFORCED,
+  HIGH_TO_LOW,
+  REINFORCED_TO_HIGH,
+  CHAIN,
+  CHAIN_FAMILY,
+  SPECIAL_CROSS,
+  SPECIAL_PARTS,
+  combineComponents,
+  parentMutationTraits,
+  personalPowers,
+  normalizeGenderValue,
+  compatibleGender,
+  incompatibleReinforcedRace
+} from "./rules/genealogy/index.js";
+
 import { namingStyleFor } from "./rules/naming/index.js";
 
 import { namingSets, namePools } from "./data/naming/index.js";
@@ -1585,29 +1604,6 @@ function closeCharacterDetail(){
 
 
 const ACTIVE_RACIAL_TRAITS=new Set(['Affinité naturelle','Fureur de survie','Vol','Poussière féerique','Régénération','Transformation','Énergie démoniaque','Énergie céleste','Intangibilité','Possession / traversée de matière','Souffle draconique','Phylactère','Magie innée','Auto-réparation','Auto-réparation supérieure']);
-const ORDINARY_COMPONENTS=['Humain','Elfe','Nain','Orc','Gobelin','Fée','Géant','Vampire','Loup-garou','Démon','Ange','Esprit','Dragon humanoïde','Golem / Artificiel','Extraterrestre','Squelette','Liche'];
-const LOW_CHAIN=new Set(['Demi-dieu','Cyborg','Titan']);
-const HIGH_CHAIN=new Set(['Divinité','N.E.X.U.S.','Titan primordial']);
-const REINFORCED=new Set(['Dieu céleste','Neoxus','Titan fondateur']);
-const HIGH_TO_LOW={'Divinité':'Demi-dieu','N.E.X.U.S.':'Cyborg','Titan primordial':'Titan'};
-const REINFORCED_TO_HIGH={'Dieu céleste':'Divinité','Neoxus':'N.E.X.U.S.','Titan fondateur':'Titan primordial'};
-const CHAIN={
-'Demi-dieu':0,'Divinité':1,'Dieu céleste':2,
-'Cyborg':0,'N.E.X.U.S.':1,'Neoxus':2,
-'Titan':0,'Titan primordial':1,'Titan fondateur':2
-};
-const CHAIN_FAMILY={
-'Demi-dieu':'divine','Divinité':'divine','Dieu céleste':'divine',
-'Cyborg':'nexus','N.E.X.U.S.':'nexus','Neoxus':'nexus',
-'Titan':'titan','Titan primordial':'titan','Titan fondateur':'titan'
-};
-const SPECIAL_CROSS={
-'Divinité|N.E.X.U.S.':'Deus Machina','Divinité|Titan primordial':'Titan céleste','N.E.X.U.S.|Titan primordial':'Colosse Nexus'
-};
-const SPECIAL_PARTS={
-'Deus Machina':['Divinité','N.E.X.U.S.'],'Titan céleste':['Divinité','Titan primordial'],'Colosse Nexus':['N.E.X.U.S.','Titan primordial'],
-'Dieu céleste':['Divinité'],'Neoxus':['N.E.X.U.S.'],'Titan fondateur':['Titan primordial']
-};
 
 const alienBiologyTraits=[
   'Vision thermique',
@@ -1663,27 +1659,6 @@ function baseComponentList(s){
   return [...new Set(parts.flatMap(x=>SPECIAL_PARTS[x]||[x]))];
 }
 function transmittedComponent(s){let p=baseComponentList(s);return rpick(p)}
-function isOrdinary(c){return !LOW_CHAIN.has(c)&&!HIGH_CHAIN.has(c)&&!REINFORCED.has(c)}
-function combineComponents(a,b){
-  a=REINFORCED_TO_HIGH[a]||a;b=REINFORCED_TO_HIGH[b]||b;
-  if(a===b){
-    if(a==='Demi-dieu')return {race:'Divinité',parts:['Divinité']};
-    if(a==='Divinité')return {race:'Dieu céleste',parts:['Dieu céleste']};
-    if(a==='Cyborg')return {race:'N.E.X.U.S.',parts:['N.E.X.U.S.']};
-    if(a==='N.E.X.U.S.')return {race:'Neoxus',parts:['Neoxus']};
-    if(a==='Titan')return {race:'Titan primordial',parts:['Titan primordial']};
-    if(a==='Titan primordial')return {race:'Titan fondateur',parts:['Titan fondateur']};
-    return {race:a,parts:[a]};
-  }
-  if(CHAIN_FAMILY[a]&&CHAIN_FAMILY[a]===CHAIN_FAMILY[b]){
-    const winner=CHAIN[a]>=CHAIN[b]?a:b;return {race:winner,parts:[winner]};
-  }
-  if(HIGH_CHAIN.has(a)&&isOrdinary(b))a=HIGH_TO_LOW[a];
-  if(HIGH_CHAIN.has(b)&&isOrdinary(a))b=HIGH_TO_LOW[b];
-  const key=[a,b].sort((x,y)=>['Divinité','N.E.X.U.S.','Titan primordial'].indexOf(x)-['Divinité','N.E.X.U.S.','Titan primordial'].indexOf(y)).join('|');
-  if(SPECIAL_CROSS[key])return {race:SPECIAL_CROSS[key],parts:[a,b]};
-  return {race:`${a}/${b}`,parts:[a,b]};
-}
 function singleParentRace(s){
   let c=transmittedComponent(s);c=HIGH_TO_LOW[c]||c;c=REINFORCED_TO_HIGH[c]||c;
   return {race:c,parts:[c]};
@@ -1711,12 +1686,6 @@ function raceTraitsFor(race,parts){
   if(!list.length) list=(parts||[]).flatMap(p=>RACIAL_TRAITS[p]||[]);
   return [...new Set(list)].map(name=>({name,origin:race,active:ACTIVE_RACIAL_TRAITS.has(name),mastery:ACTIVE_RACIAL_TRAITS.has(name)?centeredRoll():null,natural:true}));
 }
-function parentMutationTraits(s){
-  let out=[];
-  for(const m of (s?.mutations||[])) if(m?.name) out.push(m);
-  for(const d of (s?.extraDetail||[])) if(d.kind==='Mutation'&&d.manifestation) out.push({name:d.manifestation,origin:s.id,hereditary:false});
-  return out;
-}
 function inheritMutations(pa,pb){
   const map={};
   for(const p of [pa,pb].filter(Boolean))for(const m of parentMutationTraits(p)){if(!map[m.name])map[m.name]=[];map[m.name].push(p.id||p.name||'PNJ')}
@@ -1727,13 +1696,6 @@ function inheritMutations(pa,pb){
   }
   return out;
 }
-function personalPowers(s){
-  let arr=[];
-  for(const p of (s?.powers||[]))if(p?.name)arr.push({name:p.name,source:s.id||s.name});
-  if(s?.chi)arr.push({name:'Chi',source:s.id||s.name});
-  if(s?.npcPower)arr.push({name:s.npcPower,source:s.id||s.name});
-  return arr;
-}
 function inheritPowers(pa,pb){
   const map={};
   for(const p of [pa,pb].filter(Boolean))for(const pow of personalPowers(p)){if(!map[pow.name])map[pow.name]=[];map[pow.name].push(pow.source)}
@@ -1742,12 +1704,6 @@ function inheritPowers(pa,pb){
     if(chance(origins.length>=2?50:25))out.push({name,mastery:centeredRoll(),inherited:true,origins:[...new Set(origins)]});
   }
   return out;
-}
-function normalizeGenderValue(g){return g==='Homme'?'Mâle':g==='Femme'?'Femelle':g;}
-function compatibleGender(a,b){a=normalizeGenderValue(a);b=normalizeGenderValue(b);return (a==='Mâle'&&b==='Femelle')||(a==='Femelle'&&b==='Mâle')||(a==='Autre / indéterminé'&&b==='Autre / indéterminé');}
-function incompatibleReinforcedRace(a,b){
-  const ra=REINFORCED.has(a?.race), rb=REINFORCED.has(b?.race);
-  return ra&&rb&&a.race!==b.race;
 }
 function makeNpc(parent,meta,npcStore){
   let id=`PNJ-${String(meta.nextNpc++).padStart(3,'0')}`;
