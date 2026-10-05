@@ -1,6 +1,34 @@
 /* HGT application logic — extracted from index.html. */
 
 import {
+  legendaryJobs,
+  legendaryJobAbilities,
+  uniqueLegendaryJobAbilities,
+  legendaryHistories,
+  uniqueLegendaryHistories,
+  legendaryArmorTypes,
+  legendaryArmorEffects,
+  uniqueLegendaryArmorEffects,
+  legendaryTechniques,
+  uniqueLegendaryTechniques,
+  legendaryDormantPowers,
+  uniqueLegendaryDormantPowers,
+  legendaryRelics,
+  legendaryCompanions,
+  legendaryFamiliarTypes,
+  legendaryFamiliarNames,
+  legendaryAbilities,
+  mythicFamiliars,
+  historyArtifactNatures,
+  deathPowers,
+  possessionEntities,
+  supernaturalTraits,
+  timeTravelMethods,
+  TITAN_AFFINITIES,
+  TITAN_AFFINITY_STAT
+} from "./data/generation/index.js";
+
+import {
   archs,
   jobs,
   histories,
@@ -327,17 +355,17 @@ const animals=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheva
 
 
 
-const legendaryJobs=['Forgeron des dieux','Chasseur de Léviathans','Cartographe des dimensions','Médecin des immortels','Architecte de forteresses vivantes','Alchimiste royal des âges','Maître-espion des mille visages','Navigateur du vide','Gardien du dernier sanctuaire','Ingénieur des reliques','Dompteur de catastrophes','Archiviste des mondes perdus','Juge des monstres','Cuisinier des souverains','Passeur des morts','Maître des arènes','Explorateur de l’impossible','Diplomate des anciens royaumes','Artisan des âmes','Métier légendaire unique'];
-const legendaryJobAbilities=['Forge temporairement une propriété surnaturelle dans un objet','Identifie instinctivement le point faible d’une créature colossale','Trouve un passage là où aucun chemin ne devrait exister','Stabilise une blessure normalement incurable','Transforme rapidement le terrain en position défensive','Prépare une substance aux effets extraordinaires','Usurpe parfaitement une identité après observation','S’oriente même dans un espace déformé','Crée une zone de protection autour d’un lieu choisi','Répare ou détourne des technologies inconnues','Apaise ou dirige brièvement une créature déchaînée','Accède à des connaissances oubliées liées à une situation','Impose un sceau temporaire à une cible monstrueuse','Prépare un mets donnant un sursaut temporaire','Perçoit les présences entre vie et mort','Lit instantanément la dynamique d’une arène','Détecte les anomalies et passages cachés','Force une trêve surnaturelle très brève','Interagit directement avec les traces laissées dans une âme','Capacité professionnelle unique'];
-const uniqueLegendaryJobAbilities=['Peut achever une œuvre impossible une fois par combat','Transforme un outil banal en chef-d’œuvre temporaire','Lit la fonction d’un objet qu’aucun être ne comprend','Crée un raccourci éphémère entre deux points visibles','Donne momentanément une fonction nouvelle à un objet','Scelle une promesse sous forme de marque mystique','Fait apparaître l’outil exact requis par son métier','Reconstruit brièvement la dernière forme intacte d’un objet détruit','Perçoit la meilleure méthode de travail possible dans une crise','Son savoir-faire produit un effet que la logique ne peut expliquer'];
-const legendaryHistories=['A survécu à la chute d’un royaume entier','A vaincu seul une créature considérée invincible','A fermé une faille qui dévorait une région','A été le dernier défenseur d’une civilisation','A traversé vivant un monde condamné','A brisé une prophétie millénaire','A volé quelque chose à une divinité','A mené une armée à une victoire impossible','A survécu à sa propre exécution','A été emprisonné hors du temps','A détruit un artefact réputé indestructible','A sauvé une ville d’une catastrophe surnaturelle','A été choisi puis rejeté par une puissance cosmique','A parcouru plusieurs dimensions pour rentrer chez lui','A été le champion d’une arène mythique','A survécu à une guerre entre êtres divins','A réveillé accidentellement une puissance ancienne','A scellé un monstre primordial','A disparu pendant un siècle avant de revenir inchangé','Histoire légendaire unique'];
-const uniqueLegendaryHistories=['Son nom a été effacé de l’histoire mais les ruines se souviennent de lui','A gagné une bataille qui n’a officiellement jamais existé','Est revenu d’un futur où son monde avait disparu','A survécu sept jours dans le rêve d’une entité cosmique','A porté pendant une nuit le poids d’une malédiction mondiale','A été déclaré mort dans trois réalités différentes','A négocié avec une catastrophe consciente','A détruit sa propre légende pour empêcher une prophétie','A traversé un lieu dont personne ne peut se souvenir','A été témoin de la naissance d’un dieu'];
-const legendaryArmorTypes=['Armure draconique ancestrale','Armure céleste','Armure démoniaque souveraine','Armure de titan','Armure cosmique','Armure du Chaos','Armure spectrale royale','Exosquelette mythique','Armure vivante antique','Armure du Premier Gardien'];
-const legendaryArmorEffects=['Invulnérabilité brève après un impact majeur','Régénération accélérée de l’armure','Absorption massive d’énergie','Déphasage défensif','Adaptation progressive aux attaques répétées','Barrière autonome','Ancrage absolu contre déplacements forcés','Conversion partielle des dégâts en puissance','Protection contre altérations de réalité','Propriété légendaire unique'];
-const legendaryTechniques=['Frappe des Cent Horizons','Mur du Dernier Gardien','Pas au-delà de la Foudre','Coupe du Roi sans Couronne','Contre des Mille Guerres','Sceau du Dragon Endormi','Poing qui fend la Montagne','Tir de l’Étoile Morte','Danse du Champ de Bataille','Technique légendaire unique'];
-const legendaryDormantPowers=['Cœur de Phénix','Œil du Néant','Sang du Titan','Couronne des Tempêtes','Mémoire du Monde','Flamme primordiale','Ombre souveraine','Écho d’une divinité','Graine cosmique','Pouvoir dormant unique'];
-const legendaryRelics=['Fragment d’une arme divine','Couronne d’un royaume disparu','Cœur cristallisé de dragon','Orbe d’une étoile morte','Chaîne ayant lié un titan','Masque d’un dieu oublié','Clé dimensionnelle antique','Calice du premier vampire','Éclat du Chaos solidifié','Œil fossilisé d’un dieu primordial'];
-const legendaryCompanions=['Chevalier spectral ancestral','Androïde de guerre antique','Golem royal','Esprit gardien supérieur','Dragon mécanique','Automate céleste','Chimère protectrice','Machine extraterrestre souveraine','Sentinelle dimensionnelle','Gardien runique ancestral'];
+
+
+
+
+
+
+
+
+
+
+
 
 const familiarTypes=['Chien','Chat','Loup','Renard','Corbeau','Aigle','Hibou','Serpent','Araignée','Singe','Félin sauvage','Ours','Reptile','Créature aquatique','Insecte','Petit esprit','Créature élémentaire','Créature extraterrestre','Créature fantastique','Familier unique'];
 const familiarAbilities=['Sens surdéveloppés','Pistage','Détection surnaturelle','Lien télépathique','Camouflage','Vol','Venin','Soins mineurs','Barrière protectrice','Attaque élémentaire','Entrave','Éclaireur','Partage sensoriel','Absorption d’énergie','Téléportation courte','Illusion','Régénération','Cri intimidant','Protection du maître','Capacité unique'];
@@ -349,10 +377,10 @@ const uniqueMounts=['Destrier d’obsidienne','Cerf aux bois stellaires','Raie c
 const artificialCompanionTypes=['Drone','Robot humanoïde','Robot quadrupède','Mécha miniature','Tourelle autonome','Essaim de drones','IA holographique','Automate magique','Golem mécanique','Androïde','Bio-robot','Exosquelette autonome','Machine extraterrestre','Prototype militaire','Compagnon artificiel unique'];
 const artificialAbilities=['Analyse tactique','Système de ciblage','Bouclier énergétique','Réparation de terrain','Camouflage optique','Vol','Arme énergétique','Tourelle intégrée','Brouillage électronique','Détection thermique','Scanner biologique','Interface technologique','Projection holographique','Entrave magnétique','Nanoréparation','Soutien médical','Cartographie instantanée','Interception de projectiles','Surcharge de puissance','Capacité unique'];
 const uniqueArtificialCompanions=['Orbe pensant fractal','Automate à corps liquide','Drone en forme de crâne','Robot-parasite protecteur','Cube mécanique transformable','Marionnette techno-organique','Essaim de micro-lames conscientes','IA incarnée dans un miroir','Araignée mécanique dimensionnelle','Satellite miniature autonome','Golem de câbles vivants','Machine sans architecture identifiable','Duo de drones jumeaux','Sphère antigravité armée','Prototype impossible'];
-const legendaryFamiliarTypes=['Créature fantastique','Esprit supérieur','Créature cosmique','Créature divine','Créature démoniaque','Créature du Chaos','Créature unique'];
-const legendaryFamiliarNames=['Griffon royal','Phénix ancien','Hydre juvénile','Basilic couronné','Kirin d’orage','Manticore blanche','Cerbère astral','Dragon lunaire','Léviathan miniature','Esprit-roi des forêts','Bête solaire','Gardien démoniaque écarlate','Prédateur du Chaos','Chimère cosmique','Créature légendaire sans nom'];
-const legendaryAbilities=['Résurrection flamboyante','Souffle primordial','Aura protectrice','Régénération majeure','Vol dimensionnel','Téléportation','Barrière divine','Dévoreur de magie','Altération locale de la gravité','Cri paralysant','Tempête élémentaire','Forme spectrale','Vision prophétique','Rupture de barrières','Capacité légendaire unique'];
-const mythicFamiliars=['Phénix primordial','Léviathan céleste','Dragon cosmique','Bête du Chaos','Gardien du temps','Hydre astrale','Kirin divin','Cerbère des mondes','Roc stellaire','Esprit primordial incarné'];
+
+
+
+
 const fantasyCreatures=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix','Fenrir','Cerbère','Hydre','Manticore','Chimère','Minotaure','Kelpie','Kraken','Serpent de mer','Léviathan','Loup spectral','Kitsune','Tengu','Naga'];
 const aquaticCreatures=['Requin','Raie manta','Murène','Espadon','Orque','Dauphin','Pieuvre','Calmar géant','Crabe géant','Homard cuirassé','Anguille électrique','Poisson-lune','Barracuda','Méduse','Tortue marine','Hippocampe géant'];
 const elementalAffinities=['Feu','Glace','Foudre','Terre','Eau','Vent','Lumière','Ténèbres','Magma','Cristal','Tempête','Brume'];
@@ -585,9 +613,9 @@ const thirstResources=['Sang','Vitalité','Énergie magique','Énergie spirituel
 const equivalentPrices=['Vitalité','Endurance','Énergie surnaturelle','Douleur','Sang','Mobilité temporaire','Acuité sensorielle temporaire','Concentration / lucidité','Durée de récupération accrue','Puissance future'];
 const mortalCurseTriggers=['Temps écoulé','Blessure critique','Épuisement extrême','Utilisation excessive du pouvoir','Utilisation excessive de l’arme','Accumulation de blessures','Perte de sang importante','Pouvoir poussé au maximum','Échec d’une capacité surnaturelle','Contact avec sa faiblesse','Mort d’un allié lié','Proximité de la défaite'];
 
-const uniqueLegendaryArmorEffects=['Mémoire des impacts','Armure hors phase','Cœur de forteresse','Redistribution des dégâts','Blindage sacrificiel','Prison d’énergie','Armure réactive','Sceau d’immobilité','Peau de frontière','Refus de rupture','Échange de résistance','Armure miroir','Zone de sauvegarde','Verrou adaptatif','Dernier rempart'];
-const uniqueLegendaryTechniques=['Frappe des Neuf Ruptures','Pas de l’Angle Mort','Main qui Arrête la Guerre','Coupe sans Élan','Garde du Cercle Parfait','Frappe des Trois Temps','Chute du Géant','Trait sans Ligne','Étreinte du Dernier Rempart','Rupture du Rythme','Frappe du Souffle Coupé','Déviation du Colosse','Marche des Cent Batailles','Arme et Corps Unifiés','Instant du Maître'];
-const uniqueLegendaryDormantPowers=['Cœur de singularité','Sang des dimensions','Corps de l’orage primordial','Œil des fractures','Souffle de l’astre mourant','Chair du monde','Cœur du vide silencieux','Couronne des âmes','Mue de l’impossible','Résonance absolue','Flamme de l’âme','Avatar du seuil','Écho du commencement','Volonté incarnée','Rupture des lois'];
+
+
+
 const divineEchoDomains=['Guerre','Protection','Vie','Mort','Lumière','Ténèbres','Nature','Tempête','Connaissance','Destin','Feu','Glace','Océan','Terre','Ciel','Âmes','Voyage','Justice','Chaos','Cosmos'];
 
 const CHARACTERS_PER_SEASON=64;
@@ -3440,8 +3468,8 @@ function addAwakening(){insert([task('Éveil — Niveau',centered,x=>{let level=
 // V18.28 — sous-roues complètes des quatre lignées supérieures.
 
 
-const TITAN_AFFINITIES=['Montagne','Océan','Forêt ancestrale','Désert','Glace','Tempête','Magma','Cristal','Profondeurs','Terre'];
-const TITAN_AFFINITY_STAT={'Montagne':'Résilience','Océan':'Pouvoir','Forêt ancestrale':'Résilience','Désert':'Vitesse','Glace':'Combat','Tempête':'Vitesse','Magma':'Force','Cristal':'Résilience','Profondeurs':'Combat','Terre':'Force'};
+
+
 
 
 
@@ -3545,11 +3573,11 @@ function applyAscensionMods(kind){const map={
 
 
 // V18.27 — Conséquences concrètes des histoires
-const historyArtifactNatures=['Magique','Divine','Démoniaque','Spirituelle','Maudite','Extraterrestre','Technologique','Ancienne','Vivante / consciente','Inconnue'];
-const deathPowers=['Nécromancie','Drain de vie','Manipulation des âmes','Communication avec les morts','Putréfaction','Énergie nécrotique','Résurrection','Vol de vitalité','Invocation des morts','Passage spectral','Pouvoir unique lié à la mort'];
-const possessionEntities=['Démon','Esprit','Divinité','Âme errante','Créature extraplanaire','Parasite extraterrestre','Entité inconnue'];
-const supernaturalTraits=['Présence spectrale','Corps partiellement immatériel','Perception des âmes','Sang surnaturel','Résistance à la mort','Aura anormale','Anatomie altérée','Connexion à un autre plan'];
-const timeTravelMethods=['Pouvoir personnel','Artefact','Technologie','Phénomène subi','Intervention extérieure'];
+
+
+
+
+
 
 function addHistoryNote(kind,detail={}){const o={kind,source:'Histoire',...detail};state.extraDetail.push(o);return o}
 function addHistoryStatChange(source,sign=1){

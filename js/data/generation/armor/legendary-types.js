@@ -1,0 +1,1 @@
+export const legendaryArmorTypes=['Armure draconique ancestrale','Armure céleste','Armure démoniaque souveraine','Armure de titan','Armure cosmique','Armure du Chaos','Armure spectrale royale','Exosquelette mythique','Armure vivante antique','Armure du Premier Gardien'];

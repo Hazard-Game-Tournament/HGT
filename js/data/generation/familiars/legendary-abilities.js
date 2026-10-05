@@ -1,0 +1,1 @@
+export const legendaryAbilities=['Résurrection flamboyante','Souffle primordial','Aura protectrice','Régénération majeure','Vol dimensionnel','Téléportation','Barrière divine','Dévoreur de magie','Altération locale de la gravité','Cri paralysant','Tempête élémentaire','Forme spectrale','Vision prophétique','Rupture de barrières','Capacité légendaire unique'];
