@@ -1,6 +1,21 @@
 /* HGT application logic — extracted from index.html. */
 
 import {
+  DRAGON_TAIL_WEAPONS,
+  DRAGON_TAIL_UNIQUE_MUTATIONS,
+  DRAGON_TAIL_UNIQUE_TRAITS,
+  DRAGON_TAIL_WEAPON_TRAITS,
+  DRAGON_AFFINITIES,
+  DRAGON_ANCESTRAL_STAT,
+  DRAGON_ORIGINEL_STAT,
+  NEXUS_WEAPON_TRAITS,
+  NEXUS_WEAPONS,
+  NEXUS_STRUCTS,
+  CYBORG_WEAPON_TRAITS,
+  CYBORG_AUGS
+} from "./data/racial-specials/index.js";
+
+import {
   RACE_BASE_WEIGHTS,
   RACIAL7,
   ART_ORIGIN7,
@@ -330,20 +345,9 @@ const doubleUnique=['Reflet sorti d’un miroir','Version issue d’un futur dé
 const powers=['Feu','Eau','Glace','Foudre','Air','Terre','Nature','Lumière','Ténèbres','Poison','Sang','Magnétisme','Son','Explosion','Télékinésie','Télépathie','Illusion','Invisibilité','Téléportation','Métamorphose','Clonage','Régénération','Barrières','Gravité','Temps','Espace','Absorption','Copie','Annulation','Pouvoir unique'];
 const chaos=['Réalité instable','Manipulation de probabilité','Réflexion','Inversion','Mutation chaotique','Distorsion sensorielle','Faille dimensionnelle','Malédiction','Échange','Vol de pouvoir','Surcharge','Sacrifice','Paradoxe','Fragmentation','Causalité','Adaptation','Mimétisme chaotique','Dernier recours','Anomalie','Chaos absolu'];
 const weapons=['Épée','Épée à deux mains','Katana','Dagues doubles','Hache','Hache à deux mains','Marteau de guerre','Rope Dart / Corde-dard','Lance','Hallebarde','Faux','Bâton','Nunchaku','Chaîne / Kusarigama','Fouet','Gantelets de combat','Bouclier offensif','Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique','Grimoire / catalyseur','Arme improvisée','Aucune arme','Arme unique'];
-const DRAGON_TAIL_WEAPONS=['Lame caudale','Masse caudale','Pointe perforante','Faux caudale','Massue épineuse','Queue barbelée','Pince caudale','Dard caudal','Foreuse caudale','Arme caudale unique'];
-const DRAGON_TAIL_UNIQUE_MUTATIONS=['Queue à segments extensibles','Queue préhensile renforcée','Queue à lames rétractables','Queue à crochet','Queue à membrane tranchante','Queue mitraillette','Queue à ventouses prédatrices','Queue à bélier','Queue bifide','Queue vibratoire'];
-const DRAGON_TAIL_UNIQUE_TRAITS={
-'Queue à segments extensibles':['segments organiques télescopiques capables d’allonger fortement la queue','continuité anatomique conservée pendant l’extension','rétraction des segments vers une longueur normale'],
-'Queue préhensile renforcée':['queue épaisse et très mobile conçue pour saisir et maintenir','extrémité sans pince articulée','musculature caudale renforcée pour la traction'],
-'Queue à lames rétractables':['plusieurs lames organiques rétractables disposées le long de la queue','lames pouvant sortir ou rentrer dans des logements anatomiques','aucune arme métallique indépendante'],
-'Queue à crochet':['grand crochet osseux ou corné à l’extrémité','forme courbe conçue pour accrocher et tirer','continuité organique avec la queue'],
-'Queue à membrane tranchante':['crête ou membrane rigide et affûtée déployable le long de la queue','surface continue destinée aux balayages tranchants','structure entièrement organique'],
-'Queue mitraillette':['organe balistique naturel intégré à la partie terminale de la queue','plusieurs canaux ou orifices organiques de tir','projectiles biologiques durcis de type épines ou aiguillons','aucun mécanisme métallique, chargeur, douille ou poudre'],
-'Queue à ventouses prédatrices':['structures adhésives organiques réparties sur la face interne de la queue','surface conçue pour saisir, fixer et tirer','aucun mécanisme d’absorption énergétique'],
-'Queue à bélier':['queue capable de se rigidifier sur une grande partie de sa longueur','structure renforcée transmettant une poussée concentrée','pas de grosse masse terminale distincte'],
-'Queue bifide':['extrémité divisée en exactement deux branches caudales préhensiles','deux branches capables de se mouvoir indépendamment','aucune pince mécanique terminale'],
-'Queue vibratoire':['structure musculaire et osseuse capable de vibrer à haute fréquence','vibration concentrée dans la queue elle-même','aucun émetteur sonore ou énergétique à distance']
-};
+
+
+
 const CLASSIC_WEAPON_TRAITS={
 'Épée':['une seule lame droite de longueur intermédiaire','garde distincte','poignée conçue pour UNE main','pommeau distinct','INTERDIT : seconde lame, manche de lance, proportions d’épée à deux mains'],
 'Épée à deux mains':['une seule très longue lame droite','grande garde','longue poignée permettant DEUX mains espacées','les DEUX mains tiennent simultanément la poignée en combat','INTERDIT : prise à une main, poignée courte, proportions d’épée normale'],
@@ -375,39 +379,9 @@ const CLASSIC_WEAPON_TRAITS={
 'Arme improvisée':['le SOUS-TYPE réellement tiré doit rester immédiatement reconnaissable comme l’objet d’origine','sa forme réelle est conservée même s’il est renforcé ou enchanté','utilisé directement pour combattre','INTERDIT : transformation spontanée en épée, lance, hache ou autre arme conventionnelle'],
 'Aucune arme':['AUCUNE arme tenue, portée, attachée, posée comme équipement ou flottant autour du personnage','mains sans arme','dos et ceinture sans arme'],
 'Arme unique':['la description unique générée définit obligatoirement la topologie de l’arme','nombre de pièces, lames/projectiles, poignées/manches et connexions décrits doivent rester cohérents et lisibles','une seule identité fonctionnelle','INTERDIT : assemblage aléatoire de plusieurs armes incompatibles ou disparition des composants majeurs décrits']};
-const NEXUS_WEAPON_TRAITS={
-'Lame':['lame techno-organique','matière noire ou graphite','tranchant ou réseau énergétique doré','structure continue et organique','aucune apparence d’épée métallique conventionnelle'],
-'Griffes':['griffes intégrées aux mains ou avant-bras','plusieurs lames organiques','matière techno-organique sombre','énergie dorée interne','aucune arme séparée tenue en main'],
-'Arme contondante':['masse techno-organique','extrémité lourde conçue pour l’impact','structure sombre organique','noyau ou réseau énergétique doré','aucune lame principale'],
-'Perforante':['longue pointe principale destinée à transpercer','profil étroit','structure techno-organique','matière sombre','énergie dorée parcourant la pointe'],
-'Projectiles':['arme techno-organique à distance','organe ou mécanisme d’émission clairement identifiable','projectiles matérialisés ou biologiquement produits','énergie dorée','aucune apparence de fusil humain conventionnel'],
-'Énergétique':['énergie constituant directement la partie offensive','noyau techno-organique sombre','émission dorée intense','énergie attachée à une structure physique Neoxus','aucune simple arme classique entourée d’une aura'],
-'Fouet / câble':['long appendice techno-organique flexible','relié physiquement à une poignée ou au corps de l’arme','matière sombre segmentée','énergie dorée circulant sur toute sa longueur'],
-'Bouclier offensif':['large structure techno-organique protectrice','portée au bras','surface ou bords capables d’attaquer','matière sombre','réseau énergétique doré','fusion visuelle entre protection et arme'],
-'Arme articulée':['plusieurs segments rigides reliés par des articulations mobiles','structure techno-organique','peut se courber ou se reconfigurer mécaniquement','connexions énergétiques dorées visibles entre les segments'],
-'Arme polymorphe':['une seule arme techno-organique capable de changer physiquement de forme','matière vivante sombre','réseau énergétique doré','parties en transformation ou reconfiguration visibles','reste une seule entité cohérente']};
-const CYBORG_WEAPON_TRAITS={
-'Lame':['lame mécanique intégrée à un bras ou avant-bras','métal et composants cybernétiques','mécanisme de déploiement visible','aucune épée indépendante tenue en main'],
-'Griffes':['plusieurs griffes mécaniques rétractables intégrées aux doigts ou avant-bras','articulations cybernétiques','lames métalliques','aucune arme indépendante'],
-'Arme contondante':['partie d’un membre cybernétique transformée ou renforcée pour l’impact','structure métallique massive','vérins ou articulations mécaniques','aucune lame principale'],
-'Perforante':['pointe mécanique intégrée au membre','longue structure destinée à transpercer','mécanisme de déploiement','ancrage cybernétique clairement visible'],
-'Projectiles':['lanceur intégré au bras, à l’épaule ou à une autre partie du corps','canon ou ouverture de tir visible','mécanisme d’alimentation interne','aucune arme à feu indépendante tenue en main'],
-'Énergétique':['émetteur énergétique intégré au corps','noyau ou source d’énergie artificielle','conduits ou composants cybernétiques','partie offensive constituée directement d’énergie'],
-'Fouet / câble':['câble mécanique rétractable physiquement relié au corps','système d’enroulement ou déploiement intégré','extrémité offensive','câble clairement artificiel'],
-'Bouclier offensif':['bouclier mécanique déployable depuis le bras','ancrage cybernétique','panneaux articulés','surface protectrice','bords ou mécanisme permettant l’attaque'],
-'Arme articulée':['arme intégrée composée de plusieurs segments mécaniques articulés','articulations clairement visibles','structure repliable ou déployable','connexion permanente au corps'],
-'Arme polymorphe':['module cybernétique intégré capable de se reconfigurer en plusieurs formes d’armes','pièces mécaniques mobiles','transformation physique visible','reste connecté au corps']};
-const DRAGON_TAIL_WEAPON_TRAITS={
-'Lame caudale':['extrémité de la queue transformée en longue lame tranchante','continuité anatomique avec les écailles','aucun manche','lame orientée dans l’axe de la queue'],
-'Masse caudale':['extrémité de queue massive et épaissie','lourde masse osseuse ou écailleuse','reliefs renforcés','conçue pour les impacts'],
-'Pointe perforante':['queue terminée par une longue pointe rigide','profil étroit','pointe osseuse ou cornée','conçue pour transpercer'],
-'Faux caudale':['grande lame courbe poussant latéralement depuis l’extrémité de la queue','forme de faux clairement identifiable','continuité organique'],
-'Massue épineuse':['extrémité épaissie','plusieurs grandes pointes ou cornes réparties autour de la masse','structure osseuse ou écailleuse'],
-'Queue barbelée':['queue longue et flexible','rangées de lames ou barbelures sur sa partie terminale','extrémité également acérée','utilisée comme un fouet tranchant'],
-'Pince caudale':['extrémité transformée en deux mâchoires ou pinces opposées articulées','capable de saisir','articulation anatomiquement reliée à la queue'],
-'Dard caudal':['queue terminée par un aiguillon recourbé','réservoir ou glande anatomique associé','silhouette rappelant un dard de scorpion'],
-'Foreuse caudale':['extrémité formant une pointe hélicoïdale ou cornée','plusieurs reliefs spiralés','structure destinée à perforer les protections'],
-'Arme caudale unique':['mutation offensive originale de la queue','entièrement organique et anatomiquement intégrée','fonction clairement lisible','ne correspond à aucune des neuf catégories précédentes']};
+
+
+
 function finalDragonComponent(c=state){if(hasFinalRaceAlteration(c))return null;const L=c?.lineage||{};const all=[L.primaryComponent,L.hybridCompA,L.hybridCompB,L.originComponent].filter(Boolean);return all.find(x=>x?.race==='Dragon humanoïde'&&Number(x?.power)>90)||null}
 function weaponTraitsFor(name,system='classic'){const map=system==='neoxus'?NEXUS_WEAPON_TRAITS:system==='cyborg'?CYBORG_WEAPON_TRAITS:system==='dragon-tail'?DRAGON_TAIL_WEAPON_TRAITS:CLASSIC_WEAPON_TRAITS;return [...(map[name]||[])];}
 function weaponOptionsForCurrent(forceRanged=false){return finalDragonComponent()?EQ(DRAGON_TAIL_WEAPONS):weaponOptions(forceRanged)}
@@ -3433,12 +3407,12 @@ const DIVINE_DOMAINS=['Guerre','Protection','Nature','Vie','Mort','Savoir','Magi
 const DIVINE_DOMAIN_STAT={'Guerre':'Combat','Protection':'Résilience','Nature':'Pouvoir','Vie':'Résilience','Mort':'Pouvoir','Savoir':'Intelligence','Magie':'Pouvoir','Justice':'Combat','Liberté':'Vitesse','Destin':'Intelligence','Rêves':'Intelligence','Océans':'Pouvoir','Terre':'Force','Ciel':'Vitesse','Tempêtes':'Vitesse','Feu':'Pouvoir','Lumière':'Pouvoir','Ténèbres':'Pouvoir','Temps':'Intelligence','Espace':'Intelligence'};
 const TITAN_AFFINITIES=['Montagne','Océan','Forêt ancestrale','Désert','Glace','Tempête','Magma','Cristal','Profondeurs','Terre'];
 const TITAN_AFFINITY_STAT={'Montagne':'Résilience','Océan':'Pouvoir','Forêt ancestrale':'Résilience','Désert':'Vitesse','Glace':'Combat','Tempête':'Vitesse','Magma':'Force','Cristal':'Résilience','Profondeurs':'Combat','Terre':'Force'};
-const DRAGON_AFFINITIES=['Feu','Glace','Foudre','Tempête','Terre','Océan','Nature','Vent','Magma','Sable','Lumière','Ténèbres','Cristal','Métal','Poison','Cendre','Gravité','Son','Sang','Éther'];
-const DRAGON_ANCESTRAL_STAT={'Feu':'Force','Glace':'Résilience','Foudre':'Vitesse','Tempête':'Vitesse','Terre':'Résilience','Océan':'Résilience','Nature':'Résilience','Vent':'Vitesse','Magma':'Force','Sable':'Vitesse','Lumière':'Combat','Ténèbres':'Combat','Cristal':'Résilience','Métal':'Force','Poison':'Combat','Cendre':'Combat','Gravité':'Force','Son':'Vitesse','Sang':'Force','Éther':'Combat'};
-const DRAGON_ORIGINEL_STAT={'Feu':'Pouvoir','Glace':'Intelligence','Foudre':'Pouvoir','Tempête':'Pouvoir','Terre':'Intelligence','Océan':'Pouvoir','Nature':'Intelligence','Vent':'Pouvoir','Magma':'Pouvoir','Sable':'Intelligence','Lumière':'Pouvoir','Ténèbres':'Pouvoir','Cristal':'Intelligence','Métal':'Combat','Poison':'Intelligence','Cendre':'Pouvoir','Gravité':'Pouvoir','Son':'Intelligence','Sang':'Combat','Éther':'Pouvoir'};
-const NEXUS_WEAPONS=['Lame','Griffes','Arme contondante','Perforante','Projectiles','Énergétique','Fouet / câble','Bouclier offensif','Arme articulée','Arme polymorphe'];
-const CYBORG_AUGS=[['Bras cybernétique','Force'],['Jambe cybernétique','Vitesse'],['Œil cybernétique','Combat'],['Organe interne artificiel','Résilience'],['Interface neurale','Intelligence'],['Renforcement squelettique','Résilience'],['Renforcement musculaire','Force'],['Blindage corporel','Résilience'],['Système sensoriel','Combat'],['Système énergétique','Pouvoir'],['Module de régénération','Résilience'],['Arme intégrée','Arme']];
-const NEXUS_STRUCTS=[['Membre renforcé','Force'],['Structure locomotrice','Vitesse'],['Œil Nexus','Combat'],['Organe Nexus','Résilience'],['Interface neurale vivante','Intelligence'],['Ossature techno-organique','Résilience'],['Fibres musculaires Nexus','Force'],['Carapace adaptative','Résilience'],['Réseau sensoriel Nexus','Combat'],['Noyau énergétique','Pouvoir'],['Tissus régénératifs','Résilience'],['Arme organo-technologique','Arme']];
+
+
+
+
+
+
 function superiorStage(comp){return (comp.power||1)>90?3:(comp.power||1)>=50?2:1}
 function addCompBonus(comp,stat,value){comp.special7=comp.special7||[0,0,0,0,0,0,0];let i=['Combat','Force','Intelligence','Résilience','Vitesse','Pouvoir','Arme'].indexOf(stat);if(i>=0)comp.special7[i]+=value}
 function addRacialPower(name,bonus=0,label=name,limit={}){let p={name,mastery:null,racial:true};state.powers.push(p);insert([task(`${label} — Maîtrise`,centered,m=>{p.masteryBase=valNum(m);let v=p.masteryBase+masteryMod('power')+bonus;if(limit.max!=null)v=Math.min(limit.max,v);if(limit.min!=null)v=Math.max(limit.min,v);p.mastery=Math.max(0,v);p.racialBonus=bonus})])}
