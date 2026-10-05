@@ -1,3 +1,9 @@
+import {
+  vaeloriaBirthStrataOptions,
+  vaeloriaRegionOptionsFor,
+  vaeloriaCultureOptionsFor,
+  martialArchetypeCultureMultiplierFor
+} from "./rules/vaeloria/index.js";
 import { RACIAL_TRAITS } from "./data/races/traits.js";
 import {
   summonRaceMods,
@@ -3040,22 +3046,50 @@ function vaeloriaPrimaryRace(){
  const parts=state.raceParts||[];
  return parts.find(x=>VAELORIA_BIRTH_WEIGHTS[x])||parts[0]||state.race||'';
 }
-function vaeloriaBirthStrataOptions(){return [W('Yndara',50),W('Elyrion',25),W('Nharak',25)];}
-function vaeloriaRegionOptions(){const arr=VAELORIA_REGIONS[state.birthStratum]||VAELORIA_REGIONS.Yndara;return EQ(arr);}
-function vaeloriaCultureOptions(){
- return EQ(VAELORIA_CULTURES[state.birthRegion]||['Locale','Cosmopolite','Itinérante']);
-}
+
+
+
 
 // Affinité culturelle avec l'archétype Artiste martial.
 // Les autres archétypes conservent un poids de 1 ; seul Artiste martial est favorisé.
 
-function martialArchetypeCultureMultiplier(culture=state.culture||''){
-  for(const [mult,cultures] of Object.entries(MARTIAL_ARCHETYPE_CULTURE_MULTIPLIERS))if(cultures.includes(culture))return Number(mult);
-  return 1;
+
+
+
+
+function vaeloriaRegionOptions(){
+  return vaeloriaRegionOptionsFor(
+    state.birthStratum
+  );
 }
+
+function vaeloriaCultureOptions(){
+  return vaeloriaCultureOptionsFor(
+    state.birthRegion
+  );
+}
+
+function martialArchetypeCultureMultiplier(
+  culture=state.culture||''
+){
+  return martialArchetypeCultureMultiplierFor(
+    culture
+  );
+}
+
 function vaeloriaArchetypeOptions(){
-  const martialMultiplier=martialArchetypeCultureMultiplier();
-  return archs.map(a=>W(a,a==='Artiste martial'?martialMultiplier:1));
+  const martialMultiplier=
+    martialArchetypeCultureMultiplierFor(
+      state.culture||''
+    );
+  return archs.map(a=>
+    W(
+      a,
+      a==='Artiste martial'
+        ? martialMultiplier
+        : 1
+    )
+  );
 }
 
 function task(title,options,apply){return{title,options:()=>typeof options==='function'?options():options,apply,_subwheel:false}} function insert(tasks){for(const t of tasks||[])if(t)t._subwheel=true;queue.splice(index+1,0,...tasks)}
