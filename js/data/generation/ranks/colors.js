@@ -1,0 +1,1 @@
+export const levelColors=['#2f333a','#6b7280','#64748b','#3b82f6','#22d3ee','#22c55e','#86efac','#facc15','#f97316','#ef4444','#991b1b','#db2777','#7e22ce','#a855f7','#f5b82e','#ec4899','#dbeafe','#ffffff','#fff1b8','#fff8dc'];

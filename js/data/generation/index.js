@@ -14,5 +14,6 @@ export * from "./jobs/index.js";
 export * from "./lineages/index.js";
 export * from "./martial/index.js";
 export * from "./mounts/index.js";
+export * from "./ranks/index.js";
 export * from "./transformations/index.js";
 export * from "./weapons/index.js";

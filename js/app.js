@@ -1,6 +1,31 @@
 /* HGT application logic — extracted from index.html. */
 
 import {
+  chiRanks,
+  statRanks,
+  masteryRanks,
+  intensityRanks,
+  weaknessRanks,
+  levelColors,
+  races,
+  animals,
+  mountTypes,
+  mountAbilities,
+  uniqueMounts,
+  artificialCompanionTypes,
+  artificialAbilities,
+  uniqueArtificialCompanions,
+  improvisedWeapons,
+  uniqueSecretTechniques,
+  ranged,
+  ench,
+  classicalWeak,
+  METAMORPHOSIS_FORMS,
+  MARTIAL_ARCHETYPE_CULTURE_MULTIPLIERS,
+  statNames
+} from "./data/generation/index.js";
+
+import {
   familiarTypes,
   familiarAbilities,
   uniqueFamiliars,
@@ -380,18 +405,16 @@ function martialFounderDomainTasks(){let clan=loadMartialClans()[state.martial.c
 function martialIdentityTasks(){const inherited=martialInheritedClan(),clans=loadMartialClans();if(inherited&&clans[inherited]){return [task('Clan martial hérité',[W(`${clans[inherited].name} — Héritier`)],()=>{const c=joinMartialClan(inherited,'Héritier');martialEnsureState('Héritier',c);insert(martialPersonalTechniqueTasks())})];}const ids=Object.keys(clans),founderChance=martialFounderChance(ids.length);if(!ids.length)return [task('Statut martial',[W('Fondateur')],()=>{martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())})];return [task('Statut martial',[W('Fondateur',founderChance),W('Disciple',1-founderChance)],v=>{if(v==='Fondateur'){martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())}else insert([task('Clan martial rejoint',martialClanPoolOptions,v=>{const id=v.split(' — ')[0],c=joinMartialClan(id,'Disciple');martialEnsureState('Disciple',c);insert(martialPersonalTechniqueTasks())})])})];}
 function finalizeMartialLoadout(){const m=state.martial,clan=loadMartialClans()[m?.clanId];if(!m||!clan)return;for(const d of clan.domains){const vals=m.techniques.filter(t=>t.domain===d&&t.type==='secret').map(t=>Number(t.mastery)||0);m.weaponMasteries[d]=vals.length?Math.max(...vals):1}const physical=clan.domains.filter(d=>d!=='Mains nues'),best=Math.max(0,...physical.map(d=>m.weaponMasteries[d]||1)),ties=physical.filter(d=>(m.weaponMasteries[d]||1)===best);m.primaryDomain=ties.length?ties[Math.floor(Math.random()*ties.length)]:'Mains nues';m.secondaryDomains=clan.domains.filter(d=>d!==m.primaryDomain);state.weapons=[];for(const d of physical){const mastery=m.weaponMasteries[d]||1,w=attachWeaponTraits({name:MARTIAL_DOMAIN_WEAPON[d]||d,masteryBase:mastery,mastery,ench:[],martialDomain:d,martialPrimary:d===m.primaryDomain},'classic');w.enchantmentCount=mastery>=8?2:mastery>=5?1:0;state.weapons.push(w);if(w.enchantmentCount)for(let i=0;i<w.enchantmentCount;i++){const opts=vaeloriaEnchantOptions(),idx=weightedPick(opts);w.ench.push(opts[idx].label)}}}
 function martialCombatData(c){if(!c?.martial)return null;return {...c.martial,chiRank:Number(c.chi?.rank)||1,chiMultiplier:martialChiMultiplier(c.chi?.rank),techniques:(c.martial.techniques||[]).map(t=>({...t,equivalentPower:Number(t.mastery||0)*(t.type==='legendary'?1.5:1)*martialChiMultiplier(c.chi?.rank) }))}}
-const chiRanks=['Disciple','Débutant','Avancé','Maître','Expert','Grand Maître','Martial King','Transcendant','Demi-dieu','Martial God'];
-const statRanks=['Inapte','Catastrophique','Très faible','Faible','Médiocre','Moyen','Bon','Excellent','Exceptionnel','Légendaire','Monstrueux','Surhumain','Mythique','Cataclysmique','Transcendant','Divin','Cosmique','Incommensurable','Inconcevable','Absolu','Ultime'];
-const masteryRanks=['Inapte','Inexpérimenté','Novice','Apprenti','Compétent','Confirmé','Avancé','Expert','Maître','Grand Maître','Maître suprême','Prodige','Virtuose','Légendaire','Transcendant','Divin','Cosmique','Incommensurable','Inconcevable','Absolu','Ultime'];
-const intensityRanks=['Nulle','Infime','Très faible','Faible','Modérée','Notable','Forte','Majeure','Extrême','Dévastatrice','Phénoménale','Colossale','Mythique','Cataclysmique','Transcendante','Divine','Cosmique','Incommensurable','Inconcevable','Apocalyptique','Ultime'];
-const weaknessRanks=['','Négligeable','Mineure','Légère','Modérée','Notable','Importante','Sévère','Critique','Extrême','Mortelle'];
-const levelColors=['#2f333a','#6b7280','#64748b','#3b82f6','#22d3ee','#22c55e','#86efac','#facc15','#f97316','#ef4444','#991b1b','#db2777','#7e22ce','#a855f7','#f5b82e','#ec4899','#dbeafe','#ffffff','#fff1b8','#fff8dc'];
+
+
+
+
+
+
 function rankLabel(n,type='stat'){n=Math.max(0,Math.floor(Number(n)||0));if(type==='weakness')return weaknessRanks[Math.min(10,n)]||'';let a=type==='mastery'?masteryRanks:type==='intensity'?intensityRanks:type==='chi'?['',...chiRanks]:statRanks;return a[Math.min(20,n)]||a[20];}
 function levelColor(n){n=Math.max(1,Math.floor(Number(n)||1));return levelColors[Math.min(20,n)-1];}
 const centered=[W('1 — Catastrophique',2),W('2 — Très faible',4),W('3 — Faible',8),W('4 — Médiocre',14),W('5 — Moyen',22),W('6 — Bon',22),W('7 — Excellent',14),W('8 — Exceptionnel',8),W('9 — Légendaire',4),W('10 — Monstrueux',2)];
 const intensity=[W('1 — Infime',2),W('2 — Très faible',4),W('3 — Faible',8),W('4 — Modérée',14),W('5 — Notable',22),W('6 — Forte',22),W('7 — Majeure',14),W('8 — Extrême',8),W('9 — Dévastatrice',4),W('10 — Phénoménale',2)];
-const races=['Humain','Elfe','Nain','Orc','Gobelin','Fée','Géant','Vampire','Loup-garou','Esprit','Homme-bête','Hybride','Squelette','Golem / Artificiel','Extraterrestre','Ange','Démon','Dragon humanoïde','Titan','Demi-dieu','Cyborg'];
-const animals=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheval','Cerf','Chèvre','Gorille','Singe','Éléphant','Rhinocéros','Crocodile','Serpent','Lézard','Tortue','Aigle','Hibou','Chauve-souris','Requin','Baleine','Poulpe','Scorpion','Araignée','Scarabée','Fourmi','Guépard','Papillon','Animal fantastique'];
 
 
 
@@ -413,12 +436,14 @@ const animals=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheva
 
 
 
-const mountTypes=['Cheval','Loup géant','Félin géant','Ours','Cerf','Éléphant','Rhinocéros','Oiseau géant','Reptile géant','Créature aquatique','Monture mécanique','Créature extraterrestre','Créature élémentaire','Créature fantastique','Monture unique'];
-const mountAbilities=['Charge dévastatrice','Sprint fulgurant','Endurance exceptionnelle','Saut prodigieux','Escalade','Vol','Nage rapide','Blindage naturel','Camouflage','Sens de piste','Passage en terrain difficile','Souffle élémentaire','Barrière de protection','Téléportation courte','Transport silencieux','Piétinement','Cri de guerre','Résistance environnementale','Morsure / griffes puissantes','Capacité unique'];
-const uniqueMounts=['Destrier d’obsidienne','Cerf aux bois stellaires','Raie céleste volante','Félin de brume géant','Varan cuirassé à six pattes','Bélier de cristal','Monture arachnide colossale','Serpent terrestre annelé','Cheval spectral sans tête','Manta mécanique antigravité','Bête de lave quadrupède','Oiseau-tempête','Chimère à sabots','Créature dimensionnelle sans nom','Monture biomécanique inconnue'];
-const artificialCompanionTypes=['Drone','Robot humanoïde','Robot quadrupède','Mécha miniature','Tourelle autonome','Essaim de drones','IA holographique','Automate magique','Golem mécanique','Androïde','Bio-robot','Exosquelette autonome','Machine extraterrestre','Prototype militaire','Compagnon artificiel unique'];
-const artificialAbilities=['Analyse tactique','Système de ciblage','Bouclier énergétique','Réparation de terrain','Camouflage optique','Vol','Arme énergétique','Tourelle intégrée','Brouillage électronique','Détection thermique','Scanner biologique','Interface technologique','Projection holographique','Entrave magnétique','Nanoréparation','Soutien médical','Cartographie instantanée','Interception de projectiles','Surcharge de puissance','Capacité unique'];
-const uniqueArtificialCompanions=['Orbe pensant fractal','Automate à corps liquide','Drone en forme de crâne','Robot-parasite protecteur','Cube mécanique transformable','Marionnette techno-organique','Essaim de micro-lames conscientes','IA incarnée dans un miroir','Araignée mécanique dimensionnelle','Satellite miniature autonome','Golem de câbles vivants','Machine sans architecture identifiable','Duo de drones jumeaux','Sphère antigravité armée','Prototype impossible'];
+
+
+
+
+
+
+
+
 
 
 
@@ -551,16 +576,6 @@ function weaponHandlingRulesFromCharacter(c){
   return rules;
 }
 
-const improvisedWeapons=['Barre métallique','Chaîne lourde','Bouteille brisée','Marteau d’atelier','Clé anglaise','Pied-de-biche','Pelle','Pioche','Hachette d’outil','Morceau de mobilier','Chaise','Panneau métallique','Tuyau','Câble lesté','Brique','Pierre massive','Débris de béton','Planche cloutée','Morceau de statue','Objet du décor inhabituel'];
-
-const uniqueSecretTechniques=['Paume du Néant Retourné','Septième Pas sans Ombre','Coupure de l’Instant','Poing de la Dernière Étoile','Cercle des Mille Contres','Souffle du Fil Invisible','Frappe du Cœur Silencieux','Verrou du Destin','Danse de l’Arme Absente','Impact à Retardement'];
-const ranged=['Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique','Arme unique'];
-const ench=['Flamme','Givre','Foudre','Poison','Vampirisme','Explosion','Sacré','Spectral','Cosmique','Chaos','Démoniaque','Reality Break','Time Slasher','Distorsion','Anti-régénération','Exécution','Brise-garde','Amplification','Réflexion','Enchantement unique'];
-
-
-
-
-const classicalWeak=['Soleil','Obscurité','Feu','Froid','Eau','Électricité','Vent','Terre','Poison','Sang','Sel','Argent','Fer','Énergie sacrée','Énergie démoniaque','Énergie cosmique','Chaos','Attaques mentales','Son','Explosions','Magnétisme','Magie','Dégâts physiques','Attaques spirituelles','Manipulation temporelle','Altération de réalité','Anti-régénération','Environnement hostile'];
 
 
 
@@ -581,7 +596,17 @@ const classicalWeak=['Soleil','Obscurité','Feu','Froid','Eau','Électricité','
 
 
 
-const statNames=['Combat','Force','Intelligence','Résilience','Vitesse'];
+
+
+
+
+
+
+
+
+
+
+
 const namingSets={
 Human:{start:['Al','Ald','Ar','Ari','Bel','Cael','Cal','Cor','Da','Dar','Del','El','Eli','Er','Fael','Ga','Hal','I','Ja','Ka','Kel','La','Leo','Lor','Ma','Mar','Na','Nor','Or','Ra','Ren','Ro','Sa','Sel','Ser','Ta','Th','Va','Val','Wil','Ys'],mid:['ri','an','el','or','ae','en','is','ar','io','ev','ul','em','ian','er','iel','on','as','ir','al','in','eo','ara','eth','us'],end:['n','r','s','a','ia','en','el','or','is','ys','ane','ion','ian','iel','as','os','us','in','en','ara','eth','ir','on','ea']},
 Elf:{start:['Ae','Ael','Aer','Ari','Cael','Cele','Eil','Ela','Ely','Fael','Ily','Lae','Leth','Lia','Myr','Nae','Nim','Sael','Syl','Tha','Thal','Vael','Yl','Zae'],mid:['li','ri','th','wen','ae','iel','yn','ora','eth','is','en','yl','ara','evi','ion','ael','ir','uin','ess','al','ith','eir','iel','ysa'],end:['r','n','l','a','iel','wen','ith','yn','eth','is','ara','ion','ael','ir','iel','uin','or','ys','ea','iel','iel','essa','ion','yr']},
@@ -3111,11 +3136,7 @@ function vaeloriaCultureOptions(){
 
 // Affinité culturelle avec l'archétype Artiste martial.
 // Les autres archétypes conservent un poids de 1 ; seul Artiste martial est favorisé.
-const MARTIAL_ARCHETYPE_CULTURE_MULTIPLIERS={
-  3:['Martiale','Clans des steppes'],
-  2:['Cités des plateaux','Nomade','Forteresses','Hautes-cimes','Haute-céleste','Contemplative','Spirituelle','Volcanique','Forgienne','Insulaire fortifiée','Nomade des tempêtes','Nomade souterraine'],
-  1.5:['Sylvaine','Clairières','Itinérante','Routes profondes','Jungle','Frontière sauvage','Boréale','Nomade des glaces','Nexus traditionnelle','Navigatrice','Insulaire des tempêtes','Navigatrice céleste','Verdoyante','Frontalière','Voyageuse','Cristalline','Forestière profonde','Bioluminescente','Profonde','Ruines anciennes']
-};
+
 function martialArchetypeCultureMultiplier(culture=state.culture||''){
   for(const [mult,cultures] of Object.entries(MARTIAL_ARCHETYPE_CULTURE_MULTIPLIERS))if(cultures.includes(culture))return Number(mult);
   return 1;
@@ -3307,7 +3328,7 @@ function namingStyle(){
  if(r.includes('Humain'))return'Human';
  return'Default';
 }
-const METAMORPHOSIS_FORMS=['Loup','Renard','Ours','Lion','Tigre','Guépard','Panthère','Hyène','Sanglier','Taureau','Cerf','Cheval','Gorille','Éléphant','Rhinocéros','Crocodile','Serpent','Aigle','Faucon','Corbeau','Hibou','Requin','Orque','Pieuvre','Araignée','Scorpion','Mante religieuse','T. rex','Vélociraptor','Tricératops','Ankylosaure','Spinosaurus','Ptéranodon','Smilodon','Mammouth','Mégalodon','Griffon','Hippogriffe','Phénix','Hydre','Manticore','Chimère','Basilic','Cockatrice','Pégase','Licorne','Cerbère','Minotaure','Sphinx','Kraken','Wyverne','Roc','Kitsune','Kirin','Naga','Oni','Wendigo','Gargouille','Golem','Ent','Slime','Mimique','Ver géant','Chauve-souris géante','Araignée géante','Loup géant','Serpent géant','Dragon','Elfe','Orc','Nain','Gobelin','Fée','Neoxus','Homme-bête','Ange','Démon','Drakéon','Liche','Élémentaire de feu','Élémentaire d’eau','Élémentaire de terre','Élémentaire d’air','Élémentaire de glace','Élémentaire de foudre','Élémentaire de lumière','Élémentaire d’ombre'];
+
 function metamorphosisTasks(p,label='Pouvoir'){
   if(!p||p.name!=='Métamorphose')return[];
   return [task(`${label} — Forme de métamorphose`,EQ(METAMORPHOSIS_FORMS),form=>{

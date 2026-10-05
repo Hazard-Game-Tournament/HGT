@@ -1,0 +1,1 @@
+export const masteryRanks=['Inapte','Inexpérimenté','Novice','Apprenti','Compétent','Confirmé','Avancé','Expert','Maître','Grand Maître','Maître suprême','Prodige','Virtuose','Légendaire','Transcendant','Divin','Cosmique','Incommensurable','Inconcevable','Absolu','Ultime'];
