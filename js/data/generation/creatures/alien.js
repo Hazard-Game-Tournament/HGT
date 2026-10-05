@@ -1,0 +1,1 @@
+export const alienCreatures=['Quadrupède bioluminescent','Prédateur chitineux à six pattes','Mollusque télépathique','Oiseau orbital sans plumes','Félin xéno-organique','Serpent antigravité','Crustacé cristallin','Amphibien à peau miroir','Insecte symbiotique','Créature gazeuse consciente','Chasseur aveugle à écholocation','Organisme fractal mobile'];

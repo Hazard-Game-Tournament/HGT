@@ -1,0 +1,9 @@
+export { alienCreatures } from "./alien.js";
+export { aquaticCreatures } from "./aquatic.js";
+export { elementalAffinities } from "./elemental-affinities.js";
+export { elementalCreatureSpecies } from "./elemental-species.js";
+export { fantasyCreatures } from "./fantasy.js";
+export { insects } from "./insects.js";
+export { reptiles } from "./reptiles.js";
+export { smallSpirits } from "./small-spirits.js";
+export { wildFelines } from "./wild-felines.js";

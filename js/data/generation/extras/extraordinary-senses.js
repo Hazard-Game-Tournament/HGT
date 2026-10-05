@@ -1,0 +1,1 @@
+export const extraordinarySenses=['Vision thermique','Écholocalisation','Vision nocturne parfaite','Perception des vibrations','Détection des champs magiques','Odorat surnaturel','Audition à très longue portée','Perception des âmes','Détection des mensonges physiologiques','Vision à travers la fumée et l’obscurité','Sens du danger','Perception des flux d’énergie'];

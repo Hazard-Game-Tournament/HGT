@@ -1,0 +1,1 @@
+export const doubles=['Clone physique','Clone énergétique','Ombre vivante','Alter ego','Projection astrale','Double mécanique','Double temporel','Double dimensionnel','Double inversé','Double unique'];

@@ -1,6 +1,48 @@
 /* HGT application logic — extracted from index.html. */
 
 import {
+  familiarTypes,
+  familiarAbilities,
+  uniqueFamiliars,
+  uniqueFamiliarAbilities,
+  fantasyCreatures,
+  aquaticCreatures,
+  elementalAffinities,
+  elementalCreatureSpecies,
+  alienCreatures,
+  smallSpirits,
+  wildFelines,
+  reptiles,
+  insects,
+  giantFelines,
+  giantBirds,
+  giantReptiles,
+  mechanicalMounts,
+  relicForms,
+  strangeObjects,
+  rareConsumables,
+  extraordinarySenses,
+  dominantAuras,
+  mutations,
+  doubles,
+  doubleUnique,
+  uniquePowers,
+  uniqueWeapons,
+  uniqueEnchants,
+  uniqueBlessings,
+  uniqueCurses,
+  uniqueArtifactEffects,
+  uniqueArtifactForms,
+  uniquePersonalities,
+  uniqueTransformations,
+  awakeningEvolutions,
+  transformationTypes,
+  transformationTraits,
+  blessings,
+  curses
+} from "./data/generation/index.js";
+
+import {
   legendaryJobs,
   legendaryJobAbilities,
   uniqueLegendaryJobAbilities,
@@ -367,10 +409,10 @@ const animals=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheva
 
 
 
-const familiarTypes=['Chien','Chat','Loup','Renard','Corbeau','Aigle','Hibou','Serpent','Araignée','Singe','Félin sauvage','Ours','Reptile','Créature aquatique','Insecte','Petit esprit','Créature élémentaire','Créature extraterrestre','Créature fantastique','Familier unique'];
-const familiarAbilities=['Sens surdéveloppés','Pistage','Détection surnaturelle','Lien télépathique','Camouflage','Vol','Venin','Soins mineurs','Barrière protectrice','Attaque élémentaire','Entrave','Éclaireur','Partage sensoriel','Absorption d’énergie','Téléportation courte','Illusion','Régénération','Cri intimidant','Protection du maître','Capacité unique'];
-const uniqueFamiliars=['Renard de brume à trois queues','Corbeau de verre vivant','Lézard astral','Félin d’ombre sans yeux','Serpent de lumière liquide','Petit dragon d’horloge','Mante spectrale','Crabe de cristal flottant','Loup miniature de foudre','Méduse aérienne','Chimère de poche','Esprit-masque vivant','Oiseau origami animé','Araignée stellaire','Créature sans espèce connue'];
-const uniqueFamiliarAbilities=['Dévore les malédictions faibles','Traverse brièvement les murs','Mémorise puis rejoue un son surnaturel','Crée un double illusoire du maître','Transforme les ombres proches en cachettes','Stocke une attaque puis la relâche','Repère les failles dimensionnelles','Échange sa position avec son maître','Neutralise brièvement une odeur ou une trace','Produit une zone de silence','Projette une lumière révélant l’invisible','Change temporairement de taille','Absorbe une petite quantité de magie','Marque une cible pour la retrouver','Capacité biologique inconnue'];
+
+
+
+
 const mountTypes=['Cheval','Loup géant','Félin géant','Ours','Cerf','Éléphant','Rhinocéros','Oiseau géant','Reptile géant','Créature aquatique','Monture mécanique','Créature extraterrestre','Créature élémentaire','Créature fantastique','Monture unique'];
 const mountAbilities=['Charge dévastatrice','Sprint fulgurant','Endurance exceptionnelle','Saut prodigieux','Escalade','Vol','Nage rapide','Blindage naturel','Camouflage','Sens de piste','Passage en terrain difficile','Souffle élémentaire','Barrière de protection','Téléportation courte','Transport silencieux','Piétinement','Cri de guerre','Résistance environnementale','Morsure / griffes puissantes','Capacité unique'];
 const uniqueMounts=['Destrier d’obsidienne','Cerf aux bois stellaires','Raie céleste volante','Félin de brume géant','Varan cuirassé à six pattes','Bélier de cristal','Monture arachnide colossale','Serpent terrestre annelé','Cheval spectral sans tête','Manta mécanique antigravité','Bête de lave quadrupède','Oiseau-tempête','Chimère à sabots','Créature dimensionnelle sans nom','Monture biomécanique inconnue'];
@@ -381,28 +423,28 @@ const uniqueArtificialCompanions=['Orbe pensant fractal','Automate à corps liqu
 
 
 
-const fantasyCreatures=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix','Fenrir','Cerbère','Hydre','Manticore','Chimère','Minotaure','Kelpie','Kraken','Serpent de mer','Léviathan','Loup spectral','Kitsune','Tengu','Naga'];
-const aquaticCreatures=['Requin','Raie manta','Murène','Espadon','Orque','Dauphin','Pieuvre','Calmar géant','Crabe géant','Homard cuirassé','Anguille électrique','Poisson-lune','Barracuda','Méduse','Tortue marine','Hippocampe géant'];
-const elementalAffinities=['Feu','Glace','Foudre','Terre','Eau','Vent','Lumière','Ténèbres','Magma','Cristal','Tempête','Brume'];
-const elementalCreatureSpecies=['Salamandre','Loup','Aigle','Golem','Serpent','Raie','Cerf','Félin','Bison','Mante','Corbeau','Renard'];
+
+
+
+
 const elementalCreatures=elementalCreatureSpecies;
-const alienCreatures=['Quadrupède bioluminescent','Prédateur chitineux à six pattes','Mollusque télépathique','Oiseau orbital sans plumes','Félin xéno-organique','Serpent antigravité','Crustacé cristallin','Amphibien à peau miroir','Insecte symbiotique','Créature gazeuse consciente','Chasseur aveugle à écholocation','Organisme fractal mobile'];
-const smallSpirits=['Esprit du feu follet','Esprit des rivières','Esprit des pierres','Esprit des vents','Esprit des ombres','Esprit des souvenirs','Esprit des fleurs','Esprit de la pluie','Esprit des ruines','Esprit des lanternes','Esprit animal mineur','Esprit domestique'];
-const wildFelines=['Lynx','Puma','Jaguar','Léopard','Caracal','Serval','Panthère noire'];
-const reptiles=['Varan','Iguane','Gecko géant','Cobra','Python','Caméléon','Crocodilien miniature','Tortue terrestre'];
-const insects=['Scarabée','Mante religieuse','Libellule','Papillon','Frelon','Fourmi soldat','Lucane','Phasme','Cigale','Sauterelle'];
-const giantFelines=['Lion géant','Tigre géant','Panthère géante','Jaguar géant','Lynx géant','Smilodon'];
-const giantBirds=['Aigle géant','Roc mineur','Condor géant','Hibou géant','Corbeau géant','Casoar géant','Faucon géant'];
-const giantReptiles=['Varan géant','Crocodile géant','Python géant','Cobra géant','Iguane cuirassé','Tortue géante'];
-const mechanicalMounts=['Moto de guerre','Araignée mécanique','Cheval cybernétique','Hoverbike','Quadrupède robotique','Mécha bipède léger','Drone-porteur antigravité'];
-const relicForms=['Dent de dragon fossilisée','Fragment de statue divine','Médaille d’un empire disparu','Os gravé ancestral','Éclat de lame antique','Cendre enfermée dans un reliquaire','Œil pétrifié','Cloche rituelle miniature','Fragment de trône','Sceau royal brisé'];
-const strangeObjects=['Dé noir impossible','Boussole qui pointe vers les êtres vivants','Montre sans aiguilles','Miroir qui ne reflète pas son porteur','Pièce chaude en permanence','Clé sans serrure connue','Boîte qui murmure','Ruban qui flotte sans vent','Sablier dont le sable remonte','Pierre qui pulse comme un cœur','Livre aux pages blanches mouvantes','Masque qui change légèrement de visage'];
-const rareConsumables=['Potion de régénération majeure','Élixir de célérité','Fiole de résistance élémentaire','Capsule de surcharge énergétique','Baume anti-malédiction','Sérum de concentration','Grenade de fumée spectrale','Poudre d’invisibilité','Cristal de recharge magique','Injection de force temporaire','Talisman consommable de barrière','Antidote universel rare'];
-const extraordinarySenses=['Vision thermique','Écholocalisation','Vision nocturne parfaite','Perception des vibrations','Détection des champs magiques','Odorat surnaturel','Audition à très longue portée','Perception des âmes','Détection des mensonges physiologiques','Vision à travers la fumée et l’obscurité','Sens du danger','Perception des flux d’énergie'];
-const dominantAuras=['Aura de terreur','Aura royale','Aura apaisante','Aura prédatrice','Aura sacrée','Aura écrasante','Aura glaciale','Aura brûlante','Aura de silence','Aura de commandement','Aura chaotique','Aura lumineuse'];
-const mutations=['Bras supplémentaire','Œil supplémentaire','Peau écailleuse','Cornes fonctionnelles','Queue préhensile','Os renforcés','Sang luminescent','Branchies','Membrane de vol','Griffes rétractiles','Carapace partielle','Membres extensibles','Organes sensoriels supplémentaires','Peau chromatophore','Structure corporelle asymétrique'];
-const doubles=['Clone physique','Clone énergétique','Ombre vivante','Alter ego','Projection astrale','Double mécanique','Double temporel','Double dimensionnel','Double inversé','Double unique'];
-const doubleUnique=['Reflet sorti d’un miroir','Version issue d’un futur détruit','Silhouette faite de fumée solide','Copie constituée de souvenirs','Double parasite vivant','Écho de réalité alternative','Corps de papier animé','Réplique cristalline','Avatar miniature agrandi au combat','Double sans visage'];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -514,31 +556,31 @@ const improvisedWeapons=['Barre métallique','Chaîne lourde','Bouteille brisée
 const uniqueSecretTechniques=['Paume du Néant Retourné','Septième Pas sans Ombre','Coupure de l’Instant','Poing de la Dernière Étoile','Cercle des Mille Contres','Souffle du Fil Invisible','Frappe du Cœur Silencieux','Verrou du Destin','Danse de l’Arme Absente','Impact à Retardement'];
 const ranged=['Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique','Arme unique'];
 const ench=['Flamme','Givre','Foudre','Poison','Vampirisme','Explosion','Sacré','Spectral','Cosmique','Chaos','Démoniaque','Reality Break','Time Slasher','Distorsion','Anti-régénération','Exécution','Brise-garde','Amplification','Réflexion','Enchantement unique'];
-const blessings=['Fortune','Vitalité','Protection divine','Grâce guerrière','Puissance divine','Célérité divine','Clarté absolue','Prémonition','Grâce magique','Arme consacrée','Lumière protectrice','Grâce céleste','Refus de mourir','Dernier sursaut','Purification','Présence sacrée','Lien protecteur','Potentiel libéré','Faveur cosmique','Bénédiction unique'];
-const curses=['Corps fragile','Guérison entravée','Dégradation','Folie rampante','Hallucinations','Terreur','Pouvoir instable','Arme maudite','Soif','Transformation incontrôlée','Corruption','Entravé','Hanté','Double maléfique','Temps compté','Prix équivalent','Marqué','Destin inversé','Malédiction mortelle','Malédiction unique'];
+
+
 
 
 const classicalWeak=['Soleil','Obscurité','Feu','Froid','Eau','Électricité','Vent','Terre','Poison','Sang','Sel','Argent','Fer','Énergie sacrée','Énergie démoniaque','Énergie cosmique','Chaos','Attaques mentales','Son','Explosions','Magnétisme','Magie','Dégâts physiques','Attaques spirituelles','Manipulation temporelle','Altération de réalité','Anti-régénération','Environnement hostile'];
 
 
 
-const uniquePowers=['Manipulation du verre','Contrôle de la friction','Encre vivante','Manipulation des os','Portails miroirs','Vol de mouvement','Densité variable','Contrôle des rêves','Mémoire matérialisée','Papier tranchant','Manipulation des ombres solides','Chance inversée','Cristallisation','Filaments dimensionnels','Écho causal','Peinture vivante','Gravure de runes instantanée','Vol d’inertie','Manipulation des odeurs','Compression de matière'];
-const uniqueWeapons=['Épée-fouet segmentée','Lance télescopique orbitale','Arc à lames','Marteau gravitationnel','Chaîne de verre noir','Faux circulaire','Canon runique portatif','Gantelets à câbles','Trident magnétique','Boomerang monomoléculaire','Lame accordéon','Bouclier-lance','Harpie mécanique de combat','Aiguille géante','Arme vivante symbiotique','Disque dimensionnel','Fusil à portails','Sabre liquide','Chaîne d’éclairs solidifiés','Arme impossible'];
-const uniqueEnchants=['Friction zéro','Écho du Néant','Morsure d’âme','Poids infini','Mémoire des blessures','Rupture dimensionnelle','Gel du mouvement','Marque du chasseur','Onde inversée','Faim d’énergie','Lame miroir','Entropie','Résonance vitale','Trajectoire impossible','Saignement temporel','Silence absolu','Dette karmique','Ancrage spatial','Impact différé','Enchantement paradoxal'];
-const uniqueBlessings=['Seconde chance du destin','Main invisible protectrice','Œil des possibles','Souffle des anciens','Grâce du voyageur','Serment inviolable','Étoile gardienne','Cœur inépuisable','Pas hors du destin','Refuge de l’âme','Éclat du premier soleil','Voile du hasard','Mémoire ancestrale','Sceau de paix','Faveur du dernier instant','Sang de lumière','Horizon favorable','Écho du futur','Protection des oubliés','Intervention divine'];
-const uniqueCurses=['Ombre affamée','Nom véritable exposé','Blessures mémorielles','Dette envers le Néant','Reflet hostile','Cœur de verre','Temps volé','Voix maudite','Présence attirant les monstres','Douleur partagée','Corps qui se fissure','Pouvoir qui oublie son maître','Chance cannibale','Faim de souvenirs','Âme fragmentée','Serment fatal','Marque du dernier survivant','Mort différée','Écho de souffrance','Condamnation croissante'];
-const uniqueArtifactEffects=['Arrêt d’un instant local','Porte vers une pièce impossible','Stockage d’une attaque reçue','Création d’un clone de lumière','Échange de blessures','Vol temporaire d’une propriété','Réécriture d’une trajectoire','Ancrage dans la réalité','Prison de souvenir','Transfert de vitesse','Dédoublement d’objet','Détection des mensonges physiques','Création d’une zone sans magie','Marquage d’une cible à travers les dimensions','Retour à une position précédente','Compression d’espace','Conversion douleur-énergie','Invocation d’une arme oubliée','Neutralisation d’un phénomène précis','Effet impossible'];
-const uniqueArtifactForms=['Masque brisé','Clé impossible','Dé à vingt faces noir','Montre sans aiguilles','Œil de cristal','Chaîne de sceaux','Fragment de météore','Miroir de poche','Gant solitaire','Pièce sans valeur','Plume métallique','Os gravé','Boussole folle','Coffret scellé','Dent gigantesque','Ruban vivant','Fragment de couronne','Prisme flottant','Aiguille cérémonielle','Objet indescriptible'];
-const uniquePersonalities=['Stoïque mais superstitieux','Jovial face au danger','Obsédé par les défis','Poliment terrifiant','Curieux jusqu’à l’imprudence','Fataliste serein','Théâtral et méthodique','Muet et observateur','Rieur sous pression','Protecteur envers ses ennemis','Obsédé par l’équité','Fasciné par la douleur sans être sadique','Paranoïaque lucide','Excessivement patient','Incapable de refuser un duel','Cherche toujours une sortie pacifique','Collectionne les techniques adverses','Combat comme s’il dansait','Imite le comportement de son adversaire','Tempérament impossible à classer'];
 
 
 
 
 
-const uniqueTransformations=['Avatar du Premier Feu','Corps du Néant étoilé','Dragon de verre dimensionnel','Séraphin mécanique','Bête aux mille ombres','Titan de lumière noire','Forme du Temps brisé','Chimère astrale','Corps de runes vivantes','Monarque spectral','Machine divine organique','Phénix du Chaos','Forme de gravité incarnée','Archange abyssal','Léviathan humanoïde','Corps de matière impossible','Avatar de l’Entropie','Gardien des dimensions','Forme du Dernier Jour','Transformation sans équivalent'];
-const awakeningEvolutions=['Pouvoir principal transcendé','Arme principale transcendée','Trait racial actif transcendé','Transformation renforcée','Technique secrète transcendée','Chi transcendé','Enchantement principal transcendé','Capacité défensive transcendée','Mobilité transcendée','Perception transcendée','Régénération transcendée','Capacité de contrôle transcendée','Capacité d’attaque transcendée','Capacité de soutien transcendée','Capacité unique transcendée'];
-const transformationTypes=['Bestiale','Monstrueuse','Élémentaire','Démoniaque','Céleste','Draconique','Spectrale','Mécanique','Cosmique','Chaotique','Forme géante','Forme miniature','Forme énergétique','Forme ancestrale','Forme évoluée','Forme berserk','Forme parfaite','Forme interdite','Transformation improbable','Transformation unique'];
-const transformationTraits=['Aucun trait supplémentaire','Ailes temporaires','Écailles / armure naturelle','Aura élémentaire','Intangibilité partielle','Régénération accrue','Vision surnaturelle','Membres supplémentaires','Corps énergétique','Camouflage','Résistance mentale','Résistance élémentaire','Allonge accrue','Mobilité aérienne','Présence terrifiante','Perception accélérée','Armes naturelles','Corps adaptable','Trait improbable','Trait unique'];
+
+
+
+
+
+
+
+
+
+
+
+
 const statNames=['Combat','Force','Intelligence','Résilience','Vitesse'];
 const namingSets={
 Human:{start:['Al','Ald','Ar','Ari','Bel','Cael','Cal','Cor','Da','Dar','Del','El','Eli','Er','Fael','Ga','Hal','I','Ja','Ka','Kel','La','Leo','Lor','Ma','Mar','Na','Nor','Or','Ra','Ren','Ro','Sa','Sel','Ser','Ta','Th','Va','Val','Wil','Ys'],mid:['ri','an','el','or','ae','en','is','ar','io','ev','ul','em','ian','er','iel','on','as','ir','al','in','eo','ara','eth','us'],end:['n','r','s','a','ia','en','el','or','is','ys','ane','ion','ian','iel','as','os','us','in','en','ara','eth','ir','on','ea']},

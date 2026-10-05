@@ -3,4 +3,8 @@ export { artifactEffects } from "./effects.js";
 export { artifactForms } from "./forms.js";
 export { legendaryRelics } from "./legendary-relics.js";
 export { artifactPhenomena } from "./phenomena.js";
+export { relicForms } from "./relic-forms.js";
+export { strangeObjects } from "./strange-objects.js";
 export { artifactTransformations } from "./transformations.js";
+export { uniqueArtifactEffects } from "./unique-effects.js";
+export { uniqueArtifactForms } from "./unique-forms.js";

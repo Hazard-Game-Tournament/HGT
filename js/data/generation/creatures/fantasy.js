@@ -1,0 +1,1 @@
+export const fantasyCreatures=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix','Fenrir','Cerbère','Hydre','Manticore','Chimère','Minotaure','Kelpie','Kraken','Serpent de mer','Léviathan','Loup spectral','Kitsune','Tengu','Naga'];
