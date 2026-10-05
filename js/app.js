@@ -1,6 +1,34 @@
 /* HGT application logic — extracted from index.html. */
 
 import {
+  archs,
+  jobs,
+  histories,
+  extras,
+  powers,
+  chaos,
+  weapons,
+  personalities,
+  improbableWeak,
+  improbableJobs,
+  improbableHistories,
+  improbableExtras,
+  improbableTransformations,
+  secretTechniques,
+  armorTypes,
+  armorEffects,
+  armorUniqueEffects,
+  artifactForms,
+  artifactEffects,
+  artifactCopyNatures,
+  artifactTransformations,
+  artifactPhenomena,
+  improbableShoeTerrains,
+  DIVINE_DOMAINS,
+  DIVINE_DOMAIN_STAT
+} from "./data/generation/index.js";
+
+import {
   RACE_CODEX_LORE,
   RACE_CODEX_FILES,
   DRAGON_CODEX_CROSSES,
@@ -294,10 +322,10 @@ const centered=[W('1 — Catastrophique',2),W('2 — Très faible',4),W('3 — F
 const intensity=[W('1 — Infime',2),W('2 — Très faible',4),W('3 — Faible',8),W('4 — Modérée',14),W('5 — Notable',22),W('6 — Forte',22),W('7 — Majeure',14),W('8 — Extrême',8),W('9 — Dévastatrice',4),W('10 — Phénoménale',2)];
 const races=['Humain','Elfe','Nain','Orc','Gobelin','Fée','Géant','Vampire','Loup-garou','Esprit','Homme-bête','Hybride','Squelette','Golem / Artificiel','Extraterrestre','Ange','Démon','Dragon humanoïde','Titan','Demi-dieu','Cyborg'];
 const animals=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheval','Cerf','Chèvre','Gorille','Singe','Éléphant','Rhinocéros','Crocodile','Serpent','Lézard','Tortue','Aigle','Hibou','Chauve-souris','Requin','Baleine','Poulpe','Scorpion','Araignée','Scarabée','Fourmi','Guépard','Papillon','Animal fantastique'];
-const archs=['Guerrier','Berserker','Gardien','Assassin','Artiste martial','Tireur','Mage','Sorcier','Érudit','Ingénieur','Stratège','Soutien','Chasseur','Éclaireur','Commandant','Trickster','Slayer','Invocateur','Prodige','Inclassable'];
-const jobs=['Soldat','Mercenaire','Garde','Chasseur de primes','Assassin','Espion','Policier / Enquêteur','Forgeron','Ingénieur / Mécanicien','Scientifique','Médecin / Guérisseur','Alchimiste','Marchand','Voleur','Explorateur','Chasseur','Marin / Pirate','Pilote','Mineur','Agriculteur','Métier légendaire','Artiste','Cuisinier','Prêtre / Religieux','Enseignant / Érudit','Noble / Diplomate','Dirigeant','Criminel','Sans métier','Métier improbable'];
-const histories=['Enfance paisible','Orphelin','Exilé','Esclave évadé','Ancien criminel','Vétéran de guerre','Unique survivant','Trahi','Amnésique','Héritier déchu','Élu par une prophétie','Maudit','Béni','Expérience scientifique','Rescapé d’un autre monde','Formé depuis l’enfance','Autodidacte','Disciple d’un maître','Ancien champion','Chasseur de monstres','Revenu d’entre les morts','Pacte mystérieux','Possédé','Artefact découvert','Pouvoir éveillé tardivement','Voyageur temporel','Créé artificiellement','Destin brisé','Histoire légendaire','Histoire improbable'];
-const extras=['Maîtrise du Chi avancée','Familier','Monture','Compagnon artificiel','Armure spéciale','Artefact','Consommable rare','Sens extraordinaire','Régénération','Vol','Camouflage','Deuxième pouvoir','Deuxième arme','Transformation','Résurrection unique','Éveil','Familier légendaire','Objet maudit','Objet béni','Mémoire parfaite','Chance surnaturelle','Aura dominante','Mutation','Lien mystique','Double','Possède un enfant','Bénédiction','Extra improbable','Extra légendaire','Rien'];
+
+
+
+
 
 const legendaryJobs=['Forgeron des dieux','Chasseur de Léviathans','Cartographe des dimensions','Médecin des immortels','Architecte de forteresses vivantes','Alchimiste royal des âges','Maître-espion des mille visages','Navigateur du vide','Gardien du dernier sanctuaire','Ingénieur des reliques','Dompteur de catastrophes','Archiviste des mondes perdus','Juge des monstres','Cuisinier des souverains','Passeur des morts','Maître des arènes','Explorateur de l’impossible','Diplomate des anciens royaumes','Artisan des âmes','Métier légendaire unique'];
 const legendaryJobAbilities=['Forge temporairement une propriété surnaturelle dans un objet','Identifie instinctivement le point faible d’une créature colossale','Trouve un passage là où aucun chemin ne devrait exister','Stabilise une blessure normalement incurable','Transforme rapidement le terrain en position défensive','Prépare une substance aux effets extraordinaires','Usurpe parfaitement une identité après observation','S’oriente même dans un espace déformé','Crée une zone de protection autour d’un lieu choisi','Répare ou détourne des technologies inconnues','Apaise ou dirige brièvement une créature déchaînée','Accède à des connaissances oubliées liées à une situation','Impose un sceau temporaire à une cible monstrueuse','Prépare un mets donnant un sursaut temporaire','Perçoit les présences entre vie et mort','Lit instantanément la dynamique d’une arène','Détecte les anomalies et passages cachés','Force une trêve surnaturelle très brève','Interagit directement avec les traces laissées dans une âme','Capacité professionnelle unique'];
@@ -349,9 +377,9 @@ const doubles=['Clone physique','Clone énergétique','Ombre vivante','Alter ego
 const doubleUnique=['Reflet sorti d’un miroir','Version issue d’un futur détruit','Silhouette faite de fumée solide','Copie constituée de souvenirs','Double parasite vivant','Écho de réalité alternative','Corps de papier animé','Réplique cristalline','Avatar miniature agrandi au combat','Double sans visage'];
 
 
-const powers=['Feu','Eau','Glace','Foudre','Air','Terre','Nature','Lumière','Ténèbres','Poison','Sang','Magnétisme','Son','Explosion','Télékinésie','Télépathie','Illusion','Invisibilité','Téléportation','Métamorphose','Clonage','Régénération','Barrières','Gravité','Temps','Espace','Absorption','Copie','Annulation','Pouvoir unique'];
-const chaos=['Réalité instable','Manipulation de probabilité','Réflexion','Inversion','Mutation chaotique','Distorsion sensorielle','Faille dimensionnelle','Malédiction','Échange','Vol de pouvoir','Surcharge','Sacrifice','Paradoxe','Fragmentation','Causalité','Adaptation','Mimétisme chaotique','Dernier recours','Anomalie','Chaos absolu'];
-const weapons=['Épée','Épée à deux mains','Katana','Dagues doubles','Hache','Hache à deux mains','Marteau de guerre','Rope Dart / Corde-dard','Lance','Hallebarde','Faux','Bâton','Nunchaku','Chaîne / Kusarigama','Fouet','Gantelets de combat','Bouclier offensif','Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique','Grimoire / catalyseur','Arme improvisée','Aucune arme','Arme unique'];
+
+
+
 
 
 
@@ -454,17 +482,17 @@ function weaponHandlingRulesFromCharacter(c){
 }
 
 const improvisedWeapons=['Barre métallique','Chaîne lourde','Bouteille brisée','Marteau d’atelier','Clé anglaise','Pied-de-biche','Pelle','Pioche','Hachette d’outil','Morceau de mobilier','Chaise','Panneau métallique','Tuyau','Câble lesté','Brique','Pierre massive','Débris de béton','Planche cloutée','Morceau de statue','Objet du décor inhabituel'];
-const secretTechniques=['Frappe éclair','Frappe destructrice','Point vital','Défense absolue','Contre parfait','Pas fantôme','Technique d’entrave','Lecture du combat','Coupe ultime','Tir impossible','Redirection','Libération physique','Contrôle corporel','Perception extrême','Onde de choc','Technique sacrificielle','Technique énergétique','Technique de scellement','Art martial légendaire','Technique unique'];
+
 const uniqueSecretTechniques=['Paume du Néant Retourné','Septième Pas sans Ombre','Coupure de l’Instant','Poing de la Dernière Étoile','Cercle des Mille Contres','Souffle du Fil Invisible','Frappe du Cœur Silencieux','Verrou du Destin','Danse de l’Arme Absente','Impact à Retardement'];
 const ranged=['Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique','Arme unique'];
 const ench=['Flamme','Givre','Foudre','Poison','Vampirisme','Explosion','Sacré','Spectral','Cosmique','Chaos','Démoniaque','Reality Break','Time Slasher','Distorsion','Anti-régénération','Exécution','Brise-garde','Amplification','Réflexion','Enchantement unique'];
 const blessings=['Fortune','Vitalité','Protection divine','Grâce guerrière','Puissance divine','Célérité divine','Clarté absolue','Prémonition','Grâce magique','Arme consacrée','Lumière protectrice','Grâce céleste','Refus de mourir','Dernier sursaut','Purification','Présence sacrée','Lien protecteur','Potentiel libéré','Faveur cosmique','Bénédiction unique'];
 const curses=['Corps fragile','Guérison entravée','Dégradation','Folie rampante','Hallucinations','Terreur','Pouvoir instable','Arme maudite','Soif','Transformation incontrôlée','Corruption','Entravé','Hanté','Double maléfique','Temps compté','Prix équivalent','Marqué','Destin inversé','Malédiction mortelle','Malédiction unique'];
-const artifactForms=['Anneau','Amulette','Couronne / Diadème','Vêtement','Talisman','Livre / Grimoire','Orbe / Cristal','Relique','Objet étrange','Forme unique'];
-const artifactEffects=['Barrière','Régénération','Téléportation','Invisibilité','Absorption d’énergie','Stockage d’énergie','Amplification d’un pouvoir','Amplification d’une arme','Résistance élémentaire','Résistance mentale','Détection surnaturelle','Invocation','Transformation','Manipulation spatiale','Manipulation temporelle','Manipulation de l’âme','Manipulation de probabilité','Altération de réalité','Copie','Pouvoir d’artefact unique'];
+
+
 const classicalWeak=['Soleil','Obscurité','Feu','Froid','Eau','Électricité','Vent','Terre','Poison','Sang','Sel','Argent','Fer','Énergie sacrée','Énergie démoniaque','Énergie cosmique','Chaos','Attaques mentales','Son','Explosions','Magnétisme','Magie','Dégâts physiques','Attaques spirituelles','Manipulation temporelle','Altération de réalité','Anti-régénération','Environnement hostile'];
-const improbableWeak=['Chats','Verre','Musique','Pollen','Café','Miroirs','Plumes','Champignons','Cloches','Mensonges','Canards','Applaudissements'];
-const personalities=['Agressif','Prudent','Calculateur','Impulsif','Imprévisible','Sanguinaire','Honorable','Fourbe','Courageux','Lâche','Froid','Colérique','Sadique','Pacifiste','Arrogant','Discipliné','Opportuniste','Protecteur','Excentrique','Personnalité unique'];
+
+
 
 const uniquePowers=['Manipulation du verre','Contrôle de la friction','Encre vivante','Manipulation des os','Portails miroirs','Vol de mouvement','Densité variable','Contrôle des rêves','Mémoire matérialisée','Papier tranchant','Manipulation des ombres solides','Chance inversée','Cristallisation','Filaments dimensionnels','Écho causal','Peinture vivante','Gravure de runes instantanée','Vol d’inertie','Manipulation des odeurs','Compression de matière'];
 const uniqueWeapons=['Épée-fouet segmentée','Lance télescopique orbitale','Arc à lames','Marteau gravitationnel','Chaîne de verre noir','Faux circulaire','Canon runique portatif','Gantelets à câbles','Trident magnétique','Boomerang monomoléculaire','Lame accordéon','Bouclier-lance','Harpie mécanique de combat','Aiguille géante','Arme vivante symbiotique','Disque dimensionnel','Fusil à portails','Sabre liquide','Chaîne d’éclairs solidifiés','Arme impossible'];
@@ -475,10 +503,10 @@ const uniqueArtifactEffects=['Arrêt d’un instant local','Porte vers une pièc
 const uniqueArtifactForms=['Masque brisé','Clé impossible','Dé à vingt faces noir','Montre sans aiguilles','Œil de cristal','Chaîne de sceaux','Fragment de météore','Miroir de poche','Gant solitaire','Pièce sans valeur','Plume métallique','Os gravé','Boussole folle','Coffret scellé','Dent gigantesque','Ruban vivant','Fragment de couronne','Prisme flottant','Aiguille cérémonielle','Objet indescriptible'];
 const uniquePersonalities=['Stoïque mais superstitieux','Jovial face au danger','Obsédé par les défis','Poliment terrifiant','Curieux jusqu’à l’imprudence','Fataliste serein','Théâtral et méthodique','Muet et observateur','Rieur sous pression','Protecteur envers ses ennemis','Obsédé par l’équité','Fasciné par la douleur sans être sadique','Paranoïaque lucide','Excessivement patient','Incapable de refuser un duel','Cherche toujours une sortie pacifique','Collectionne les techniques adverses','Combat comme s’il dansait','Imite le comportement de son adversaire','Tempérament impossible à classer'];
 
-const improbableJobs=['Éleveur de limaces de guerre','Testeur de pièges','Cartographe de rêves','Dresseur de nuages','Croque-mort pour immortels','Réparateur de portails','Bibliothécaire de monstres','Juge de duels culinaires','Chasseur de parapluies maudits','Messager interdimensionnel','Berger de golems','Collectionneur de cris','Gardien de portes inutiles','Fabricant de fausses prophéties','Pêcheur d’étoiles','Traducteur de fantômes','Coiffeur de dragons','Nettoyeur de donjons','Éleveur de mimics','Métier totalement absurde'];
-const improbableHistories=['A survécu à sa propre exécution par erreur administrative','A été élevé par une arme consciente','S’est réveillé dans le mauvais siècle','A gagné un royaume à un jeu de cartes','A été poursuivi dix ans par un canard immortel','A accidentellement créé sa propre religion','A vécu dans un miroir pendant sept ans','A été confondu avec une divinité','A perdu un duel contre son futur lui-même','A été adopté par une guilde de monstres','A volé son propre cadavre','A épousé son clone temporel','A détruit une prophétie en la lisant mal','A été banni d’un monde qui n’existe plus','A travaillé comme faux héros officiel','A survécu à une apocalypse en dormant','A trouvé une porte menant à son enfance','A été déclaré mort sans jamais mourir','A échangé son ombre contre un repas','Passé totalement impossible'];
-const improbableExtras=['Peut parler aux portes','Possède une cuillère indestructible','Est suivi par une pluie personnelle','Son ombre applaudit parfois','Peut invoquer une chaise une fois par combat','Entend les mensonges comme des cloches','A un deuxième reflet indépendant','Ses chaussures refusent certains terrains','Porte une clé qui n’ouvre rien de connu','Peut sentir la direction du nord absolu','Un petit nuage le suit','Son rire produit des étincelles','Possède un dé qui tombe toujours sur une face inconnue','Peut échanger deux objets identiques de place','Les animaux le prennent pour un roi','Sa cape change d’humeur','Peut faire apparaître une tasse vide','Les miroirs lui répondent parfois','Est accompagné d’un poisson spectral','Sa gravité personnelle s’inverse quand il éternue'];
-const improbableTransformations=['Forme de canard colossal','Forme de statue articulée','Forme de marionnette vivante','Forme de nuage humanoïde','Forme entièrement réfléchissante','Forme de squelette en verre','Forme de masse de rubans','Forme de géant minuscule paradoxal','Forme de silhouette en papier','Forme de cloche vivante','Forme de constellation ambulante','Forme de champignon guerrier','Forme de machine à vapeur organique','Forme de poupée inquiétante','Forme de liquide inversé','Forme d’ombre colorée','Forme de cristal mou','Forme de pluie consciente','Forme de mosaïque mouvante','Transformation impossible'];
+
+
+
+
 const uniqueTransformations=['Avatar du Premier Feu','Corps du Néant étoilé','Dragon de verre dimensionnel','Séraphin mécanique','Bête aux mille ombres','Titan de lumière noire','Forme du Temps brisé','Chimère astrale','Corps de runes vivantes','Monarque spectral','Machine divine organique','Phénix du Chaos','Forme de gravité incarnée','Archange abyssal','Léviathan humanoïde','Corps de matière impossible','Avatar de l’Entropie','Gardien des dimensions','Forme du Dernier Jour','Transformation sans équivalent'];
 const awakeningEvolutions=['Pouvoir principal transcendé','Arme principale transcendée','Trait racial actif transcendé','Transformation renforcée','Technique secrète transcendée','Chi transcendé','Enchantement principal transcendé','Capacité défensive transcendée','Mobilité transcendée','Perception transcendée','Régénération transcendée','Capacité de contrôle transcendée','Capacité d’attaque transcendée','Capacité de soutien transcendée','Capacité unique transcendée'];
 const transformationTypes=['Bestiale','Monstrueuse','Élémentaire','Démoniaque','Céleste','Draconique','Spectrale','Mécanique','Cosmique','Chaotique','Forme géante','Forme miniature','Forme énergétique','Forme ancestrale','Forme évoluée','Forme berserk','Forme parfaite','Forme interdite','Transformation improbable','Transformation unique'];
@@ -525,9 +553,9 @@ const namePools={
 'N.E.X.U.S.':['NEX-7','AXIOM','K-Null','Vektor','Syn-9','Iris-X','Node-3','Hexa','Unit-12','Noma','Zero-K','Vanta'],
 'Default':['Aster','Veyl','Ryn','Kaia','Drax','Nara','Torin','Sera','Varo','Ilya','Kest','Mirae']};
 const uniqueColors=['Ivoire irisé','Bleu abyssal','Vert spectral','Rouge carmin métallique','Violet cosmique','Noir opalescent','Blanc lunaire','Or rose incandescent','Turquoise bioluminescent','Ambre vivant','Pourpre fumé','Argent bleuté','Bronze verdigris','Rose néon','Gris cendré luminescent','Couleur prismatique changeante','Couleur impossible','Teinte stellaire'];
-const armorTypes=['Armure légère','Armure moyenne','Armure lourde','Armure segmentée','Armure de plaques','Armure organique','Armure énergétique','Exosquelette','Armure runique','Armure vivante','Armure extraterrestre','Armure unique'];
-const armorEffects=['Résistance physique accrue','Résistance magique accrue','Résistance élémentaire','Bouclier énergétique','Régénération de l’armure','Camouflage adaptatif','Absorption d’énergie','Réflexion partielle','Mobilité augmentée','Force augmentée','Résistance mentale','Protection anti-projectiles','Protection anti-explosion','Protection anti-régénération','Ancrage gravitationnel','Adaptation au terrain','Stockage d’énergie','Aura protectrice','Transformation défensive','Propriété unique'];
-const armorUniqueEffects=['Plaques qui se déplacent avant l’impact','Armure qui mémorise les attaques reçues','Peau d’ombre solidifiée','Cristal autoréparant','Champ de stase instantané','Armure qui dévie l’inertie','Carapace dimensionnelle','Plaques spectrales traversables à volonté','Armure qui convertit la douleur en énergie','Manteau gravitationnel','Armure symbiotique consciente','Déphasage bref à l’impact','Armure qui se nourrit de magie','Armure qui repousse les attaques répétées','Armure à géométrie impossible'];
+
+
+
 const bodies=['Très mince','Mince','Élancé','Standard','Athlétique','Musclé','Très musclé','Massif','Corpulent','Corpulence atypique']; const colors=['Noir','Blanc','Gris','Rouge','Orange','Jaune','Vert','Bleu','Cyan','Violet','Rose','Brun','Or','Argent','Cuivre','Couleur unique']; const signs=['Cicatrices','Tatouages','Peintures corporelles','Marques lumineuses','Marques mystiques','Prothèse','Bijoux','Cape / manteau remarquable','Masque','Casque','Yeux inhabituels','Chevelure remarquable','Mutation visible','Aucun','Signe unique'];
 const mods=Object.fromEntries(Object.entries(RACIAL7).filter(([k])=>!k.includes(' bonus')&&!k.includes(' final bonus')).map(([k,v])=>[k,v.slice(0,5)]));
 const amods={'Guerrier':[2,1,0,1,0],'Berserker':[3,3,-1,2,1],'Gardien':[1,1,0,3,-1],'Assassin':[2,-1,1,-1,2],'Artiste martial':[3,1,0,1,2],'Tireur':[1,-1,1,-1,0],'Mage':[-1,-2,1,-1,-1],'Sorcier':[0,-1,0,0,0],'Érudit':[-1,-2,3,-1,-1],'Ingénieur':[0,0,2,0,0],'Stratège':[1,-1,3,0,0],'Soutien':[-1,-1,1,1,0],'Chasseur':[1,0,1,1,1],'Éclaireur':[1,-1,1,-1,2],'Commandant':[2,1,2,1,0],'Trickster':[0,-1,2,-1,1],'Slayer':[0,1,1,0,1],'Invocateur':[-1,-2,1,0,-1]};
@@ -548,15 +576,15 @@ const mysticLinkNatures=['Partage des blessures','Partage d’énergie','Percept
 const mysticUniqueEffects=['Les blessures deviennent des souvenirs échangeables','Le lien se renforce lorsque les deux êtres sont séparés','L’un peut emprunter brièvement l’ombre de l’autre','Une attaque reçue peut parfois être transformée en énergie pour l’autre','Le lien permet de traverser brièvement les rêves de l’autre','La mort de l’un déclenche une manifestation inconnue chez l’autre','Leurs positions peuvent se superposer un instant','Le lien conserve une copie d’un instant vécu ensemble','Leur puissance fluctue selon leur distance','Le lien attire périodiquement des anomalies surnaturelles'];
 const mysticDeathManifestations=['Sursaut de puissance','Barrière spirituelle','Transfert de vitalité restante','Apparition de l’écho du défunt','Partage de sa dernière perception','Héritage temporaire d’une capacité','Résistance accrue','Rage surnaturelle','Protection contre la mort','Manifestation unique'];
 const mysticAnomalies=['Distorsion spatiale','Fluctuation temporelle','Variation gravitationnelle','Apparition spectrale','Perturbation énergétique','Inversion momentanée d’une force','Zone de silence surnaturel','Brèche lumineuse','Ombre autonome','Anomalie impossible'];
-const artifactCopyNatures=['Pouvoir','Technique','Capacité raciale','Capacité physique','Capacité surnaturelle','Propriété d’arme','Enchantement d’arme','Propriété d’armure','Capacité de transformation','Copie universelle'];
-const artifactTransformations=['Dragon','Démon','Ange','Spectre','Loup','Félin','Ours','Rapace','Serpent','Arachnide','Requin','Insecte','Griffon','Hydre','Basilic','Manticore','Chimère','Golem','Machine','Feu','Glace','Foudre','Eau','Terre','Vent','Cristal','Lumière','Ténèbres','Cosmique','Chaos'];
-const artifactPhenomena=['Feu','Froid / Glace','Électricité / Foudre','Eau','Vent','Terre','Poison','Explosions','Magnétisme','Magie','Téléportation','Manipulation spatiale','Manipulation temporelle','Altération de réalité','Illusions','Attaques mentales','Attaques spirituelles','Régénération','Énergie sacrée','Énergie démoniaque'];
+
+
+
 const impossibleArtifactAnomalies=['Inverse brièvement la gravité autour du porteur','Rend temporairement une surface liquide et traversable','Permute deux objets non vivants visibles','Fige un objet dans l’espace','Supprime temporairement le poids d’un objet ou du porteur','Multiplie temporairement le poids d’un objet','Inverse momentanément le haut et le bas pour une cible','Crée un passage entre deux surfaces visibles','Décale le porteur quelques secondes hors du présent','Rend temporairement solide une ombre','Transforme momentanément un son en impulsion physique','Donne temporairement une masse à la lumière','Permet de marcher sur l’air','Inverse attraction et répulsion lors d’un contact','Fait revenir un projectile lancé à son point de départ','Sépare brièvement le mouvement d’un objet de sa position','Permet à deux espaces proches de se chevaucher temporairement','Rend momentanément tangible un phénomène immatériel','Rend momentanément intangible un objet non vivant','Crée un point où les directions spatiales deviennent incohérentes'];
 const cursedWeaponCosts=['Drain vital','Drain énergétique','Douleur du porteur','Blessure partagée','Soif de combat','Rejet du repos','Poids croissant','Arme possessive','Retour de force','Faim d’énergie'];
 const thirstResources=['Sang','Vitalité','Énergie magique','Énergie spirituelle','Énergie vitale','Émotions','Douleur','Chaleur corporelle','Souvenirs','Âme'];
 const equivalentPrices=['Vitalité','Endurance','Énergie surnaturelle','Douleur','Sang','Mobilité temporaire','Acuité sensorielle temporaire','Concentration / lucidité','Durée de récupération accrue','Puissance future'];
 const mortalCurseTriggers=['Temps écoulé','Blessure critique','Épuisement extrême','Utilisation excessive du pouvoir','Utilisation excessive de l’arme','Accumulation de blessures','Perte de sang importante','Pouvoir poussé au maximum','Échec d’une capacité surnaturelle','Contact avec sa faiblesse','Mort d’un allié lié','Proximité de la défaite'];
-const improbableShoeTerrains=['Pierre','Terre','Sable','Boue','Herbe / végétation','Bois','Métal','Glace / neige','Eau peu profonde','Sol artificiel'];
+
 const uniqueLegendaryArmorEffects=['Mémoire des impacts','Armure hors phase','Cœur de forteresse','Redistribution des dégâts','Blindage sacrificiel','Prison d’énergie','Armure réactive','Sceau d’immobilité','Peau de frontière','Refus de rupture','Échange de résistance','Armure miroir','Zone de sauvegarde','Verrou adaptatif','Dernier rempart'];
 const uniqueLegendaryTechniques=['Frappe des Neuf Ruptures','Pas de l’Angle Mort','Main qui Arrête la Guerre','Coupe sans Élan','Garde du Cercle Parfait','Frappe des Trois Temps','Chute du Géant','Trait sans Ligne','Étreinte du Dernier Rempart','Rupture du Rythme','Frappe du Souffle Coupé','Déviation du Colosse','Marche des Cent Batailles','Arme et Corps Unifiés','Instant du Maître'];
 const uniqueLegendaryDormantPowers=['Cœur de singularité','Sang des dimensions','Corps de l’orage primordial','Œil des fractures','Souffle de l’astre mourant','Chair du monde','Cœur du vide silencieux','Couronne des âmes','Mue de l’impossible','Résonance absolue','Flamme de l’âme','Avatar du seuil','Écho du commencement','Volonté incarnée','Rupture des lois'];
@@ -3410,8 +3438,8 @@ function addTransformation(){insert([task('Transformation — Type',EQ(transform
 function awakeningBonus(level){return level<=3?2:level<=6?3:level<=8?4:level===9?5:6}
 function addAwakening(){insert([task('Éveil — Niveau',centered,x=>{let level=valNum(x);state.awakening={level,primary:null,primaryBonus:awakeningBonus(level),secondary:null,secondaryBonus:level>=7?2:0,evolution:null};state.extraDetail.push({kind:'Éveil',ref:state.awakening})}),task('Éveil — Stat principale',EQ(statNames),x=>{state.awakening.primary=x;let follow=[];if(state.awakening.level>=7)follow.push(task('Éveil — Stat secondaire',()=>EQ(statNames.filter(s=>s!==state.awakening.primary)),y=>state.awakening.secondary=y));if(state.awakening.level===10)follow.push(task('Éveil — Évolution temporaire',EQ(awakeningEvolutions),y=>state.awakening.evolution=y));if(follow.length)insert(follow)})])}
 // V18.28 — sous-roues complètes des quatre lignées supérieures.
-const DIVINE_DOMAINS=['Guerre','Protection','Nature','Vie','Mort','Savoir','Magie','Justice','Liberté','Destin','Rêves','Océans','Terre','Ciel','Tempêtes','Feu','Lumière','Ténèbres','Temps','Espace'];
-const DIVINE_DOMAIN_STAT={'Guerre':'Combat','Protection':'Résilience','Nature':'Pouvoir','Vie':'Résilience','Mort':'Pouvoir','Savoir':'Intelligence','Magie':'Pouvoir','Justice':'Combat','Liberté':'Vitesse','Destin':'Intelligence','Rêves':'Intelligence','Océans':'Pouvoir','Terre':'Force','Ciel':'Vitesse','Tempêtes':'Vitesse','Feu':'Pouvoir','Lumière':'Pouvoir','Ténèbres':'Pouvoir','Temps':'Intelligence','Espace':'Intelligence'};
+
+
 const TITAN_AFFINITIES=['Montagne','Océan','Forêt ancestrale','Désert','Glace','Tempête','Magma','Cristal','Profondeurs','Terre'];
 const TITAN_AFFINITY_STAT={'Montagne':'Résilience','Océan':'Pouvoir','Forêt ancestrale':'Résilience','Désert':'Vitesse','Glace':'Combat','Tempête':'Vitesse','Magma':'Force','Cristal':'Résilience','Profondeurs':'Combat','Terre':'Force'};
 
