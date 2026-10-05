@@ -78,3 +78,6 @@ export function beastComponentsFromCharacter(c){
   if(L.beastSpecies&&!seen.has(L.beastSpecies))out.push({species:L.beastSpecies,traits:beastMandatoryTraits(L.beastSpecies,c?.gender)});
   return out;
 }
+
+
+export * from "./profile.js";
