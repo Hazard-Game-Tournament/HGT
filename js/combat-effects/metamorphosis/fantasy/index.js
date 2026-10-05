@@ -1,0 +1,31 @@
+import { form } from "../../helpers.js";
+
+export const METAMORPHOSIS_EFFECTS_FANTASY = {
+  "Phénix": form(["vol", "nature ignée", "résistance au feu"], ["production de flammes", "renaissance"], ["Renaissance engineResolved."]),
+  "Basilic": form(["morsure", "constitution reptilienne"], ["regard pétrifiant progressif"], ["Pétrification complète engineResolved."]),
+  "Cockatrice": form(["vol limité", "bec", "griffes"], ["effet pétrifiant par attaque naturelle/contact"], ["Pétrification complète engineResolved."]),
+  "Hydre": form(["têtes multiples", "morsures multiples", "robustesse"], ["régénération importante"], ["Survie mortelle ou multiplication significative de têtes engineResolved."]),
+  "Griffon": form(["vol", "serres", "bec", "attaque en piqué"], [], []),
+  "Hippogriffe": form(["vol", "serres antérieures", "bec", "ruades", "attaque en piqué"], [], []),
+  "Manticore": form(["griffes", "crocs", "force", "queue offensive"], ["projection de pointes caudales"], ["Vol non supposé sans donnée explicite."]),
+  "Chimère": form(["anatomie composite", "morsures", "griffes", "cornes selon anatomie"], ["souffle de feu"], []),
+  "Pégase": form(["vol ailé", "mobilité aérienne", "charge", "ruades"], [], []),
+  "Licorne": form(["corne", "mobilité quadrupède"], ["énergie purificatrice légère via la corne"], ["Pas de guérison miraculeuse automatique."]),
+  "Cerbère": form(["trois têtes fonctionnelles", "morsures multiples", "perception multidirectionnelle", "force", "robustesse"], [], []),
+  "Minotaure": form(["grande force", "cornes", "charge", "corps-à-corps"], [], []),
+  "Sphinx": form(["corps félin massif", "griffes", "morsure", "vol"], [], ["Pas de magie/contrôle mental automatique."]),
+  "Kraken": form(["nombreux tentacules", "constriction", "saisie multiple", "mobilité aquatique"], [], []),
+  "Wyverne": form(["vol", "morsure", "griffes", "queue offensive"], [], ["Pas de souffle ou venin automatique."]),
+  "Roc": form(["vol", "serres puissantes", "bec", "saisie", "attaque en piqué"], [], []),
+  "Kitsune": form(["agilité surnaturelle", "sens développés"], ["illusions simples"], ["Pas de contrôle mental."]),
+  "Kirin": form(["agilité surnaturelle", "cornes/bois", "mobilité"], ["foudre limitée autour du corps/charges"], ["Pas de pouvoir Foudre complet."]),
+  "Naga": form(["corps serpentin/humanoïde-serpentin", "constriction", "mobilité du tronc", "perception reptilienne"], [], []),
+  "Oni": form(["forme humanoïde démoniaque", "force", "robustesse", "cornes"], [], ["Pas de magie automatique."]),
+  "Wendigo": form(["forme prédatrice", "griffes", "crocs", "agilité", "sens développés"], [], ["Pas de froid/peur/contrôle mental automatique."]),
+  "Gargouille": form(["corps minéral résistant", "griffes", "ailes", "vol", "masse accrue"], [], []),
+  "Golem": form(["corps artificiel robuste", "force", "masse", "résistance physique"], [], ["Pas de magie élémentaire automatique."]),
+  "Ent": form(["corps végétal massif", "force", "membres ligneux", "résistance"], [], ["Pas de pouvoir Nature complet."]),
+  "Slime": form(["corps amorphe", "déformation", "compression", "extension", "enveloppement"], [], ["Pas d’acide/poison/intangibilité automatiques."]),
+  "Mimique": form(["camouflage morphologique en objet", "mâchoire", "appendices"], [], ["Ne copie pas les propriétés magiques de l’objet."]),
+  "Dragon": form(["vol ailé", "griffes", "crocs", "queue", "écailles"], ["souffle offensif"], ["Élément du souffle non inventé si absent des données."])
+};
