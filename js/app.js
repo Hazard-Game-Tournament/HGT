@@ -1,3 +1,5 @@
+import { frenchPowerComplement } from "./rules/text/french.js";
+import { armorStatBonus, metricSizeOptions } from "./rules/generation/helpers.js";
 import { componentProfile } from "./rules/races/profile.js";
 /* HGT application logic — extracted from index.html. */
 
@@ -3168,7 +3170,7 @@ function statBreakdown(si){let arr=[],rp=racialProfile7();if(rp[si])arr.push({so
 function replaceUniquePower(idx,label){insert([task(`${label} — Manifestation unique`,EQ(uniquePowers),u=>state.powers[idx].name=u)])}
 function replaceUniqueWeapon(idx,label){insert([task(`${label} — Manifestation unique`,EQ(uniqueWeapons),u=>state.weapons[idx].name=u)])}
 function enchantTasks(w,label,n){let ts=[];for(let j=1;j<=n;j++)ts.push(task(`${label} — Enchantement ${j}`,vaeloriaEnchantOptions,e=>{if(e==='Enchantement unique')insert([task(`${label} — Enchantement unique ${j}`,EQ(uniqueEnchants),u=>w.ench.push(u))]);else w.ench.push(e)}));return ts}
-function armorStatBonus(level){return level<=3?1:level<=6?2:level<=8?3:level===9?4:5}
+
 function registerArmorStatBonus(a){if(!a||!a.power)return;let map={'Force augmentée':'Force','Mobilité augmentée':'Vitesse','Résistance physique accrue':'Résilience'};let stat=map[a.effect];if(!stat)return;state.extraStatMods=state.extraStatMods||[];state.extraStatMods.push({stat,value:armorStatBonus(a.power),source:`Armure spéciale — ${a.effect}`})}
 function addSlayerTarget(label='Slayer'){insert([task(`${label} — Race cible`,()=>raceOptions().filter(o=>o.label!=='Hybride'),r=>state.slayerTarget=r)])}
 function addProdigeBonuses(){
@@ -3254,15 +3256,7 @@ function metamorphosisTasks(p,label='Pouvoir'){
     }
   })];
 }
-function frenchPowerComplement(value){
-  const x=String(value||'').trim();
-  const special={Air:'des airs',Ténèbres:'des ténèbres',Eau:'de l’eau',Explosion:'de l’explosion',Illusion:'de l’illusion',Invisibilité:'de l’invisibilité',Absorption:'de l’absorption',Annulation:'de l’annulation',Espace:'de l’espace'};
-  if(special[x])return special[x];
-  const feminine=new Set(['Glace','Foudre','Terre','Nature','Lumière','Télékinésie','Télépathie','Téléportation','Métamorphose','Régénération','Gravité','Copie']);
-  if(feminine.has(x))return `de la ${x.toLowerCase()}`;
-  if(/^[AEIOUYÉÈÊËÀÂÄÎÏÔÖÙÛÜH]/i.test(x))return `de l’${x.toLowerCase()}`;
-  return `du ${x.toLowerCase()}`;
-}
+
 function addNameGeneration(){insert([task('Prénom — Structure',EQ(['Court','Long']),x=>{state._nameParts=[];let set=namingSets[namingStyle()]||namingSets.Default;let ts=[task('Prénom — Début',EQ(set.start),v=>state._nameParts.push(v))];if(x==='Long')ts.push(task('Prénom — Milieu',EQ(set.mid),v=>state._nameParts.push(v)));ts.push(task('Prénom — Fin',EQ(set.end),v=>{state._nameParts.push(v);let raw=state._nameParts.join('');state.name=raw.charAt(0).toUpperCase()+raw.slice(1);if(state.martial?.status==='Fondateur'&&state.martial?.clanId)martialUpdateClan(c=>{c.founderName=state.name;c.name=`Clan ${state.name}`});delete state._nameParts}));insert(ts)})])}
 function titleOptions(){
   const out=['Sans titre'];
@@ -3460,7 +3454,7 @@ function addCompBonus(comp,stat,value){comp.special7=comp.special7||[0,0,0,0,0,0
 function addRacialPower(name,bonus=0,label=name,limit={}){let p={name,mastery:null,racial:true};state.powers.push(p);insert([task(`${label} — Maîtrise`,centered,m=>{p.masteryBase=valNum(m);let v=p.masteryBase+masteryMod('power')+bonus;if(limit.max!=null)v=Math.min(limit.max,v);if(limit.min!=null)v=Math.max(limit.min,v);p.mastery=Math.max(0,v);p.racialBonus=bonus})])}
 function addRacialWeapon(name,bonus=0,label=name,weaponSystem='neoxus'){let w=attachWeaponTraits({name,mastery:null,ench:[],racial:true,enchantmentCount:0},weaponSystem);state.weapons.push(w);insert([task(`${label} — Maîtrise`,centered,m=>{w.masteryBase=valNum(m);w.mastery=Math.max(0,w.masteryBase+masteryMod('weapon'));w.racialBonus=bonus})])}
 function removeGenericSizeTask(){for(let i=index+1;i<queue.length;i++){if(queue[i]?.title==='Taille'){queue.splice(i,1);break}}}
-function metricSizeOptions(min,max,step,unit='m'){let a=[];for(let n=min;n<=max+1e-9;n+=step){let v=Math.round(n*10)/10;a.push(W(`${Number.isInteger(v)?v:v.toFixed(1)} ${unit}`))}return a}
+
 function scheduleSuperiorSize(prefix,comp){let st=superiorStage(comp),opts=null;if(comp.race==='Titan'){opts=st===1?metricSizeOptions(15,40,1):st===2?metricSizeOptions(200,500,10):metricSizeOptions(1,5,.1,'km')}else if(comp.race==='Dragon humanoïde'&&st===3)opts=metricSizeOptions(15,40,1);if(!opts)return;insert([task(`${prefix} — Taille`,opts,x=>{state.size=x;comp.size=x;removeGenericSizeTask()})])}
 function scheduleDivine(prefix,comp){let st=superiorStage(comp),countOpts=st===1?[W('1 domaine',90),W('2 domaines',10)]:st===2?[W('1 domaine',60),W('2 domaines',35),W('3 domaines',5)]:[W('2 domaines',50),W('3 domaines',40),W('4 domaines',10)];comp.divineRank=st===1?'Demi-dieu':st===2?'Divinité':'Dieu céleste';insert([task(`${prefix} — Nombre de domaines divins`,countOpts,x=>{let n=parseInt(x),picked=[];comp.divineDomains=picked;let ts=[];for(let i=1;i<=n;i++)ts.push(task(`${prefix} — Domaine divin ${i}`,()=>EQ(DIVINE_DOMAINS.filter(d=>!picked.includes(d))),d=>{picked.push(d);let b=st,stat=DIVINE_DOMAIN_STAT[d];addCompBonus(comp,stat,b);addRacialPower(d,0,`${prefix} — ${d}`,st===1?{max:6}:st===2?{max:8}:{min:5})}));insert(ts)})])}
 function nexusCountOptions(st){return st<3?[W('1',25),W('2',25),W('3',16),W('4',16),W('5',7),W('6',7),W('7',2),W('8',2)]:[W('1',10),W('2',10),W('3',15),W('4',25),W('5',25),W('6',15)]}
