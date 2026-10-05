@@ -1,6 +1,34 @@
 /* HGT application logic — extracted from index.html. */
 
 import {
+  beastMandatoryTraits,
+  beastForbiddenVisualConfusion,
+  hasFinalRaceAlteration,
+  beastAnimal
+} from "./rules/races/index.js";
+
+import {
+  regionVisualIdentityFor
+} from "./rules/visuals/index.js";
+
+import {
+  rankLabel,
+  levelColor
+} from "./rules/ranks/index.js";
+
+import {
+  martialFounderChance,
+  martialTechniqueBonus,
+  martialChiMultiplier,
+  martialCombatData
+} from "./rules/martial/index.js";
+
+import {
+  raceKey,
+  summonCountFromMastery
+} from "./rules/summoning/index.js";
+
+import {
   add7,
   ceilAvg7,
   superiorProfile,
@@ -238,20 +266,9 @@ function powerExact(stage){if(stage.startsWith('1'))return 1+Math.floor(Math.ran
 // Ils sont conservés dans le JSON du personnage et transmis au prompt d'image.
 
 
-function beastMandatoryTraits(species,gender=''){
-  const out=[...(BEAST_MANDATORY_TRAITS[species]||[])],g=String(gender||'').toLowerCase();
-  const male=g.includes('mâle')||g.includes('male')||g.includes('homme');
-  if(species==='Lion'&&male)out.push('crinière léonine développée');
-  if(species==='Cerf'&&male)out.push('grands bois de cerf');
-  if(species==='Paon'&&male)out.push('grande traîne ocellée');
-  return out;
-}
-function beastForbiddenVisualConfusion(species){return BEAST_FORBIDDEN_VISUAL_CONFUSIONS[species]||'';}
-function hasFinalRaceAlteration(c){
-  const logs=Array.isArray(c?.logs)?c.logs:[];
-  return logs.some(x=>String(x?.cat||'')==='Résurrection — Race ajoutée') ||
-    (Array.isArray(c?.extraDetail)&&c.extraDetail.some(x=>x?.kind==='Conséquence de résurrection'&&x?.result==='Race altérée'));
-}
+
+
+
 
 
 function activeRaceComponentsFromCharacter(c){
@@ -389,10 +406,10 @@ function loadMartialClans(){try{const x=JSON.parse(localStorage.getItem(MARTIAL_
 function saveMartialClans(x){localStorage.setItem(MARTIAL_CLANS_KEY,JSON.stringify(x||{}))}
 function martialWeightedIndex(weights){let r=Math.random()*weights.reduce((a,b)=>a+b,0);for(let i=0;i<weights.length;i++){r-=weights[i];if(r<0)return i}return weights.length-1}
 function martialPickN(arr,n){let a=[...arr],out=[];while(a.length&&out.length<n)out.push(a.splice(Math.floor(Math.random()*a.length),1)[0]);return out}
-function martialFounderChance(n){return Math.max(.05,1-.95*Math.min(60,Math.max(0,n))/60)}
+
 function martialInheritedClan(){const ids=state?.genealogy?.parents||[];if(!ids.length)return null;const roster=loadRoster(), parents=ids.map(id=>roster[id]).filter(Boolean), cs=parents.map(p=>p?.martial?.clanId).filter(Boolean);if(!cs.length)return null;if(cs.length>=2){if(cs[0]===cs[1])return cs[0];return cs[Math.random()<.5?0:1]}return Math.random()<.5?cs[0]:null}
-function martialTechniqueBonus(chi,type){chi=Number(chi)||1;if(type==='secret'){if(chi>=5)return 2;if(chi>=3)return 1;return 0}if(chi>=9)return 2;if(chi>=7)return 1;return 0}
-function martialChiMultiplier(chi){return 1+Math.max(1,Math.min(10,Number(chi)||1))/10}
+
+
 function martialMasteryRoll(){return martialWeightedIndex(MARTIAL_MASTERY_WEIGHTS)+1}
 function martialClanDomainCount(){return martialWeightedIndex(MARTIAL_DOMAIN_COUNT_WEIGHTS)+1}
 function createMartialClan(founderId){const clans=loadMartialClans(),id=`CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,domains=martialPickN(MARTIAL_DOMAINS,martialClanDomainCount()),patrimony={};for(const d of domains){const cat=MARTIAL_TECHNIQUES[d];patrimony[d]={secret:martialPickN(cat.secret,5),legendary:martialPickN(cat.legendary,2)}}clans[id]={id,name:`Clan ${founderId}`,founderId,founderName:state.name||'',foundedSeason:seasonNumber,domains,patrimony,members:[founderId]};saveMartialClans(clans);return clans[id]}
@@ -416,15 +433,15 @@ function martialPatrimonyTasks(clan){const out=[];for(const d of clan.domains){c
 function martialFounderDomainTasks(){let clan=loadMartialClans()[state.martial.clanId];return [task('Nombre de domaines martiaux',[W('1',50),W('2',35),W('3',15)],v=>{const n=Number(v)||1,chosen=[];insert([...Array.from({length:n},(_,i)=>task(`Domaine martial ${i+1}`,()=>MARTIAL_DOMAINS.filter(d=>!chosen.includes(d)).map(d=>W(d)),d=>{chosen.push(d);martialUpdateClan(c=>{c.domains=[...chosen];c.patrimony=c.patrimony||{}});state.martial.domains=[...chosen]})),task('Clan — Création du patrimoine',[W('Créer le patrimoine')],()=>{clan=loadMartialClans()[state.martial.clanId];insert(martialPatrimonyTasks(clan))})])})];}
 function martialIdentityTasks(){const inherited=martialInheritedClan(),clans=loadMartialClans();if(inherited&&clans[inherited]){return [task('Clan martial hérité',[W(`${clans[inherited].name} — Héritier`)],()=>{const c=joinMartialClan(inherited,'Héritier');martialEnsureState('Héritier',c);insert(martialPersonalTechniqueTasks())})];}const ids=Object.keys(clans),founderChance=martialFounderChance(ids.length);if(!ids.length)return [task('Statut martial',[W('Fondateur')],()=>{martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())})];return [task('Statut martial',[W('Fondateur',founderChance),W('Disciple',1-founderChance)],v=>{if(v==='Fondateur'){martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())}else insert([task('Clan martial rejoint',martialClanPoolOptions,v=>{const id=v.split(' — ')[0],c=joinMartialClan(id,'Disciple');martialEnsureState('Disciple',c);insert(martialPersonalTechniqueTasks())})])})];}
 function finalizeMartialLoadout(){const m=state.martial,clan=loadMartialClans()[m?.clanId];if(!m||!clan)return;for(const d of clan.domains){const vals=m.techniques.filter(t=>t.domain===d&&t.type==='secret').map(t=>Number(t.mastery)||0);m.weaponMasteries[d]=vals.length?Math.max(...vals):1}const physical=clan.domains.filter(d=>d!=='Mains nues'),best=Math.max(0,...physical.map(d=>m.weaponMasteries[d]||1)),ties=physical.filter(d=>(m.weaponMasteries[d]||1)===best);m.primaryDomain=ties.length?ties[Math.floor(Math.random()*ties.length)]:'Mains nues';m.secondaryDomains=clan.domains.filter(d=>d!==m.primaryDomain);state.weapons=[];for(const d of physical){const mastery=m.weaponMasteries[d]||1,w=attachWeaponTraits({name:MARTIAL_DOMAIN_WEAPON[d]||d,masteryBase:mastery,mastery,ench:[],martialDomain:d,martialPrimary:d===m.primaryDomain},'classic');w.enchantmentCount=mastery>=8?2:mastery>=5?1:0;state.weapons.push(w);if(w.enchantmentCount)for(let i=0;i<w.enchantmentCount;i++){const opts=vaeloriaEnchantOptions(),idx=weightedPick(opts);w.ench.push(opts[idx].label)}}}
-function martialCombatData(c){if(!c?.martial)return null;return {...c.martial,chiRank:Number(c.chi?.rank)||1,chiMultiplier:martialChiMultiplier(c.chi?.rank),techniques:(c.martial.techniques||[]).map(t=>({...t,equivalentPower:Number(t.mastery||0)*(t.type==='legendary'?1.5:1)*martialChiMultiplier(c.chi?.rank) }))}}
 
 
 
 
 
 
-function rankLabel(n,type='stat'){n=Math.max(0,Math.floor(Number(n)||0));if(type==='weakness')return weaknessRanks[Math.min(10,n)]||'';let a=type==='mastery'?masteryRanks:type==='intensity'?intensityRanks:type==='chi'?['',...chiRanks]:statRanks;return a[Math.min(20,n)]||a[20];}
-function levelColor(n){n=Math.max(1,Math.floor(Number(n)||1));return levelColors[Math.min(20,n)-1];}
+
+
+
 const centered=[W('1 — Catastrophique',2),W('2 — Très faible',4),W('3 — Faible',8),W('4 — Médiocre',14),W('5 — Moyen',22),W('6 — Bon',22),W('7 — Excellent',14),W('8 — Exceptionnel',8),W('9 — Légendaire',4),W('10 — Monstrueux',2)];
 const intensity=[W('1 — Infime',2),W('2 — Très faible',4),W('3 — Faible',8),W('4 — Modérée',14),W('5 — Notable',22),W('6 — Forte',22),W('7 — Majeure',14),W('8 — Extrême',8),W('9 — Dévastatrice',4),W('10 — Phénoménale',2)];
 
@@ -530,7 +547,7 @@ function weaponOptionsForCurrent(forceRanged=false){return finalDragonComponent(
 function attachWeaponTraits(w,system='classic'){w.weaponSystem=system;w.mandatoryWeaponTraits=weaponTraitsFor(w.name,system);return w}
 function dragonTailUniqueMutationTask(w,label='Arme'){return task(`${label} — Mutation caudale unique`,EQ(DRAGON_TAIL_UNIQUE_MUTATIONS),x=>{w.tailMutation=x;w.mandatoryWeaponTraits=[...(DRAGON_TAIL_UNIQUE_TRAITS[x]||[])];});}
 
-function regionVisualIdentityFor(c){const r=String(c?.birthRegion||'').trim();return REGION_VISUAL_IDENTITIES[r]?REGION_VISUAL_IDENTITIES[r].slice():[]}
+
 
 function weaponVisualTraitsFromCharacter(c){const out=[];for(const w of (c?.weapons||[])){let system=w.weaponSystem||'classic';if(w.racial&&!w.weaponSystem){const comp=c?.lineage?.primaryComponent;system=comp?.race==='Cyborg'&&Number(comp?.power)<50?'cyborg':'neoxus'}if(DRAGON_TAIL_WEAPONS.includes(w.name))system='dragon-tail';const traits=(w.mandatoryWeaponTraits?.length?w.mandatoryWeaponTraits:weaponTraitsFor(w.name,system));if(traits.length)out.push(...traits.map(t=>`${w.name}: ${t}`))}return out;}
 function dragonComponentsFromCharacter(c){
@@ -667,13 +684,7 @@ const bodies=['Très mince','Mince','Élancé','Standard','Athlétique','Musclé
 const mods=Object.fromEntries(Object.entries(RACIAL7).filter(([k])=>!k.includes(' bonus')&&!k.includes(' final bonus')).map(([k,v])=>[k,v.slice(0,5)]));
 const amods={'Guerrier':[2,1,0,1,0],'Berserker':[3,3,-1,2,1],'Gardien':[1,1,0,3,-1],'Assassin':[2,-1,1,-1,2],'Artiste martial':[3,1,0,1,2],'Tireur':[1,-1,1,-1,0],'Mage':[-1,-2,1,-1,-1],'Sorcier':[0,-1,0,0,0],'Érudit':[-1,-2,3,-1,-1],'Ingénieur':[0,0,2,0,0],'Stratège':[1,-1,3,0,0],'Soutien':[-1,-1,1,1,0],'Chasseur':[1,0,1,1,1],'Éclaireur':[1,-1,1,-1,2],'Commandant':[2,1,2,1,0],'Trickster':[0,-1,2,-1,1],'Slayer':[0,1,1,0,1],'Invocateur':[-1,-2,1,0,-1]};
 const pmr=Object.fromEntries(Object.entries(RACIAL7).filter(([k])=>!k.includes(' bonus')&&!k.includes(' final bonus')).map(([k,v])=>[k,v[5]||0])); const wmr=Object.fromEntries(Object.entries(RACIAL7).filter(([k])=>!k.includes(' bonus')&&!k.includes(' final bonus')).map(([k,v])=>[k,v[6]||0])); const pma={'Guerrier':-1,'Berserker':-1,'Mage':3,'Sorcier':3,'Érudit':1,'Ingénieur':-1,'Soutien':2,'Trickster':1,'Invocateur':2}; const beastMods={'Lion':[2,2,0,1,1],'Tigre':[2,2,0,1,2],'Loup':[2,1,0,1,2],'Renard':[1,-1,1,-1,2],'Ours':[2,3,-1,3,-1],'Sanglier':[2,2,-1,2,0],'Taureau':[1,3,-1,2,0],'Cheval':[1,1,0,1,3],'Cerf':[1,1,0,0,2],'Chèvre':[1,1,0,1,1],'Gorille':[2,3,0,2,0],'Singe':[1,0,1,0,2],'Éléphant':[1,4,0,3,-2],'Rhinocéros':[2,4,-1,4,-2],'Crocodile':[2,3,-1,3,-1],'Serpent':[1,-1,1,-1,2],'Lézard':[0,0,0,1,1],'Tortue':[-1,0,0,4,-3],'Aigle':[2,0,0,-1,3],'Hibou':[1,-1,2,-1,1],'Chauve-souris':[1,-1,0,-1,2],'Requin':[2,2,-1,2,2],'Baleine':[0,4,0,4,-2],'Poulpe':[1,0,2,0,1],'Scorpion':[2,1,-1,2,1],'Araignée':[2,0,0,0,2],'Scarabée':[1,3,-1,3,0],'Fourmi':[1,3,-1,2,1],'Guépard':[2,0,-1,-1,4],'Papillon':[-1,-2,0,-2,2],'Licorne':[1,1,1,1,2],'Pégase':[1,1,0,0,3],'Griffon':[3,2,0,1,2],'Phénix':[1,0,1,2,3],'Basilic':[2,1,0,2,0],'Cocatrix':[1,0,-1,0,1],'Fenrir':[4,4,0,3,3],'Cerbère':[3,3,-1,3,1],'Hydre':[3,3,-1,4,-1],'Manticore':[3,2,0,2,1],'Chimère':[3,2,0,2,1],'Minotaure':[3,4,-1,2,0],'Kelpie':[1,1,1,1,3],'Kraken':[2,5,0,4,-2],'Serpent de mer':[2,3,0,3,1],'Léviathan':[3,5,0,5,-2],'Loup spectral':[2,0,1,0,3],'Kitsune':[1,-1,3,0,2],'Tengu':[2,1,2,0,3],'Naga':[2,1,2,1,1]}; const beastPmr={'Lion':0,'Tigre':0,'Loup':0,'Renard':1,'Ours':0,'Sanglier':0,'Taureau':0,'Cheval':0,'Cerf':1,'Chèvre':0,'Gorille':0,'Singe':0,'Éléphant':0,'Rhinocéros':0,'Crocodile':0,'Serpent':1,'Lézard':0,'Tortue':0,'Aigle':0,'Hibou':1,'Chauve-souris':1,'Requin':0,'Baleine':0,'Poulpe':1,'Scorpion':1,'Araignée':1,'Scarabée':0,'Fourmi':0,'Guépard':0,'Papillon':2,'Licorne':3,'Pégase':1,'Griffon':1,'Phénix':4,'Basilic':3,'Cocatrix':3,'Fenrir':2,'Cerbère':2,'Hydre':2,'Manticore':2,'Chimère':3,'Minotaure':0,'Kelpie':2,'Kraken':2,'Serpent de mer':2,'Léviathan':3,'Loup spectral':3,'Kitsune':4,'Tengu':2,'Naga':3}; const beastWmr={'Lion':0,'Tigre':0,'Loup':0,'Renard':0,'Ours':-1,'Sanglier':-1,'Taureau':-1,'Cheval':0,'Cerf':0,'Chèvre':0,'Gorille':1,'Singe':1,'Éléphant':-1,'Rhinocéros':-1,'Crocodile':-1,'Serpent':0,'Lézard':0,'Tortue':-1,'Aigle':1,'Hibou':0,'Chauve-souris':0,'Requin':-1,'Baleine':-2,'Poulpe':1,'Scorpion':-1,'Araignée':0,'Scarabée':-1,'Fourmi':-1,'Guépard':0,'Papillon':-1,'Licorne':0,'Pégase':0,'Griffon':0,'Phénix':-1,'Basilic':-1,'Cocatrix':-1,'Fenrir':-1,'Cerbère':-1,'Hydre':-2,'Manticore':0,'Chimère':-1,'Minotaure':1,'Kelpie':0,'Kraken':-2,'Serpent de mer':-1,'Léviathan':-2,'Loup spectral':-1,'Kitsune':0,'Tengu':2,'Naga':1};
-function beastAnimal(p){
-  p=String(p||'');
-  let m=p.match(/^Homme-bête \((.+)\)$/);
-  if(m)return m[1];
-  if(p.startsWith('Homme-bête '))return p.slice('Homme-bête '.length);
-  return null;
-}
+
 const wma={'Guerrier':2,'Gardien':1,'Assassin':2,'Artiste martial':1,'Tireur':3,'Mage':-1,'Sorcier':-1,'Érudit':-1,'Ingénieur':2,'Chasseur':2,'Éclaireur':2,'Commandant':1,'Trickster':1,'Slayer':1,'Invocateur':-1};
 const mysticLinkTargets=['Une créature inconnue','Un esprit ancestral','Un démon errant','Une entité céleste','Un animal surnaturel','Une arme consciente','Un artefact ancien','Un lieu sacré','Un lieu maudit','Un autre personnage','Un ancêtre disparu','Une ombre vivante','Une entité cosmique','Une créature du Chaos','Un double dimensionnel','Une intelligence artificielle mystique','Un dragon ancien','Une divinité oubliée','Une âme prisonnière','Cible unique'];
 const otherCharacterStatus=['Personnage déjà existant','Personnage à venir'];
@@ -3159,13 +3170,8 @@ function vaeloriaArchetypeOptions(){
 }
 
 function task(title,options,apply){return{title,options:()=>typeof options==='function'?options():options,apply,_subwheel:false}} function insert(tasks){for(const t of tasks||[])if(t)t._subwheel=true;queue.splice(index+1,0,...tasks)}
-function raceKey(p){if(p.startsWith('Homme-bête'))return null;return p} 
-function summonCountFromMastery(m){
-  m=Number(m)||0;
-  if(m<=3)return 1;if(m<=5)return 2;if(m<=7)return 3;
-  if(m===8)return 4;if(m===9)return 5;if(m===10)return 6;
-  return 6+(m-10);
-}
+ 
+
 function summonRaceMods(parts){
   let s=[0,0,0,0,0];
   for(const p of parts||[]){
