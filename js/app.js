@@ -1,6 +1,23 @@
 /* HGT application logic — extracted from index.html. */
 
 import {
+  RACE_BASE_WEIGHTS,
+  RACIAL7,
+  ART_ORIGIN7,
+  ART_BODY7,
+  ALIEN7,
+  ALIEN_ENV_AFF,
+  ALIEN_TYPES,
+  BEAST_REAL,
+  BEAST_FANTASY,
+  BEAST_MANDATORY_TRAITS,
+  BEAST_FORBIDDEN_VISUAL_CONFUSIONS,
+  BEAST_REAL_AFF,
+  BEAST_FANTASY_AFF,
+  RACE_MANDATORY_VISUAL_TRAITS
+} from "./data/races/index.js";
+
+import {
   REGION_RACE_AFF,
   REGION_VISUAL_IDENTITIES,
   VAELORIA_BIRTH_WEIGHTS,
@@ -46,7 +63,7 @@ const listTab=document.getElementById('listTab');
 const W=(label,weight=1)=>({label,weight}); const EQ=a=>a.map(x=>W(x));
 
 // V9 — système racial régionalisé Vaeloria.
-const RACE_BASE_WEIGHTS={'Humain':15,'Elfe':9,'Nain':8,'Orc':8,'Gobelin':7,'Fée':6,'Géant':4,'Vampire':4,'Loup-garou':4,'Esprit':4,'Homme-bête':7,'Hybride':6,'Squelette':3,'Golem / Artificiel':2,'Extraterrestre':1.5,'Ange':1.5,'Démon':1.5,'Dragon humanoïde':1,'Titan':.75,'Demi-dieu':.75,'Cyborg':.5};
+
 const AFF={F:2,N:1,D:.4};
 
 const RACE_ORDER=Object.keys(RACE_BASE_WEIGHTS);
@@ -54,113 +71,16 @@ function affinityWeightsFor(region, labels, baseMap=RACE_BASE_WEIGHTS){const row
 function raceOptions(excluded=[]){const labels=races.filter(r=>!excluded.includes(r));const region=(typeof state!=='undefined'&&state?.birthRegion)||'';return affinityWeightsFor(region,labels);}
 const POWER_STAGE=[W('1–49 %',60),W('50–90 %',30),W('91–100 %',10)];
 function powerExact(stage){if(stage.startsWith('1'))return 1+Math.floor(Math.random()*49);if(stage.startsWith('50'))return 50+Math.floor(Math.random()*41);return 91+Math.floor(Math.random()*10)}
-const RACIAL7={
-'Humain':[0,0,0,0,0,0,0],'Elfe':[0,-1,1,-1,1,1,1],'Nain':[1,1,0,2,-1,-1,1],'Orc':[1,2,-1,1,0,-1,1],'Gobelin':[0,-1,2,-1,1,0,1],'Fée':[-1,-2,1,-2,2,2,-1],'Géant':[1,3,-1,2,-2,-1,-1],
-'Vampire':[2,1,1,1,2,1,0],'Loup-garou':[2,2,-1,2,1,-1,-1],'Esprit':[-1,-2,1,2,1,3,-2],'Golem / Artificiel':[0,2,0,3,-2,-1,1],'Extraterrestre':[0,0,0,0,0,0,0],
-'Squelette':[0,-1,0,1,0,1,0],'Liche bonus':[1,0,2,1,0,3,0],'Ange':[1,0,1,1,1,2,0],'Archange bonus':[2,1,1,2,1,3,1],'Démon':[1,1,0,1,0,2,0],'Archdémon bonus':[2,2,1,2,1,3,0],
-'Demi-dieu':[1,1,1,1,1,2,0],'Divinité bonus':[1,1,1,1,1,2,0],'Dieu céleste bonus':[2,1,1,2,1,3,1],
-'Cyborg':[1,1,1,1,1,0,1],'N.E.X.U.S. bonus':[1,1,2,1,1,2,1],'Neoxus bonus':[2,1,2,2,2,2,1],
-'Titan':[1,3,-1,3,-2,0,-1],'Titan primordial bonus':[1,2,0,2,-1,2,0],'Titan fondateur bonus':[1,3,1,3,-1,3,0],
-'Dragon humanoïde':[2,2,0,2,1,2,0],'Dragon éveillé bonus':[1,1,0,1,1,2,0],'Dragon ancestral final bonus':[2,2,1,2,1,3,0],'Dragon originel final bonus':[1,2,2,2,1,3,0],
-'Deus Machina':[5,3,6,5,4,7,3],'Titan céleste':[5,8,3,8,-2,7,0],'Colosse Nexus':[5,8,5,8,0,6,3],'Drakéon ancestral':[6,5,3,5,4,8,1],'Drakéon originel':[5,5,4,5,4,8,1],'Nexaryx ancestral':[6,5,5,5,5,7,3],'Nexaryx originel':[5,5,6,5,5,7,3],'Tyrakhan ancestral':[6,8,1,8,-1,7,0],'Tyrakhan originel':[5,8,2,8,-1,7,0]};
-const ART_ORIGIN7={'Arcane':[0,0,1,0,0,2,0],'Mécanique':[1,1,0,1,0,-1,1],'Nexus':[1,0,2,0,1,1,1]};
-const ART_BODY7={'Pierre':[0,1,0,1,-1,0,0],'Métal enchanté':[0,1,0,1,0,1,0],'Bois vivant':[0,0,0,0,1,1,0],'Cristal':[0,-1,1,0,0,1,0],'Glace':[0,0,0,0,1,1,0],'Matière organique artificielle':[1,0,0,0,1,0,0],'Métal':[0,1,0,1,-1,0,0],'Alliage léger':[0,-1,0,-1,1,0,1],'Céramique':[0,0,0,1,0,0,0],'Assemblage alchimique':[0,0,1,0,0,1,0],'Mécanisme composite':[1,0,1,0,0,0,1],'Matériau atypique':[0,0,0,0,0,1,0],'Alliage Nexus':[1,1,0,1,0,0,0],'Matière synthétique':[0,0,0,0,1,0,0],'Cristal technologique':[0,0,1,0,0,1,0],'Structure énergétique':[0,-1,0,-1,1,1,0],'Biomatière artificielle':[1,0,0,1,1,0,0],'Nanostructure':[1,0,1,0,1,0,1]};
-const ALIEN7={'Humanoïde':[0,0,0,0,0,0,0],'Insectoïde':[1,1,0,1,1,-1,0],'Reptilien':[1,1,0,1,0,0,0],'Cristallin':[0,0,1,2,-1,1,-1],'Énergétique':[0,-2,1,1,2,3,-2],'Amorphe':[-1,0,0,2,-1,1,-1],'Végétaloïde':[0,1,0,2,-1,1,0],'Aquatique':[0,0,0,1,1,0,0],'Aviaire':[1,-1,0,-1,2,0,0],'Unique':[0,0,0,0,0,0,0]};
-const BEAST_REAL=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheval','Cerf','Chèvre','Gorille','Singe','Éléphant','Rhinocéros','Crocodile','Serpent','Lézard','Tortue','Aigle','Hibou','Chauve-souris','Requin','Baleine','Poulpe','Scorpion','Araignée','Scarabée','Fourmi','Guépard','Papillon'];
-const BEAST_FANTASY=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix','Fenrir','Cerbère','Hydre','Manticore','Chimère','Minotaure','Kelpie','Kraken','Serpent de mer','Léviathan','Loup spectral','Kitsune','Tengu','Naga'];
+
+
+
+
+
+
 // Traits anatomiques/visuels obligatoires des lignées Homme-bête.
 // Ils sont conservés dans le JSON du personnage et transmis au prompt d'image.
-const BEAST_MANDATORY_TRAITS={
-'Lion':['tête et museau de lion immédiatement identifiables, jamais visage humain simplement maquillé','oreilles félines rondes placées sur le crâne','pelage fauve court et uniforme, sans rayures ni taches','mâchoire léonine robuste avec canines','mains/pattes humanoïdes terminées par griffes félines','longue queue de lion non annelée terminée par un pinceau sombre'],
-'Tigre':['tête et museau de tigre immédiatement identifiables','oreilles félines rondes','pelage orange/fauve obligatoirement couvert de rayures noires nettes jusque sur le visage et les membres','griffes félines','longue queue rayée','canines développées'],
-'Loup':['tête lupine avec museau long et truffe canine','oreilles triangulaires dressées au sommet du crâne','fourrure dense clairement visible','crocs canins et griffes','longue queue touffue de loup','jambes humanoïdes ou digitigrades cohérentes, jamais sabots'],
-'Renard':['tête vulpine fine avec museau étroit et truffe canine','très grandes oreilles triangulaires dressées','fourrure rousse/fauve avec zones claires cohérentes','griffes','une longue queue de renard extrêmement touffue','silhouette plus fine que celle d’un loup'],
-'Ours':['tête ursine large avec museau d’ours','petites oreilles rondes','fourrure épaisse','corps naturellement massif et lourd','longues griffes d’ours','queue extrêmement courte, jamais longue'],
-'Sanglier':['tête de sanglier avec groin large et mobile','petites oreilles porcines','pilosité rêche et épaisse','deux défenses recourbées sortant de la mâchoire','pieds terminés par sabots fendus','petite queue porcine'],
-'Taureau':['tête bovine avec mufle large','oreilles bovines latérales','exactement deux grandes cornes bovines symétriques','pieds terminés par sabots fendus','queue bovine longue avec touffe terminale','cou et carrure naturellement massifs'],
-'Cheval':['tête équine allongée immédiatement identifiable','grandes oreilles équines dressées','crinière visible le long du cou','pieds terminés par sabots','longue queue chevaline faite de crins','membres longs adaptés à la course'],
-'Cerf':['tête cervidé fine avec museau allongé','grandes oreilles cervidées','pieds terminés par sabots fendus','queue courte','silhouette élancée de cervidé'],
-'Chèvre':['tête caprine avec museau de chèvre','oreilles caprines','exactement deux cornes caprines','pupilles horizontales clairement lisibles','pieds terminés par sabots fendus','petite queue caprine'],
-'Gorille':['tête de gorille avec arcade sourcilière et museau court','nez large et aplati','pilosité dense','bras proportionnellement très longs','grandes mains puissantes à cinq doigts','torse très large et carrure massive','aucune queue'],
-'Singe':['faciès simiesque immédiatement identifiable','oreilles arrondies apparentes','pilosité corporelle','mains et pieds préhensiles','longue queue préhensile','membres fins et très agiles'],
-'Éléphant':['tête d’éléphant immédiatement identifiable','longue trompe fonctionnelle partant du visage','très grandes oreilles latérales','deux défenses d’ivoire','peau grise épaisse et plissée','pieds larges de pachyderme'],
-'Rhinocéros':['tête de rhinocéros large','grande corne nasale centrale clairement attachée au museau','peau très épaisse et plissée','petites oreilles','pieds larges à plusieurs doigts','carrure extrêmement massive'],
-'Crocodile':['tête crocodilienne avec museau très allongé et large','rangées de dents coniques visibles','peau écailleuse épaisse','plaques dorsales/ostéodermes','mains et pieds griffus','longue queue crocodilienne massive et comprimée latéralement'],
-'Serpent':['tête ophidienne sans oreilles externes','peau entièrement écailleuse','yeux de serpent et langue bifide','crocs visibles','torse humanoïde prolongé sous la taille par UNE longue queue serpentine continue','aucune jambe ni pied'],
-'Lézard':['tête de lézard avec museau reptilien','peau couverte d’écailles','yeux reptiliens','doigts séparés terminés par griffes','longue queue reptilienne','deux jambes distinctes, jamais corps serpentin'],
-'Tortue':['tête reptilienne de tortue avec bec corné','grande carapace rigide attachée au dos','plastron ventral visible','peau écailleuse','membres robustes terminés par griffes','cou épais de tortue'],
-'Aigle':['tête d’aigle avec bec crochu','yeux de rapace','plumage couvrant clairement la tête/le cou et des zones du corps','deux grandes ailes emplumées anatomiquement attachées au dos','pieds/serres d’aigle avec griffes recourbées','queue de plumes'],
-'Hibou':['tête de hibou ronde avec disque facial net','grand yeux frontaux','petit bec crochu','plumage dense','deux grandes ailes emplumées anatomiquement attachées au dos','serres de rapace','queue de plumes courte'],
-'Chauve-souris':['tête de chauve-souris avec grandes oreilles','museau mammalien de chiroptère','fourrure sur le torse/tête','exactement deux grandes ailes membraneuses de chauve-souris anatomiquement attachées aux bras ou au dos','membrane alaire tendue sur des doigts allongés','pieds griffus'],
-'Requin':['tête de requin avec museau hydrodynamique','rangées de dents triangulaires','peau grisâtre lisse sans écailles reptiliennes','fentes branchiales visibles sur les côtés du cou','nageoire dorsale clairement visible','queue caudale verticale de requin','mains humanoïdes cohérentes, jamais tentacules'],
-'Baleine':['tête de cétacé massive sans museau terrestre','peau lisse de cétacé','évent clairement visible au sommet du crâne','nageoires pectorales intégrées aux avant-bras ou aux côtés','large queue caudale HORIZONTALE de cétacé','aucune branchie de poisson'],
-'Poulpe':['tête/corps céphalopode avec peau souple','yeux de céphalopode','exactement huit appendices de poulpe au total, clairement lisibles et munis de ventouses','tentacules souples sans os ni griffes','aucune queue de poisson ni jambes humaines supplémentaires'],
-'Scorpion':['carapace chitineuse segmentée','deux grandes pinces de scorpion clairement distinctes','queue de scorpion segmentée arquée au-dessus/derrière le corps','un seul aiguillon terminal','plusieurs membres arthropodes cohérents','aucune aile'],
-'Araignée':['anatomie arachnéenne avec exosquelette/chitine','exactement huit membres locomoteurs arachnéens au total, clairement distinguables','plusieurs yeux arachnéens','chélicères/crochets près de la bouche','abdomen arachnéen clairement lisible','aucune antenne ni aile'],
-'Scarabée':['carapace chitineuse dure','tête d’insecte avec deux antennes','exactement six membres d’insecte au total','élytres rigides formant une coque sur le dos','ailes membraneuses éventuelles sous les élytres mais jamais à la place de ceux-ci','mandibules d’insecte'],
-'Fourmi':['tête de fourmi avec deux antennes coudées','mandibules de fourmi','exactement six membres d’insecte au total','corps en trois sections lisibles : tête, thorax, abdomen','taille/pétiole très resserré entre thorax et abdomen','exosquelette chitineux'],
-'Guépard':['tête féline fine de guépard','petites oreilles félines rondes','pelage fauve couvert de PETITES TACHES NOIRES PLEINES, jamais rayures ni rosettes','deux lignes lacrymales noires du coin des yeux vers le museau','longue queue tachetée avec anneaux vers son extrémité','silhouette très élancée de sprinteur'],
-'Papillon':['tête d’insecte avec deux antennes','exactement six membres d’insecte au total','deux paires de grandes ailes de papillon, soit QUATRE ailes, symétriques et attachées au thorax/dos','ailes larges couvertes de motifs/écailles colorées, jamais ailes de fée transparentes génériques','corps fin segmenté d’insecte','petite trompe/proboscis visible ou suggérée'],
-'Licorne':['tête équine allongée','UNE seule longue corne droite centrée sur le front','oreilles équines','crinière','sabots','longue queue chevaline'],
-'Pégase':['tête et anatomie équines','oreilles équines, crinière et sabots','exactement deux grandes ailes emplumées anatomiquement attachées au dos','longue queue chevaline','aucune corne frontale'],
-'Griffon':['tête d’aigle avec bec crochu','deux grandes ailes d’aigle emplumées','avant du corps aviaire avec serres','arrière-train félin/léonin avec pattes griffues','queue de lion','fusion aigle-lion anatomiquement continue'],
-'Phénix':['tête d’oiseau avec bec','corps couvert de plumes','exactement deux grandes ailes emplumées','serres aviaires','longue queue de plumes spectaculaire','plumage incandescent/embrasé mais anatomie d’oiseau toujours lisible sous le feu'],
-'Basilic':['tête reptilienne menaçante','corps couvert d’écailles','crocs','longue queue reptilienne','regard surnaturel clairement marqué','anatomie de grand reptile monstrueux, jamais coq dominant'],
-'Cocatrix':['tête de coq/oiseau avec bec et crête','plumage sur le haut du corps','exactement deux ailes','pattes/serres aviaires','longue queue reptilienne écailleuse','fusion oiseau-reptile clairement lisible, jamais dragon générique'],
-'Fenrir':['tête de loup gigantesque avec museau et truffe canine','oreilles triangulaires dressées','fourrure dense','crocs démesurés','griffes puissantes','longue queue lupine touffue','aspect de loup mythique colossal, jamais simple chien'],
-'Cerbère':['EXACTEMENT TROIS têtes canines/lupines distinctes reliées au même torse','six oreilles canines au total, deux par tête','trois museaux avec crocs','fourrure','griffes','une queue clairement définie','aucune tête supplémentaire'],
-'Hydre':['PLUSIEURS longs cous reptiliens partant d’un même torse','au moins trois têtes reptiliennes distinctes et clairement séparées','écailles','crocs','un corps commun unique','longue queue reptilienne','aucune tête fusionnée ou flottante'],
-'Manticore':['tête et corps léonins','crinière','griffes félines','exactement deux ailes membraneuses de type chauve-souris attachées au dos','longue queue de scorpion segmentée','un seul aiguillon terminal','fusion lion-ailes-scorpion clairement lisible'],
-'Chimère':['UNE tête principale de lion clairement identifiable','UNE tête de chèvre distincte intégrée au même corps','UNE tête de serpent distincte portée par la queue ou son extrémité','corps composite léonin/caprin','les trois animaux restent visuellement séparables','aucune tête supplémentaire'],
-'Minotaure':['tête complète de taureau avec mufle bovin','exactement deux cornes bovines','oreilles bovines','torse et bras humanoïdes très puissants','jambes humanoïdes ou bovines cohérentes terminées par sabots','queue bovine avec touffe'],
-'Kelpie':['tête et morphologie équines','crinière humide','sabots','longue queue chevaline','peau/pelage sombre et constamment humide avec végétation aquatique possible','caractère surnaturel aquatique sans devenir poisson ou hippocampe'],
-'Kraken':['tête/corps de céphalopode monstrueux','yeux de céphalopode','au moins huit très grands tentacules distincts munis de ventouses','tentacules souples continus depuis le corps','aucune jambe humanoïde supplémentaire','échelle gigantesque clairement lisible'],
-'Serpent de mer':['tête de serpent/reptile marin','corps extrêmement long entièrement serpentin et écailleux','nageoires ou crête aquatique cohérentes','longue queue continue','aucune jambe humanoïde','aucune paire d’ailes'],
-'Léviathan':['corps de monstre marin colossal','tête marine monstrueuse avec mâchoire massive','peau/écailles adaptées au milieu marin','nageoires puissantes','queue aquatique gigantesque','échelle titanesque immédiatement lisible par l’environnement'],
-'Loup spectral':['tête et silhouette lupines clairement identifiables','oreilles triangulaires','crocs et griffes','longue queue de loup','fourrure partiellement translucide/spectrale','effet spectral intégré au corps sans effacer l’anatomie de loup'],
-'Kitsune':['tête/faciès de renard clairement identifiable','grandes oreilles vulpines','fourrure','griffes','EXACTEMENT NEUF longues queues de renard distinctes, toutes anatomiquement attachées au bassin','les neuf queues doivent rester séparables et comptables'],
-'Tengu':['tête/faciès aviaire avec bec net','plumage','exactement deux grandes ailes emplumées attachées au dos','serres aviaires','silhouette humanoïde conservée','aucune aile membraneuse'],
-'Naga':['torse humanoïde avec traits reptiliens','écailles clairement visibles','yeux reptiliens, langue bifide et crocs','sous la taille, UNE longue partie inférieure serpentine continue','aucune jambe ni pied','bras humanoïdes conservés'],
-};
-const BEAST_FORBIDDEN_VISUAL_CONFUSIONS={
-'Lion':'INTERDIT : rayures de tigre, rosettes de léopard, queue annelée, museau canin.',
-'Tigre':'INTERDIT : pelage uni de lion, crinière de lion, taches de guépard.',
-'Loup':'INTERDIT : faciès de renard, chat ou chien domestique; sabots.',
-'Renard':'INTERDIT : museau massif de loup, plusieurs queues sauf pouvoir explicitement distinct.',
-'Ours':'INTERDIT : longue queue, museau félin ou canin fin.',
-'Guépard':'INTERDIT : rayures de tigre, rosettes de léopard, crinière de lion.',
-'Serpent':'INTERDIT : jambes humaines, pieds, corps de lézard.',
-'Lézard':'INTERDIT : remplacer les jambes par une queue de serpent.',
-'Aigle':'INTERDIT : ailes membraneuses, visage humain sans bec.',
-'Hibou':'INTERDIT : bec d’aigle allongé, ailes membraneuses.',
-'Chauve-souris':'INTERDIT : ailes à plumes, ailes de fée/insecte.',
-'Requin':'INTERDIT : queue horizontale de baleine, tentacules, écailles reptiliennes.',
-'Baleine':'INTERDIT : queue verticale de poisson/requin, branchies externes.',
-'Poulpe':'INTERDIT : tentacules supplémentaires illisibles; jambes humaines ajoutées en plus des huit bras.',
-'Scorpion':'INTERDIT : plusieurs aiguillons, ailes, queue non segmentée.',
-'Araignée':'INTERDIT : six pattes d’insecte, antennes, ailes.',
-'Scarabée':'INTERDIT : huit pattes d’araignée, absence d’élytres.',
-'Fourmi':'INTERDIT : huit pattes, ailes obligatoires sur un individu non ailé.',
-'Papillon':'INTERDIT : seulement deux ailes, ailes de chauve-souris ou plumes.',
-'Licorne':'INTERDIT : deux cornes, ailes de Pégase sauf autre composante raciale explicite.',
-'Pégase':'INTERDIT : corne de licorne sauf autre composante explicite.',
-'Griffon':'INTERDIT : tête humaine, ailes membraneuses, arrière-train reptilien.',
-'Phénix':'INTERDIT : silhouette humanoïde générique entourée de flammes à la place d’un véritable hybride aviaire.',
-'Basilic':'INTERDIT : le transformer en Cocatrix dominé par une anatomie de coq.',
-'Cocatrix':'INTERDIT : dragon/quadrupède générique sans tête de coq.',
-'Cerbère':'INTERDIT : une, deux ou plus de trois têtes.',
-'Hydre':'INTERDIT : une seule tête, têtes fusionnées ou indépendantes du corps.',
-'Manticore':'INTERDIT : queue féline ordinaire, absence d’aiguillon, ailes à plumes.',
-'Chimère':'INTERDIT : fusionner les trois têtes en une seule; remplacer la tête de serpent terminale par une simple queue.',
-'Minotaure':'INTERDIT : simple humain avec cornes; tête humaine.',
-'Kraken':'INTERDIT : simple poulpe de taille humaine; tentacules sans ventouses.',
-'Serpent de mer':'INTERDIT : jambes, ailes, torse humanoïde dominant.',
-'Léviathan':'INTERDIT : échelle humaine ou petit monstre marin.',
-'Loup spectral':'INTERDIT : spectre humanoïde générique; anatomie lupine illisible.',
-'Kitsune':'INTERDIT : moins ou plus de neuf queues; queues fusionnées en éventail indistinct.',
-'Tengu':'INTERDIT : ailes membraneuses ou absence de bec.',
-'Naga':'INTERDIT : jambes humaines sous le torse; corps de lézard bipède.',
-};
+
+
 function beastMandatoryTraits(species,gender=''){
   const out=[...(BEAST_MANDATORY_TRAITS[species]||[])],g=String(gender||'').toLowerCase();
   const male=g.includes('mâle')||g.includes('male')||g.includes('homme');
@@ -176,40 +96,7 @@ function hasFinalRaceAlteration(c){
     (Array.isArray(c?.extraDetail)&&c.extraDetail.some(x=>x?.kind==='Conséquence de résurrection'&&x?.result==='Race altérée'));
 }
 
-const RACE_MANDATORY_VISUAL_TRAITS={
-  'Humain':['anatomie humaine naturelle clairement conservée'],
-  'Elfe':['oreilles longues et nettement pointues','traits fins et élégants','silhouette élancée'],
-  'Nain':['petite stature nettement visible','proportions naines compactes : torse relativement large et membres plus courts','carrure dense et robuste','centre de gravité bas'],
-  'Orc':['mâchoire robuste','défenses inférieures visibles','carrure puissante et musculature dense'],
-  'Gobelin':['petite stature','grandes oreilles pointues','traits faciaux gobelins marqués'],
-  'Fée':['UNE PAIRE DE DEUX AILES FÉERIQUES clairement visibles, symétriques et anatomiquement attachées au haut du dos','traits féeriques clairement visibles; une simple aura, poussière lumineuse ou tatouage ne remplace jamais les ailes'],
-  'Géant':['stature gigantesque immédiatement lisible par comparaison avec l’environnement','proportions humanoïdes massives'],
-  'Vampire':['morphologie humanoïde','crocs vampiriques clairement visibles','teint surnaturel ou signes vampiriques discrets mais lisibles'],
-  'Loup-garou':['faciès lupin avec museau de loup clairement identifiable','oreilles lupines','fourrure visible','crocs et griffes','morphologie humanoïde bestiale'],
-  'Démon':['cornes démoniaques anatomiquement intégrées au crâne','traits surnaturels démoniaques clairement visibles','anatomie humanoïde non humaine sans remplacer les autres composantes raciales'],
-  'Ange':['UNE PAIRE DE DEUX GRANDES AILES EMPLUMÉES clairement visibles et anatomiquement attachées au dos','traits célestes clairement visibles; une aura ou un halo ne remplace jamais les ailes'],
-  'Esprit':['corps humanoïde partiellement spectral ou translucide','contours ou matière corporelle surnaturels clairement visibles'],
-  'Dragon humanoïde':['écailles draconiques clairement visibles','traits crâniens draconiques ou cornes','queue draconique anatomiquement reliée au corps'],
-  'Golem / Artificiel':['corps manifestement artificiel ou façonné','articulations et matière non organiques clairement visibles'],
-  'Extraterrestre':['biologie visiblement non humaine et extraterrestre','anatomie cohérente et non réduite à un humain avec maquillage'],
-  'Demi-dieu':['anatomie humanoïde','marques physiques surnaturelles traduisant une ascendance divine sans effacer les autres composantes'],
-  'Divinité':['présence divine physiquement lisible','marques corporelles surnaturelles cohérentes avec son domaine'],
-  'Dieu céleste':['présence divine céleste physiquement lisible','marques corporelles surnaturelles cohérentes avec son domaine'],
-  'Titan':['gigantisme immédiatement lisible','carrure titanesque et proportions monumentales'],
-  'Titan primordial':['gigantisme primordial immédiatement lisible','anatomie titanesque monumentale et ancienne'],
-  'Titan fondateur':['gigantisme fondateur immédiatement lisible','anatomie titanesque monumentale'],
-  'Squelette':['corps squelettique réellement constitué d’os visibles','crâne osseux clairement identifiable','aucune chair humaine normale recouvrant l’ensemble du corps'],
-  'Liche':['nature morte-vivante immédiatement lisible','anatomie desséchée, cadavérique ou squelettique','magie innée visible comme manifestation secondaire sans remplacer le corps de mort-vivant'],
-  'Cyborg':['fusion anatomique claire de chair et de composants cybernétiques','implants mécaniques réellement intégrés au corps'],
-  'N.E.X.U.S.':['corps techno-organique clairement visible','structures biologiques et technologiques fusionnées en une seule anatomie cohérente'],
-  'Neoxus':['peau noire, graphite ou bleu-noir techno-organique','réseau énergétique doré sous-cutané visible','yeux noirs cosmiques étoilés','exactement quatre doigts aux mains','structures crâniennes organiques'],
-  'Deus Machina':['fusion corporelle visible du divin et du techno-organique; aucun des deux aspects ne doit disparaître'],
-  'Titan céleste':['gigantisme primordial immédiatement lisible','manifestations divines célestes intégrées à l’anatomie titanesque'],
-  'Colosse Nexus':['gigantisme primordial immédiatement lisible','corps techno-organique intégré à l’anatomie titanesque'],
-  'Drakéon':['fusion visible d’une lignée draconique pure et d’une lignée de Dieu céleste','manifestations divines intégrées à l’anatomie draconique sans l’effacer'],
-  'Nexaryx':['fusion visible d’une lignée draconique pure et de caractères techno-organiques Neoxus','aucune des deux lignées ne doit être réduite à une simple aura'],
-  'Tyrakhan':['fusion visible d’une lignée draconique pure et d’une anatomie de Titan fondateur','gigantisme et caractères draconiques doivent rester simultanément lisibles']
-};
+
 function activeRaceComponentsFromCharacter(c){
   if(hasFinalRaceAlteration(c)){
     const finalRace=String(c?.race||'');
@@ -256,19 +143,12 @@ function beastComponentsFromCharacter(c){
   return out;
 }
 
-const BEAST_REAL_AFF={
-'Aetherys':'N N N N D D N N N N D D D D D N N N F F N D D D N N N N N N','Thoryndra':'D D F F F D N N D F D D D D D D D D F N D D D D D N D D D D','Liorael':'N F F F F F N F F N F F N N N F F N F F N D D D D F F F N F','Caelorn':'N N F F N N F F F F D D D D D N N N F F N D D D N N N N F N',
-'Iskarya':'N D F F F N N N F N D D D D D D D D F F D D D D D N N N D N','Kharadryn':'D D F F F N N N N F D D D D D D D D F N N D D D D N D D D D','Sylvaeryn':'N F F F F F N N F N F F N D N F N N N F F D D D D F F F D F','Avelorn':'F N N F N F F F F N D N F F N N N N N F N D D D D N N F F F','Drakhenor':'F N N N D N F F D F D D N F D F F D F N N D D D F F F F F D','Maelora':'N F N N N F N N N N F F F F F F F F N F F N N F F F F F N F','Nexara':'N N N N D N N N D N D N D D D N N N N N N D D D N N N N N N','Kaelora':'N N D N D N N N N N D N N N F F F F F N N F F F D N N N N N','Vaerunn':'F N F F F N F F N F D D N N D N N D F N F D D D F N N N F D',
-'Lumerys':'D F N F N F D D F N F F N N N F F N D F F D D D N F F F D F','Kythera':'D D N N F N N N D F D D D D D N F N N N F D D D F F F F D N',"Mor'Khal":'N N F F N N N N N N D D D D N F N N D F F D D D F F N N D N','Varkhoryn':'N D F N F N F N D F D D D N N F F D N N F D D D F F F F N D','Naeroth':'D D D D D D D D D D D D D D F N N F D D N F F F D N N N D N'};
-const BEAST_FANTASY_AFF={
-'Aetherys':'F F F F D D D D D D N D D D D D F F F D','Thoryndra':'D F F N D N F D F N N N N D D D F N F D','Liorael':'F F N N N N N D N D N D F D D D F F F F','Caelorn':'N F F N D N N D D F F N N D D D N N F N',
-'Iskarya':'F F F N D N F D D D N N F D D D F F F D','Kharadryn':'D F F D D D F D D D D F D D D D F D F D','Sylvaeryn':'F N N N N N F D F D N D F D D D F F F F','Avelorn':'F F N F D N D D N N N F F D D D N F N N','Drakhenor':'D N F F F F N F F F F F D D D D F D F F','Maelora':'F N N F F F D D F F F N F N N D N F N F','Nexara':'D N N N N N D N D N F N D D D D N N N N','Kaelora':'N F F N N N D D F N N N F F F F D N F F','Vaerunn':'D F F F F N F F N F F F D D D D F N F N',
-'Lumerys':'F N N N N N D D N N F D F D D D F F F F','Kythera':'N F F F F N N N N N F F N D D D F N F N',"Mor'Khal":'D D N N F F F F F F F N F N N N F F F F','Varkhoryn':'D N F F F F F F F F F F D D D D F N F F','Naeroth':'D D D D N D D D F D N D F F F F N N N F'};
+
+
 function beastSpeciesOptions(kind){let arr=kind==='Animal réel'?BEAST_REAL:BEAST_FANTASY,row=((kind==='Animal réel'?BEAST_REAL_AFF:BEAST_FANTASY_AFF)[state.birthRegion]||'').split(' ');return arr.map((x,i)=>W(x,AFF[row[i]||'N']))}
 
-const ALIEN_ENV_AFF={
-'Tempéré':'F N N N N N F N F N','Désertique':'N F F F N N D D N N','Glaciaire':'N D D F N N D N D N','Océanique':'D D F N D F N F D N','Jungle':'N F F D D F F F F N','Volcanique':'D N F F F F D D D N','Atmosphérique':'N N D N F N N D F N','Souterrain':'N F N F N F D D D N','Monde artificiel':'F N N F F N D D N N','Extrême':'N F F F F F D N N N'};
-const ALIEN_TYPES=['Humanoïde','Insectoïde','Reptilien','Cristallin','Énergétique','Amorphe','Végétaloïde','Aquatique','Aviaire','Unique'];
+
+
 function alienTypeOptions(env){let row=(ALIEN_ENV_AFF[env]||'').split(' ');return ALIEN_TYPES.map((x,i)=>W(x,AFF[row[i]||'N']))}
 const SPIRIT_ELEMENTS=['Eau','Terre','Air','Feu','Végétation','Glace','Foudre','Lumière','Ténèbres','Cristal / Minéral','Son'];
 const SPIRIT_BASE={'Eau':15,'Terre':15,'Air':13,'Feu':12,'Végétation':10,'Glace':8,'Foudre':7,'Lumière':6,'Ténèbres':6,'Cristal / Minéral':5,'Son':3};
