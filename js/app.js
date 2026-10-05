@@ -1,4 +1,11 @@
 import {
+  baseComponentList as baseComponentListPure,
+  singleParentRaceFromComponent,
+  mergedLineage,
+  compatiblePartnerCandidates
+} from "./rules/genealogy/descendants.js";
+
+import {
   ORDINARY_COMPONENTS,
   LOW_CHAIN,
   HIGH_CHAIN,
@@ -1651,18 +1658,35 @@ function weightedValue(items){let r=Math.random()*items.reduce((s,x)=>s+x[1],0);
 function centeredRoll(){return parseInt(weightedValue([[1,2],[2,4],[3,8],[4,14],[5,22],[6,22],[7,14],[8,8],[9,4],[10,2]]),10)}
 function childName(){return rpick(CHILD_NAME_START)+(chance(50)?rpick(CHILD_NAME_MID):'')+rpick(CHILD_NAME_END)}
 function baseComponentList(s){
-  if(!s)return ['Humain'];
-  if(SPECIAL_PARTS[s.race])return [...SPECIAL_PARTS[s.race]];
-  let parts=(s.raceParts||[]).filter(x=>mods[x]||CHAIN[x]!==undefined||ORDINARY_COMPONENTS.includes(x));
-  parts=parts.filter(x=>!['Ascension Demi-dieu','Martial God'].includes(x));
-  if(!parts.length && s.race) parts=[s.race];
-  return [...new Set(parts.flatMap(x=>SPECIAL_PARTS[x]||[x]))];
+  const known=[
+    ...new Set([
+      ...ORDINARY_COMPONENTS,
+      ...Object.keys(mods||{})
+    ])
+  ];
+
+  return baseComponentListPure(s,known);
 }
-function transmittedComponent(s){let p=baseComponentList(s);return rpick(p)}
+
 function singleParentRace(s){
-  let c=transmittedComponent(s);c=HIGH_TO_LOW[c]||c;c=REINFORCED_TO_HIGH[c]||c;
-  return {race:c,parts:[c]};
+  return singleParentRaceFromComponent(
+    transmittedComponent(s)
+  );
 }
+
+function chooseOtherFighter(parent,roster){
+  const candidates=
+    compatiblePartnerCandidates(
+      parent,
+      roster
+    );
+
+  return candidates.length
+    ? rpick(candidates)
+    : null;
+}
+
+function transmittedComponent(s){let p=baseComponentList(s);return rpick(p)}
 
 function rollAlienBiology(){
   const statKeys=['Combat','Pouvoir','Arme','Intelligence','Résilience','Vitesse','Force'];
@@ -1712,10 +1736,6 @@ function makeNpc(parent,meta,npcStore){
   let npc={id,name:childName(),gender,race,raceParts:[race],job:rpick(NPC_JOBS),appearance:{age:rpick(['Jeune adulte','Adulte','Mature','Âgé']),body:rpick(bodies),c1:rpick(colors.filter(x=>x!=='Couleur unique')),c2:rpick(colors.filter(x=>x!=='Couleur unique')),sign:rpick(signs.filter(x=>x!=='Signe unique'))},racialTraits:raceTraitsFor(race,[race]),npcPower:rpick(powers.filter(x=>x!=='Pouvoir unique')),genealogy:{parents:[],children:[],siblings:[],generation:1,lineage:[],partnerLinks:[]},status:'PNJ extérieur'};
   npcStore[id]=npc;return npc;
 }
-function chooseOtherFighter(parent,roster){
-  let candidates=Object.values(roster).filter(x=>x.id!==parent.id&&compatibleGender(parent.gender,x.gender)&&!incompatibleReinforcedRace(parent,x));
-  return candidates.length?rpick(candidates):null;
-}
 function inheritedAppearance(pa,pb,finalRace){
   const fresh=()=>({body:rpick(bodies),c1:rpick(colors.filter(x=>x!=='Couleur unique')),c2:rpick(colors.filter(x=>x!=='Couleur unique')),sign:rpick(signs.filter(x=>x!=='Signe unique'))});
   let f=fresh(), app={};
@@ -1740,14 +1760,6 @@ function mutationForChild(raceInfo){
     return {name:`Ascension raciale : ${from} → ${to}`,type:'Ascension raciale',hereditary:false};
   }
   return {name:rpick(CHILD_MUTATIONS),type:'Mutation',hereditary:false};
-}
-function mergedLineage(pa,pb){
-  let x=[];
-  for(const p of [pa,pb].filter(Boolean)){
-    const l=p.genealogy?.lineage?.length?p.genealogy.lineage:[p.id||p.name];
-    x.push(...l);
-  }
-  return [...new Set(x.filter(Boolean))];
 }
 function childCountRoll(){let r=Math.random()*100;if(r<90)return 1;if(r<98)return 2;if(r<99.5)return 3;return 4+Math.floor(Math.random()*5)}
 // V20 — migration unique : tout descendant existant avant ce moteur devient Legacy.
