@@ -1,5 +1,15 @@
 /* HGT application logic — extracted from index.html. */
 
+import {
+  REGION_RACE_AFF,
+  REGION_VISUAL_IDENTITIES,
+  VAELORIA_BIRTH_WEIGHTS,
+  VAELORIA_REGIONS,
+  VAELORIA_CULTURES,
+  VAELORIA_CRADLES,
+  VAELORIA_CLOTHING_STYLES
+} from "./data/vaeloria/index.js";
+
 const spinBtn=document.getElementById('spinBtn');
 const autoBtn=document.getElementById('autoBtn');
 const resetBtn=document.getElementById('resetBtn');
@@ -38,10 +48,7 @@ const W=(label,weight=1)=>({label,weight}); const EQ=a=>a.map(x=>W(x));
 // V9 — système racial régionalisé Vaeloria.
 const RACE_BASE_WEIGHTS={'Humain':15,'Elfe':9,'Nain':8,'Orc':8,'Gobelin':7,'Fée':6,'Géant':4,'Vampire':4,'Loup-garou':4,'Esprit':4,'Homme-bête':7,'Hybride':6,'Squelette':3,'Golem / Artificiel':2,'Extraterrestre':1.5,'Ange':1.5,'Démon':1.5,'Dragon humanoïde':1,'Titan':.75,'Demi-dieu':.75,'Cyborg':.5};
 const AFF={F:2,N:1,D:.4};
-const REGION_RACE_AFF={
-'Aetherys':'N N D D D N D N D F N N D F N F D N D F N','Thoryndra':'N D N F N D N N D F F N D N F N D F N N N','Liorael':'N F D D N F N N F F F N D N D F D N N N D','Caelorn':'F N F N F N N N N N N F D N N N D N D N N',
-'Iskarya':'F F N N N N D N N N N F D N D N D N D N N','Kharadryn':'N D F D N D F N N F N N D F D D D F F N N','Sylvaeryn':'N F D N N F N N F F F N D D D N D N N N D','Avelorn':'F N N N N N D N N N N F D N D F D N D F N','Drakhenor':'N D N F F D N N N N F N N N D D F F F N N','Maelora':'N N D N F F N N F F F F D D D N N N N N D','Nexara':'F N N N F N D N D N N F N F F N N N D N F','Kaelora':'F N N N N N N N N F F F D N N N D F N N N','Vaerunn':'N N N N N N F N N F F N F N N N F F F N N',
-'Lumerys':'N N N N F F D N N F F F D N D N D F D N D','Kythera':'N N F N N N N N D F N N N F N N N F F N F',"Mor'Khal":'D D N N N D N F N F N F F N N D F F N F N','Varkhoryn':'N D F F F D F N N F N N F F D D F F F N N','Naeroth':'F N N N F N D N D F F F N N N D N F N N N'};
+
 const RACE_ORDER=Object.keys(RACE_BASE_WEIGHTS);
 function affinityWeightsFor(region, labels, baseMap=RACE_BASE_WEIGHTS){const row=(REGION_RACE_AFF[region]||'').split(' ');const amap=Object.fromEntries(RACE_ORDER.map((r,i)=>[r,row[i]||'N']));return labels.map(r=>W(r,(baseMap[r]||1)*(AFF[amap[r]]||1)));}
 function raceOptions(excluded=[]){const labels=races.filter(r=>!excluded.includes(r));const region=(typeof state!=='undefined'&&state?.birthRegion)||'';return affinityWeightsFor(region,labels);}
@@ -526,26 +533,7 @@ function weaponTraitsFor(name,system='classic'){const map=system==='neoxus'?NEXU
 function weaponOptionsForCurrent(forceRanged=false){return finalDragonComponent()?EQ(DRAGON_TAIL_WEAPONS):weaponOptions(forceRanged)}
 function attachWeaponTraits(w,system='classic'){w.weaponSystem=system;w.mandatoryWeaponTraits=weaponTraitsFor(w.name,system);return w}
 function dragonTailUniqueMutationTask(w,label='Arme'){return task(`${label} — Mutation caudale unique`,EQ(DRAGON_TAIL_UNIQUE_MUTATIONS),x=>{w.tailMutation=x;w.mandatoryWeaponTraits=[...(DRAGON_TAIL_UNIQUE_TRAITS[x]||[])];});}
-const REGION_VISUAL_IDENTITIES={
-  Aetherys:['Gigantesques plateaux célestes séparés par des précipices noyés de nuages','Architecture monumentale ancienne en pierre ivoire ou gris clair et or vieilli','Grandes étendues d’altitude sobres et ouvertes'],
-  Thoryndra:['Immense chaîne montagneuse sombre sous un ciel de tempête','Vastes landes et plateaux battus par les vents','Grand lac froid avec architecture fortifiée rare'],
-  Liorael:['Grande forêt ancienne verdoyante aux arbres géants espacés','Prairies et clairières fertiles','Grand fleuve avec quelques cascades tombant vers Yndara'],
-  Caelorn:['Longues routes traversant des plateaux célestes venteux','Arches et ponts naturels monumentaux','Rares relais, caravanes et bannières évoquant le voyage'],
-  Sylvaeryn:['Immense océan de canopée sur des collines','Grand fleuve sinueux','Quelques arbres titanesques avec le colossal Vaelyr dominant le paysage'],
-  Kharadryn:['Massifs montagneux fracturés','Gigantesques falaises et fractures rocheuses','Vallées encaissées dominées par la pierre'],
-  Avelorn:['Grandes plaines fertiles ouvertes','Terres agricoles et cours d’eau','Villes et cités intégrées dans un paysage largement cultivé'],
-  Drakhenor:['Steppes sauvages immenses','Hauts plateaux rocheux et escarpements','Horizon très ouvert et territoire rude exposé aux éléments'],
-  Maelora:['Jungle tropicale dense et humide','Grands marais et eaux stagnantes ou lentes','Végétation envahissante dans une atmosphère chaude et brumeuse'],
-  Iskarya:['Toundra et grandes étendues enneigées','Reliefs et glaces boréales','Côtes froides prises par la glace'],
-  Nexara:['Immense territoire marqué par un cratère','Structures et matières techno-organiques Neoxus intégrées au paysage','Noir et graphite traversés d’éléments énergétiques dorés'],
-  Kaelora:['Paysage maritime insulaire','Mer dominante et côtes découpées','Îles habitées liées à la navigation'],
-  Vaerunn:['Archipel fortement exposé aux tempêtes','Falaises et îles battues par une mer violente','Vents, embruns et ciel très mouvementé'],
-  Varkhoryn:['Gigantesques cavernes volcaniques','Magma et lave visibles','Forges et constructions massives intégrées à la roche'],
-  Kythera:['Immenses formations cristallines et minérales','Cavernes rocheuses scintillantes','Eaux souterraines pâles contrastant avec les cristaux'],
-  Lumerys:['Forêt cavernicole bioluminescente','Végétation et champignons lumineux','Vastes voûtes souterraines baignées d’une lumière naturelle colorée'],
-  Naeroth:['Mer souterraine gigantesque','Côtes et falaises abyssales','Obscurité profonde ponctuée par les reflets de l’eau'],
-  "Mor'Khal":['Cavernes extrêmement profondes','Ruines anciennes monumentales','Immensité rocheuse obscure évoquant une civilisation engloutie']
-};
+
 function regionVisualIdentityFor(c){const r=String(c?.birthRegion||'').trim();return REGION_VISUAL_IDENTITIES[r]?REGION_VISUAL_IDENTITIES[r].slice():[]}
 
 function weaponVisualTraitsFromCharacter(c){const out=[];for(const w of (c?.weapons||[])){let system=w.weaponSystem||'classic';if(w.racial&&!w.weaponSystem){const comp=c?.lineage?.primaryComponent;system=comp?.race==='Cyborg'&&Number(comp?.power)<50?'cyborg':'neoxus'}if(DRAGON_TAIL_WEAPONS.includes(w.name))system='dragon-tail';const traits=(w.mandatoryWeaponTraits?.length?w.mandatoryWeaponTraits:weaponTraitsFor(w.name,system));if(traits.length)out.push(...traits.map(t=>`${w.name}: ${t}`))}return out;}
@@ -3148,36 +3136,10 @@ function applyAlienStateIfNeeded(){
 
 function reset(){state={alienBiology:null,id:currentCharacterId(),instanceId:newCharacterInstanceId(),name:'',title:'',raceParts:[],race:'',lineage:{},birthStratum:'',birthRegion:'',culture:'',gender:'',size:'',arch:'',archParts:[],slayerTarget:null,job:'',history:[],extra:'',extraDetail:[],extraStatMods:[],relationships:[],genealogy:{parents:[],children:[],generation:1,lineage:[],partnerLinks:[]},personality:'',stats:{},powers:[],weapons:[],weakness:'',blessings:[],curses:[],clothingStyle:'',appearance:{},transformation:null,awakening:null,chi:null,martial:null,prodigeMods:[],logs:[]};queue=[];index=0;rotation=0;spinNumber=0;buildInitial();render();drawWheel([W('?')])}
 
-const VAELORIA_BIRTH_WEIGHTS={
-'Humain':[70,18,12],'Elfe':[70,20,10],'Nain':[65,5,30],'Orc':[70,10,20],
-'Gobelin':[60,10,30],'Fée':[65,30,5],'Géant':[70,15,15],'Vampire':[55,15,30],
-'Loup-garou':[70,10,20],'Démon':[15,10,75],'Ange':[15,75,10],
-'Dragon humanoïde':[34,33,33],'Golem / Artificiel':[50,20,30],
-'Divinité / Demi-dieu':[30,55,15],'Titan':[40,30,30],'Squelette':[55,15,30],
-'Homme-bête':[65,15,20],'Cyborg':[75,10,15],'Extraterrestre':[50,25,25],
-'Esprit':[40,30,30],'Hybride':[50,25,25]
-};
-const VAELORIA_REGIONS={
-Yndara:['Sylvaeryn','Kharadryn','Avelorn','Drakhenor','Maelora','Iskarya','Nexara','Kaelora','Vaerunn'],
-Elyrion:['Aetherys','Thoryndra','Liorael','Caelorn'],
-Nharak:['Varkhoryn','Kythera','Lumerys','Naeroth',"Mor'Khal"]
-};
-const VAELORIA_CULTURES={
-Sylvaeryn:['Sylvaine','Clairières','Itinérante'],Kharadryn:['Forteresses','Hautes-cimes','Routes profondes'],
-Avelorn:['Urbaine','Rurale','Marchande'],Drakhenor:['Clans des steppes','Cités des plateaux','Nomade'],
-Maelora:['Jungle','Marais','Frontière sauvage'],Iskarya:['Boréale','Côtière','Nomade des glaces'],
-Nexara:['Nexus traditionnelle','Technopolitaine','Frontière techno-organique'],Kaelora:['Insulaire','Maritime','Marchande'],
-Vaerunn:['Navigatrice','Insulaire fortifiée','Nomade des tempêtes'],Aetherys:['Haute-céleste','Savante','Cosmopolite'],
-Thoryndra:['Insulaire des tempêtes','Navigatrice céleste','Martiale'],Liorael:['Verdoyante','Contemplative','Rurale céleste'],
-Caelorn:['Frontalière','Marchande','Voyageuse'],Varkhoryn:['Volcanique','Forgienne','Cavernicole'],
-Kythera:['Cristalline','Minière','Savante'],Lumerys:['Forestière profonde','Bioluminescente','Spirituelle'],
-Naeroth:['Maritime souterraine','Littorale','Abyssale'],"Mor'Khal":['Profonde','Nomade souterraine','Ruines anciennes']
-};
-const VAELORIA_CRADLES={
-'Humain':['Avelorn',3],'Elfe':['Sylvaeryn',3],'Nain':['Kharadryn',3],'Orc':['Drakhenor',3],
-'Gobelin':['Maelora',2],'Fée':['Sylvaeryn',3],'Géant':['Kharadryn',2],
-'Cyborg':['Nexara',3],'N.E.X.U.S.':['Nexara',3],'Ange':['Aetherys',3]
-};
+
+
+
+
 function vaeloriaPrimaryRace(){
  const parts=state.raceParts||[];
  return parts.find(x=>VAELORIA_BIRTH_WEIGHTS[x])||parts[0]||state.race||'';
@@ -3823,12 +3785,7 @@ function addLegendaryExtra(){insert([task('Extra légendaire — Catégorie',()=
  else if(y==='Compagnon légendaire')insert([task('Compagnon légendaire — Nature',EQ(legendaryCompanions),v=>d.detail=v),task('Compagnon légendaire — Puissance',centered,v=>d.power=valNum(v)),task('Compagnon légendaire — Capacité',EQ(legendaryAbilities),v=>d.ability=v)]);
 })])}
 
-const VAELORIA_CLOTHING_STYLES=[
-'Armure lourde','Armure légère','Vêtements tactiques','Vêtements traditionnels',
-'Vêtements modernes','Vêtements futuristes','Robe / tenue mystique','Tenue de voyage',
-'Tenue noble','Tenue sauvage','Vêtements civils','Style unique',
-'Tenue d’archétype','Tenue de métier'
-];
+
 function contextualOutfitLabel(kind){
  const raw=kind==='arch'
    ? ((state.archParts||[]).filter(Boolean).join(' + ')||state.arch||'archétype')
