@@ -1,6 +1,18 @@
 /* HGT application logic — extracted from index.html. */
 
 import {
+  add7,
+  ceilAvg7,
+  superiorProfile,
+  specialSuperiorCross,
+  transformationBonus,
+  abilityCount,
+  awakeningBonus,
+  superiorStage,
+  noWeakChance
+} from "./rules/core/index.js";
+
+import {
   chiRanks,
   statRanks,
   masteryRanks,
@@ -303,10 +315,10 @@ const SPIRIT_REGION_AFF={
 'Lumerys':'N N N D F D N F N F N','Kythera':'N F D N D F N F N F F',"Mor'Khal":'N N D N D N N D F N F','Varkhoryn':'D F N F D N F D F F N','Naeroth':'F N N D N D F F N N F'};
 function spiritElementOptions(){let row=(SPIRIT_REGION_AFF[state.birthRegion]||'').split(' ');return SPIRIT_ELEMENTS.map((x,i)=>W(x,SPIRIT_BASE[x]*AFF[row[i]||'N']))}
 
-function add7(a,b){return a.map((x,i)=>x+(b?.[i]||0))} function ceilAvg7(a,b){return a.map((x,i)=>Math.ceil((x+(b?.[i]||0))/2))}
-function superiorProfile(base,pct,lineage){let v=[...RACIAL7[base]];if(pct>=50){if(base==='Demi-dieu')v=add7(v,RACIAL7['Divinité bonus']);if(base==='Cyborg')v=add7(v,RACIAL7['N.E.X.U.S. bonus']);if(base==='Titan')v=add7(v,RACIAL7['Titan primordial bonus']);if(base==='Dragon humanoïde')v=add7(v,RACIAL7['Dragon éveillé bonus']);}if(pct>90){if(base==='Demi-dieu')v=add7(v,RACIAL7['Dieu céleste bonus']);if(base==='Cyborg')v=add7(v,RACIAL7['Neoxus bonus']);if(base==='Titan')v=add7(v,RACIAL7['Titan fondateur bonus']);if(base==='Dragon humanoïde')v=add7(v,RACIAL7[lineage==='Originel'?'Dragon originel final bonus':'Dragon ancestral final bonus']);}return v}
+ 
+
 function componentProfile(c){if(!c)return [0,0,0,0,0,0,0];let r=c.race||c;if(typeof c==='string')return RACIAL7[c]||[0,0,0,0,0,0,0];if(r==='Hybride'&&c.compA&&c.compB){let cross=specialSuperiorCross(c.compA,c.compB);return cross?RACIAL7[cross]:ceilAvg7(componentProfile(c.compA),componentProfile(c.compB));}if(['Demi-dieu','Cyborg','Titan','Dragon humanoïde'].includes(r))return add7(superiorProfile(r,c.power||1,c.dragonBlood),c.special7||[0,0,0,0,0,0,0]);let v=[...(RACIAL7[r]||[0,0,0,0,0,0,0])];if(r==='Homme-bête'&&c.species){let b=beastMods[c.species]||[0,0,0,0,0];v=add7(v,[...b,beastPmr[c.species]||0,beastWmr[c.species]||0])}if(r==='Golem / Artificiel'){v=add7(v,ART_ORIGIN7[c.artificialOrigin]);v=add7(v,ART_BODY7[c.artificialBody])}if(r==='Extraterrestre')v=add7(v,ALIEN7[c.alienType]);if(r==='Ange'&&c.evolved)v=add7(v,RACIAL7['Archange bonus']);if(r==='Démon'&&c.evolved)v=add7(v,RACIAL7['Archdémon bonus']);return v}
-function specialSuperiorCross(a,b){if(!a||!b||!(a.power>90&&b.power>90))return null;let A=a.race,B=b.race,key=[A,B].sort().join('|'),dragon=[a,b].find(x=>x.race==='Dragon humanoïde');if(key==='Cyborg|Demi-dieu')return'Deus Machina';if(key==='Demi-dieu|Titan')return'Titan céleste';if(key==='Cyborg|Titan')return'Colosse Nexus';if(dragon){let other=a===dragon?b:a,suf=dragon.dragonBlood==='Originel'?'originel':'ancestral';if(other.race==='Demi-dieu')return`Drakéon ${suf}`;if(other.race==='Cyborg')return`Nexaryx ${suf}`;if(other.race==='Titan')return`Tyrakhan ${suf}`;}return null}
+
 function racialProfile7(){
  let L=state.lineage||{}, parts=state.raceParts||[];
  if(state.race==='Hybride'&&L.hybridCompA&&L.hybridCompB){let cross=specialSuperiorCross(L.hybridCompA,L.hybridCompB);return cross?RACIAL7[cross]:ceilAvg7(componentProfile(L.hybridCompA),componentProfile(L.hybridCompB));}
@@ -3511,9 +3523,9 @@ function titleOptions(){
 
   return EQ([...new Set(out)]);
 }
-function transformationBonus(level){return level<=3?1:level<=6?2:level<=8?3:level===9?4:5}
 
-function abilityCount(level){return level>=10?3:level>=8?2:1}
+
+
 function creatureDetailTask(prefix,type,setter){if(type==='Créature élémentaire'){let d={element:null,species:null};insert([task(`${prefix} — Affinité élémentaire`,EQ(elementalAffinities),v=>d.element=v),task(`${prefix} — Espèce / manifestation`,EQ(elementalCreatureSpecies),v=>{d.species=v;setter(`${v} — ${d.element}`)})]);return;}let map={
 'Félin sauvage':wildFelines,'Reptile':reptiles,'Créature aquatique':aquaticCreatures,'Insecte':insects,'Petit esprit':smallSpirits,'Créature élémentaire':elementalCreatures,'Créature extraterrestre':alienCreatures,'Créature fantastique':fantasyCreatures,
 'Félin géant':giantFelines,'Oiseau géant':giantBirds,'Reptile géant':giantReptiles,'Monture mécanique':mechanicalMounts
@@ -3526,7 +3538,7 @@ function addArtificialCompanion(){let c={kind:'Compagnon artificiel',type:null,p
 function addLegendaryFamiliar(){let f={kind:'Familier légendaire',type:null,name:null,power:null,abilities:[],mythic:false};state.extraDetail.push(f);insert([task('Familier légendaire — Nature',EQ(legendaryFamiliarTypes),v=>f.type=v),task('Familier légendaire — Manifestation',EQ(legendaryFamiliarNames),v=>f.name=v),task('Familier légendaire — Puissance',centered,v=>{f.power=valNum(v);if(f.power===10){f.mythic=true;insert([task('Familier mythique — Manifestation',EQ(mythicFamiliars),u=>f.name=u)])}let ts=[];for(let i=1;i<=abilityCount(f.power);i++)ts.push(task(`Familier légendaire — Capacité ${i}`,()=>EQ(legendaryAbilities.filter(a=>!f.abilities.includes(a))),a=>f.abilities.push(a)));insert(ts)})])}
 
 function addTransformation(){insert([task('Transformation — Type',EQ(transformationTypes),x=>{state.transformation={type:x,level:null,stats:[],bonus:0,trait:null};state.extraDetail.push({kind:'Transformation',ref:state.transformation});if(x==='Transformation improbable')insert([task('Transformation improbable — Manifestation',EQ(improbableTransformations),u=>state.transformation.type=u)]);if(x==='Transformation unique')insert([task('Transformation unique — Manifestation',EQ(uniqueTransformations),u=>state.transformation.type=u)])}),task('Transformation — Niveau',centered,x=>{state.transformation.level=valNum(x);state.transformation.bonus=transformationBonus(state.transformation.level)}),task('Transformation — Stat renforcée 1',EQ(statNames),x=>state.transformation.stats.push(x)),task('Transformation — Stat renforcée 2',()=>EQ(statNames.filter(s=>!state.transformation.stats.includes(s))),x=>state.transformation.stats.push(x)),task('Transformation — Trait temporaire',EQ(transformationTraits),x=>state.transformation.trait=x)])}
-function awakeningBonus(level){return level<=3?2:level<=6?3:level<=8?4:level===9?5:6}
+
 function addAwakening(){insert([task('Éveil — Niveau',centered,x=>{let level=valNum(x);state.awakening={level,primary:null,primaryBonus:awakeningBonus(level),secondary:null,secondaryBonus:level>=7?2:0,evolution:null};state.extraDetail.push({kind:'Éveil',ref:state.awakening})}),task('Éveil — Stat principale',EQ(statNames),x=>{state.awakening.primary=x;let follow=[];if(state.awakening.level>=7)follow.push(task('Éveil — Stat secondaire',()=>EQ(statNames.filter(s=>s!==state.awakening.primary)),y=>state.awakening.secondary=y));if(state.awakening.level===10)follow.push(task('Éveil — Évolution temporaire',EQ(awakeningEvolutions),y=>state.awakening.evolution=y));if(follow.length)insert(follow)})])}
 // V18.28 — sous-roues complètes des quatre lignées supérieures.
 
@@ -3539,7 +3551,7 @@ function addAwakening(){insert([task('Éveil — Niveau',centered,x=>{let level=
 
 
 
-function superiorStage(comp){return (comp.power||1)>90?3:(comp.power||1)>=50?2:1}
+
 function addCompBonus(comp,stat,value){comp.special7=comp.special7||[0,0,0,0,0,0,0];let i=['Combat','Force','Intelligence','Résilience','Vitesse','Pouvoir','Arme'].indexOf(stat);if(i>=0)comp.special7[i]+=value}
 function addRacialPower(name,bonus=0,label=name,limit={}){let p={name,mastery:null,racial:true};state.powers.push(p);insert([task(`${label} — Maîtrise`,centered,m=>{p.masteryBase=valNum(m);let v=p.masteryBase+masteryMod('power')+bonus;if(limit.max!=null)v=Math.min(limit.max,v);if(limit.min!=null)v=Math.max(limit.min,v);p.mastery=Math.max(0,v);p.racialBonus=bonus})])}
 function addRacialWeapon(name,bonus=0,label=name,weaponSystem='neoxus'){let w=attachWeaponTraits({name,mastery:null,ench:[],racial:true,enchantmentCount:0},weaponSystem);state.weapons.push(w);insert([task(`${label} — Maîtrise`,centered,m=>{w.masteryBase=valNum(m);w.mastery=Math.max(0,w.masteryBase+masteryMod('weapon'));w.racialBonus=bonus})])}
@@ -3627,7 +3639,7 @@ function artifactEffectDetailTasks(kind,a){let t=[];if(a.effect==='Résistance �
 function addArtifact(kind){let a={kind,form:null,effect:null,effectDetail:null,power:null};insert([task(`${kind} — Forme`,EQ(artifactForms),x=>{a.form=x;if(x==='Forme unique')insert([task(`${kind} — Forme unique`,EQ(uniqueArtifactForms),u=>a.form=u)]);else artifactFormDetail(kind,a)}),task(`${kind} — Effet`,EQ(artifactEffects),x=>{a.effect=x;if(x==='Pouvoir d’artefact unique')insert([task(`${kind} — Pouvoir unique`,EQ(uniqueArtifactEffects),u=>{a.effect=u;insert(artifactEffectDetailTasks(kind,a))})]);else insert(artifactEffectDetailTasks(kind,a))}),task(`${kind} — Puissance`,centered,x=>{a.power=valNum(x);state.extraDetail.push(a)}),...(kind==='Objet béni'?[task('Objet béni — Bénédiction',EQ(blessings),x=>{let b={source:'Objet béni',name:x,intensity:null};if(x==='Bénédiction unique')insert([task('Objet béni — Bénédiction unique',EQ(uniqueBlessings),u=>b.name=u)]);state._objectBless=b}),task('Objet béni — Intensité de bénédiction',intensity,x=>{if(state._objectBless){state._objectBless.intensity=valNum(x);state.blessings.push(state._objectBless);delete state._objectBless}})]:[]),...(kind==='Objet maudit'?[task('Objet maudit — Malédiction',EQ(curses),x=>{let c={source:'Objet maudit',name:x,intensity:null,detail:null};state._objectCurse=c;if(x==='Malédiction unique')insert([task('Objet maudit — Malédiction unique',EQ(uniqueCurses),u=>{c.name=u;insert(curseDetailTasks(c,'Objet maudit'))})]);else insert(curseDetailTasks(c,'Objet maudit'))}),task('Objet maudit — Intensité de malédiction',intensity,x=>{if(state._objectCurse){state._objectCurse.intensity=valNum(x);state.curses.push(state._objectCurse);delete state._objectCurse}})]:[])])}
 
 function addPower(label='Pouvoir',excludeExisting=false){insert([task(label,()=>{const src=(state.archParts.includes('Sorcier')||state.arch==='Sorcier')?chaos:powers;if(!excludeExisting)return EQ(src);const used=new Set((state.powers||[]).map(p=>p&&p.name).filter(Boolean));return EQ(src.filter(v=>!used.has(v)));},x=>{const p={name:x,mastery:null};state.powers.push(p);state._powerIndex=state.powers.length-1;if(x==='Pouvoir unique')replaceUniquePower(state._powerIndex,label);if(x==='Métamorphose')insert(metamorphosisTasks(p,label))}),task(`${label} — Maîtrise`,centered,x=>{state.powers[state._powerIndex].masteryBase=valNum(x);state.powers[state._powerIndex].masteryMod=masteryMod('power');state.powers[state._powerIndex].mastery=Math.max(0,state.powers[state._powerIndex].masteryBase+state.powers[state._powerIndex].masteryMod);delete state._powerIndex})])}
-function noWeakChance(r){if(r<=2)return 0;if(r<=4)return 2;if(r===5)return 5;if(r===6)return 8;if(r===7)return 12;if(r===8)return 16;if(r===9)return 20;if(r===10)return 25;if(r===11)return 30;if(r===12)return 35;if(r===13)return 40;if(r===14)return 45;return 50}
+
 function weaknessTypeOptions(){return [W('Aucune faiblesse',50),W('Faiblesse improbable',25),W('Faiblesse classique',25)]}
 function applyAscensionMods(kind){const map={
 'Demi-dieu':[2,2,1,2,2],
