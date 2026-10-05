@@ -1,3 +1,9 @@
+import {
+  AFF,
+  RACE_ORDER,
+  affinityWeightsFor,
+  alienTypeOptions
+} from "./rules/affinities/index.js";
 import { frenchPowerComplement } from "./rules/text/french.js";
 import { armorStatBonus, metricSizeOptions } from "./rules/generation/helpers.js";
 import { componentProfile } from "./rules/races/profile.js";
@@ -269,10 +275,10 @@ const W=(label,weight=1)=>({label,weight}); const EQ=a=>a.map(x=>W(x));
 
 // V9 — système racial régionalisé Vaeloria.
 
-const AFF={F:2,N:1,D:.4};
 
-const RACE_ORDER=Object.keys(RACE_BASE_WEIGHTS);
-function affinityWeightsFor(region, labels, baseMap=RACE_BASE_WEIGHTS){const row=(REGION_RACE_AFF[region]||'').split(' ');const amap=Object.fromEntries(RACE_ORDER.map((r,i)=>[r,row[i]||'N']));return labels.map(r=>W(r,(baseMap[r]||1)*(AFF[amap[r]]||1)));}
+
+
+
 function raceOptions(excluded=[]){const labels=races.filter(r=>!excluded.includes(r));const region=(typeof state!=='undefined'&&state?.birthRegion)||'';return affinityWeightsFor(region,labels);}
 const POWER_STAGE=[W('1–49 %',60),W('50–90 %',30),W('91–100 %',10)];
 function powerExact(stage){if(stage.startsWith('1'))return 1+Math.floor(Math.random()*49);if(stage.startsWith('50'))return 50+Math.floor(Math.random()*41);return 91+Math.floor(Math.random()*10)}
@@ -302,7 +308,7 @@ function beastSpeciesOptions(kind){let arr=kind==='Animal réel'?BEAST_REAL:BEAS
 
 
 
-function alienTypeOptions(env){let row=(ALIEN_ENV_AFF[env]||'').split(' ');return ALIEN_TYPES.map((x,i)=>W(x,AFF[row[i]||'N']))}
+
 const SPIRIT_ELEMENTS=['Eau','Terre','Air','Feu','Végétation','Glace','Foudre','Lumière','Ténèbres','Cristal / Minéral','Son'];
 const SPIRIT_BASE={'Eau':15,'Terre':15,'Air':13,'Feu':12,'Végétation':10,'Glace':8,'Foudre':7,'Lumière':6,'Ténèbres':6,'Cristal / Minéral':5,'Son':3};
 const SPIRIT_REGION_AFF={
