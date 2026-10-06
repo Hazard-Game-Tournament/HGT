@@ -1,4 +1,10 @@
 import {
+  recoverDescendantsFromBackup,
+  repairBirthEvents,
+  cleanupPrematureDescendants
+} from "./services/genealogy-maintenance.js";
+
+import {
   birthEventChildIdsFor,
   characterSeasonFromIdFor,
   characterHasChildExtra,
@@ -1488,57 +1494,68 @@ function characterHasPossessesChildExtra(p){
 function emergencyBackupUniverse(){
   try{return JSON.parse(localStorage.getItem(CLOUD_BACKUP_KEY)||'null')}catch(e){return null}
 }
-function recoverDescendantsFromEmergencyBackup(descStore,ids){
-  if(!ids?.length)return 0;
-  const backup=emergencyBackupUniverse();
-  const old=backup?.descendants||{};
-  let restored=0;
-  for(const id of ids){
-    if(!descStore[id]&&old[id]){descStore[id]=old[id];restored++}
+function recoverDescendantsFromEmergencyBackup(
+  descStore,
+  ids
+){
+  const restored=
+    recoverDescendantsFromBackup({
+      descendants:descStore,
+      ids,
+      backup:
+        emergencyBackupUniverse()
+    });
+
+  if(restored){
+    saveStore(
+      STORAGE_DESC,
+      descStore
+    );
   }
-  if(restored)saveStore(STORAGE_DESC,descStore);
+
   return restored;
 }
-function repairMissingBirthEvents(roster=loadRoster(),descStore=descendants()){
-  let changed=false;
-  const repaired=[];
-  for(const p of Object.values(roster||{})){
-    if(!p||!characterHasPossessesChildExtra(p)) continue;
-    p.extraDetail=Array.isArray(p.extraDetail)?p.extraDetail:[];
-    ensureGenealogyShape(p);
-    const birthSeason=characterSeasonFromId(p,seasonNumber);
-    let ev=p.extraDetail.find(x=>x?.kind==='Enfant');
-    if(!ev){
-      ev={kind:'Enfant',otherParentId:null,origin:null};
-      p.extraDetail.push(ev);
-      changed=true;
-    }
-    const referenced=[...new Set(birthEventChildIds(ev))];
-    // Si une ancienne synchro cloud a perdu temporairement la table descendants,
-    // on tente d'abord de restaurer les enfants depuis la sauvegarde locale d'urgence.
-    recoverDescendantsFromEmergencyBackup(descStore,referenced);
-    const descValues=Object.values(descStore||{}).filter(Boolean);
-    const existingKids=descValues.filter(d=>Array.isArray(d?.parentIds)&&d.parentIds.includes(p.id)).map(d=>d.id).filter(Boolean);
-    // IMPORTANT : un childId déjà enregistré signifie que la naissance a été résolue.
-    // On ne le supprime jamais uniquement parce que sa fiche descendant manque momentanément.
-    const realKids=[...new Set([...referenced,...existingKids])];
-    const before=JSON.stringify({status:ev.status,birthEventId:ev.birthEventId,childIds:ev.childIds,childId:ev.childId,birthSeason:ev.birthSeason,eligibleSeason:ev.eligibleSeason});
-    ev.birthEventId=ev.birthEventId||`BIRTH-${p.id}`;
-    ev.childIds=realKids;
-    delete ev.childId;
-    ev.birthSeason=Number(ev.birthSeason||birthSeason);
-    ev.eligibleSeason=Number(ev.eligibleSeason||ev.birthSeason+1);
-    ev.status=realKids.length?`${realKids.length} naissance${realKids.length>1?'s':''} résolue${realKids.length>1?'s':''}`:'Naissance en attente de résolution';
-    if(realKids.length)p.genealogy.children=[...new Set([...(p.genealogy.children||[]),...realKids])];
-    const after=JSON.stringify({status:ev.status,birthEventId:ev.birthEventId,childIds:ev.childIds,birthSeason:ev.birthSeason,eligibleSeason:ev.eligibleSeason});
-    if(before!==after) changed=true;
-    roster[p.id]=p;repaired.push(p);
+function repairMissingBirthEvents(
+  roster=loadRoster(),
+  descStore=descendants()
+){
+  const result=
+    repairBirthEvents({
+      roster,
+      descendants:descStore,
+      fallbackSeason:seasonNumber,
+
+      backup:
+        emergencyBackupUniverse(),
+
+      ensureGenealogyShape
+    });
+
+  if(result.descendantsRestored){
+    saveStore(
+      STORAGE_DESC,
+      descStore
+    );
   }
-  if(changed){
+
+  if(result.changed){
     saveRoster(roster);
-    for(const p of repaired) if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(p);
+
+    for(const p of result.repaired){
+      if(
+        typeof queueCloudCharacterSave===
+        'function'
+      ){
+        queueCloudCharacterSave(p);
+      }
+    }
   }
-  return {roster,changed,count:repaired.length};
+
+  return {
+    roster,
+    changed:result.changed,
+    count:result.repaired.length
+  };
 }
 function isCharacterGenerationComplete(p){
   if(!p) return false;
@@ -2309,48 +2326,44 @@ function createChild(pa,pb,origin,event,meta,descStore){
   descStore[id]=child;return child;
 }
 function cleanupPrematureBirths(){
-  const roster=loadRoster(), d=descendants(), npcStore=npcs();
-  const removedIds=new Set();
-  // Cible uniquement les enfants créés par l'ancien bug :
-  // naissance issue d'une saison qui n'est PAS encore officiellement arrivée à sa transition.
-  for(const child of Object.values(d||{})){
-    if(!child||child.selectedForSeason!=null)continue;
-    const bs=Number(child.birthSeason);
-    if(!Number.isFinite(bs))continue;
-    if(seasonCompleted(bs)&&tournamentChampionForSeason(bs))continue;
-    if(Number(child.eligibleSeason)!==bs+1)continue;
-    removedIds.add(child.id);
+  const roster=loadRoster();
+  const d=descendants();
+  const npcStore=npcs();
+
+  const removed=
+    cleanupPrematureDescendants({
+      roster,
+      descendants:d,
+      npcs:npcStore,
+
+      seasonCompleted,
+      tournamentChampionForSeason,
+      ensureGenealogyShape
+    });
+
+  if(!removed)
+    return 0;
+
+  saveRoster(roster);
+
+  saveStore(
+    STORAGE_DESC,
+    d
+  );
+
+  saveStore(
+    STORAGE_NPCS,
+    npcStore
+  );
+
+  if(
+    typeof saveEmergencyLocalBackup===
+    'function'
+  ){
+    saveEmergencyLocalBackup();
   }
-  if(!removedIds.size)return 0;
 
-  for(const id of removedIds)delete d[id];
-
-  // Nettoie toutes les références laissées dans les combattants et PNJ parents.
-  const cleanPerson=p=>{
-    if(!p)return;
-    ensureGenealogyShape(p);
-    p.genealogy.children=(p.genealogy.children||[]).filter(id=>!removedIds.has(id));
-    p.genealogy.siblings=(p.genealogy.siblings||[]).filter(id=>!removedIds.has(id));
-    for(const ev of (p.extraDetail||[])){
-      if(ev?.kind!=='Enfant')continue;
-      const kept=birthEventChildIds(ev).filter(id=>!removedIds.has(id));
-      ev.childIds=kept;delete ev.childId;
-      if(!kept.length){
-        ev.status='Naissance en attente de résolution';
-        // Conserver birthSeason/eligibleSeason : l'événement devra être résolu
-        // normalement à la fin de SA saison.
-      }else{
-        ev.status=`${kept.length} naissance${kept.length>1?'s':''} résolue${kept.length>1?'s':''}`;
-      }
-    }
-  };
-  Object.values(roster||{}).forEach(cleanPerson);
-  Object.values(npcStore||{}).forEach(cleanPerson);
-  Object.values(d||{}).forEach(cleanPerson);
-
-  saveRoster(roster);saveStore(STORAGE_DESC,d);saveStore(STORAGE_NPCS,npcStore);
-  if(typeof saveEmergencyLocalBackup==='function')saveEmergencyLocalBackup();
-  return removedIds.size;
+  return removed;
 }
 async function resolveBirthEvents(){
   saveCurrentCharacter();
