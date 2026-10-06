@@ -1,4 +1,7 @@
 import {
+  wheelFitTextFor
+} from "./rules/wheel/text-fit.js";
+import {
   wheelPaletteFor
 } from "./rules/wheel/palette.js";
 import {
@@ -3891,14 +3894,19 @@ function hgtWheelMetalGradient(cx,cy,r1,r2,accent){
   g.addColorStop(.62,'#5c431f');g.addColorStop(.82,'#b58b3e');g.addColorStop(1,'#120e0b');
   return g;
 }
-function hgtWheelFitText(text,maxWidth,maxPx=18,minPx=8){
-  let px=maxPx;
-  while(px>minPx){
-    ctx.font=`800 ${px}px Georgia,system-ui`;
-    if(ctx.measureText(text).width<=maxWidth)break;
-    px-=1;
-  }
-  return px;
+function hgtWheelFitText(
+  text,
+  maxWidth,
+  maxPx=18,
+  minPx=8
+){
+  return wheelFitTextFor(
+    ctx,
+    text,
+    maxWidth,
+    maxPx,
+    minPx
+  );
 }
 function hgtDrawWheelFrame(cx,cy,R){
   const pal=hgtWheelPalette(),fx=Math.max(0,Math.min(1,__hgtWheelFx||0));
