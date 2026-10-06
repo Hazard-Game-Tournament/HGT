@@ -10,6 +10,17 @@ export interface CloudQuery<T = unknown>
   eq(column: string, value: unknown): CloudQuery<T>;
   lte(column: string, value: unknown): CloudQuery<T>;
 
+  order(
+    column: string,
+    options?: {
+      ascending?: boolean;
+    }
+  ): CloudQuery<T>;
+
+  single(): CloudQuery<T>;
+
+  maybeSingle(): CloudQuery<T>;
+
   upsert(
     data: unknown,
     options?: {
