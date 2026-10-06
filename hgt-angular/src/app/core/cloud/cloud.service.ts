@@ -36,6 +36,10 @@ export class CloudService {
     private readonly config: CloudDomainConfig
   ) {}
 
+  get gameId(): string {
+    return this.config.gameId;
+  }
+
   characterRow(
     character: HgtCharacter
   ) {
