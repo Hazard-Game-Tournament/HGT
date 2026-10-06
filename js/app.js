@@ -1,4 +1,8 @@
 import {
+  wheelDisplayLabelFor
+} from "./rules/wheel/display-label.js";
+
+import {
   wheelRankTypeFor
 } from "./rules/wheel/rank-type.js";
 
@@ -3834,7 +3838,14 @@ function wheelRankType(){
 }
 const namedWheelColors={'Noir':'#111827','Blanc':'#ffffff','Gris':'#6b7280','Rouge':'#ef4444','Orange':'#f97316','Jaune':'#facc15','Vert':'#22c55e','Bleu':'#3b82f6','Cyan':'#22d3ee','Violet':'#8b5cf6','Rose':'#ec4899','Brun':'#92400e','Or':'#d4a017','Argent':'#c0c0c0','Cuivre':'#b87333','Couleur unique':'#7c3aed'};
 
-function wheelDisplayLabel(label){let type=wheelRankType(),n=valNum(label);return type&&n?`${n} — ${rankLabel(n,type)}`:label}
+function wheelDisplayLabel(label){
+  return wheelDisplayLabelFor(
+    label,
+    wheelRankType(),
+    valNum,
+    rankLabel
+  );
+}
 function wheelDarkFantasyColor(i,count){
   const palette=(window.HGT_THEME_WHEEL_COLORS&&window.HGT_THEME_WHEEL_COLORS.length?window.HGT_THEME_WHEEL_COLORS:['#b11226','#98152d','#7e1737','#65183f','#4d1742','#37143b','#26102f','#170b20','#08070b']);
   if(count<=1)return palette[3];
