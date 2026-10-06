@@ -1,4 +1,9 @@
 import {
+  morphologyRaceNamesFor,
+  sizeOptionsFor
+} from "./rules/races/morphology.js";
+
+import {
   raceOptionsFor,
   vampireWerewolfOriginOptionsFor,
   spiritOriginRaceOptionsFor,
@@ -3563,44 +3568,10 @@ function addRaceResult(r,depth=0){state.lineage=state.lineage||{};
 }
 function updateRace(){state.race=state.raceParts.join(' / ')}
 function morphologyRaceNames(){
- const L=state.lineage||{}, out=[];
- const addComp=c=>{
-   if(!c||!c.race)return;
-   if(c.race==='Hybride'){
-     addComp(c.compA); addComp(c.compB); return;
-   }
-   // Vampire, Loup-garou, Squelette/Liche and racial Esprit keep the morphology
-   // of their biological origin. The state itself must not reset height.
-   if(['Vampire','Loup-garou','Squelette','Liche','Esprit'].includes(c.race) && c.originComponent){
-     addComp(c.originComponent); return;
-   }
-   out.push(c.race);
- };
- if(L.originComponent) addComp(L.originComponent);
- else if(L.hybridCompA||L.hybridCompB){ addComp(L.hybridCompA); addComp(L.hybridCompB); }
- else if(L.primaryComponent) addComp(L.primaryComponent);
- else (state.raceParts||[]).forEach(r=>out.push(r));
- return [...new Set(out.filter(Boolean))];
+  return morphologyRaceNamesFor(state);
 }
 function sizeOptions(){
- const morphology=morphologyRaceNames();
- const race=morphology.join(' / '),L=state.lineage||{};
- const range=(min,max,step=.1,center=null)=>{
-   const vals=[];for(let n=min;n<=max+1e-9;n+=step){let v=Math.round(n*100)/100;let w=center?Math.max(.35,3-Math.abs(v-center)*2):1;vals.push(W(v.toFixed(2)+' m',w))}
-   return vals;
- };
- // Biological/racial tendencies, never a single forced height.
- if(/Titan/i.test(race)||L.titanRank){
-   if(/fondateur/i.test(L.titanRank||''))return range(12,30,1,20);
-   if(/primordial/i.test(L.titanRank||''))return range(7,20,.5,12);
-   return range(3,12,.5,6);
- }
- if(/Géant/i.test(race))return range(2.5,6,.25,3.5);
- if(/Nain|Gobelin/i.test(race))return range(.8,1.65,.05,1.25);
- if(/Fée/i.test(race))return range(.3,1.8,.05,1.1);
- if(/Orc/i.test(race))return range(1.55,2.5,.05,1.95);
- if(/Dragon/i.test(race))return range(1.45,2.8,.05,1.9);
- return range(1.35,2.2,.05,1.72);
+  return sizeOptionsFor(state);
 }
 function addBlessing(source){let b={source,name:null,intensity:null};insert([task(`${source} — Bénédiction`,EQ(blessings),x=>{b.name=x;if(x==='Bénédiction unique')insert([task(`${source} — Bénédiction unique`,EQ(uniqueBlessings),u=>b.name=u)])}),task(`${source} — Intensité`,intensity,x=>{b.intensity=valNum(x);state.blessings.push(b)})])}
 function curseDetailTasks(c,source){let t=[];if(c.name==='Arme maudite')t.push(task(`${source} — Contrainte de l’arme`,EQ(cursedWeaponCosts),v=>c.detail=v));else if(c.name==='Soif')t.push(task(`${source} — Ressource convoitée`,EQ(thirstResources),v=>c.detail=v));else if(c.name==='Prix équivalent')t.push(task(`${source} — Prix`,EQ(equivalentPrices),v=>c.detail=v));else if(c.name==='Malédiction mortelle')t.push(task(`${source} — Condition mortelle`,EQ(mortalCurseTriggers),v=>c.detail=v));else if(c.name==='Transformation incontrôlée'&&!state.extraDetail.some(o=>o&&o.kind==='Transformation')){let tr={kind:'Transformation maudite',type:null,level:null,traits:[]};state.extraDetail.push(tr);t.push(task(`${source} — Transformation maudite`,EQ(transformationTypes),v=>tr.type=v),task(`${source} — Transformation maudite — Niveau`,centered,v=>tr.level=valNum(v)));}return t}
