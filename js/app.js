@@ -1,4 +1,8 @@
 import {
+  resolveBirthEventsInStores
+} from "./services/birth-resolution.js";
+
+import {
   createExternalNpc,
   createDescendantBase,
   applyGeneratedDescendantData
@@ -2422,80 +2426,142 @@ function cleanupPrematureBirths(){
 
   return removed;
 }
-async function resolveBirthEvents(){
+async async function resolveBirthEvents(){
   saveCurrentCharacter();
-  if(seasonCompleted(seasonNumber)&&!tournamentChampionForSeason(seasonNumber)){
-    alert(`La transition de S${seasonNumber} est verrouillée : termine d'abord le tournoi et obtiens un champion avant de résoudre les naissances.`);
-    showTab('tournament');renderTournament();return;
+
+  if(
+    seasonCompleted(seasonNumber) &&
+    !tournamentChampionForSeason(
+      seasonNumber
+    )
+  ){
+    alert(
+      `La transition de S${seasonNumber} est verrouillée : termine d'abord le tournoi et obtiens un champion avant de résoudre les naissances.`
+    );
+
+    showTab('tournament');
+    renderTournament();
+    return;
   }
-  const roster=loadRoster(), descStore=descendants(), npcStore=npcs(), meta=universeMeta();
-  repairMissingBirthEvents(roster,descStore);
-  // Une naissance appartient toujours à la saison où l'Extra « Possède un enfant » a été obtenu.
-  // On peut donc la résoudre plus tard sans la déplacer vers la saison courante.
-  let made=0, events=0, skippedIncomplete=0;
-  const resolvedByBirthSeason={};
-  for(const pa of Object.values(roster)){
-    ensureGenealogyShape(pa);
-    for(const ev of (pa.extraDetail||[]).filter(x=>x?.kind==='Enfant'&&birthEventChildIds(x).length===0)){
-      const sourceSeason=Number(ev.birthSeason||characterSeasonFromId(pa,seasonNumber));
-      // Une naissance n'est résolue qu'à la transition officielle de sa saison :
-      // 64 personnages terminés + champion. Jamais pendant la saison suivante en cours.
-      if(!seasonCompleted(sourceSeason)||!tournamentChampionForSeason(sourceSeason))continue;
-      ev.birthSeason=Number(ev.birthSeason||characterSeasonFromId(pa,seasonNumber));
-      // Ne jamais traiter comme future une naissance provenant d'une saison qui n'a pas encore eu lieu.
-      if(ev.birthSeason>seasonNumber) continue;
-      ev.eligibleSeason=Number(ev.eligibleSeason||ev.birthSeason+1);
-      events++;
-      resolvedByBirthSeason[ev.birthSeason]=(resolvedByBirthSeason[ev.birthSeason]||0)+1;
-      if(!ev.birthEventId) ev.birthEventId=`BIRTH-${pa.id}`;
-      let origin=weightedValue([['Autre combattant',50],['PNJ extérieur',30],['Parent unique',10],['Origine improbable',10]]);
-      let pb=null;
-      if(origin==='Autre combattant'){
-        pb=chooseOtherFighter(pa,roster);
-        if(!pb){origin='PNJ extérieur';pb=makeNpc(pa,meta,npcStore)}
-      }else if(origin==='PNJ extérieur')pb=makeNpc(pa,meta,npcStore);
-      let improbable=null;
-      if(origin==='Origine improbable')improbable=rpick(IMPROBABLE_ORIGINS);
-      ev.origin=improbable?`${origin} — ${improbable}`:origin;
-      ev.otherParentId=pb?.id||null;
-      ev.childIds=[];
-      delete ev.childId;
-      let n=childCountRoll(), siblings=[];
-      for(let i=0;i<n;i++){
-        let child=createChild(pa,pb,ev.origin,ev,meta,descStore);
-        ev.childIds.push(child.id);siblings.push(child.id);made++;
-      }
-      for(const id of siblings)descStore[id].genealogy.siblings=siblings.filter(x=>x!==id);
-      pa.genealogy.children=[...new Set([...(pa.genealogy.children||[]),...siblings])];
-      if(pb){
-        ensureGenealogyShape(pb);
-        pb.genealogy.children=[...new Set([...(pb.genealogy.children||[]),...siblings])];
-        pa.genealogy.partnerLinks=[...new Set([...(pa.genealogy.partnerLinks||[]),pb.id])];
-        pb.genealogy.partnerLinks=[...new Set([...(pb.genealogy.partnerLinks||[]),pa.id])];
-        if(roster[pb.id])roster[pb.id]=pb;else npcStore[pb.id]=pb;
-      }
-      ev.status=`${n} naissance${n>1?'s':''} résolue${n>1?'s':''}`;
+
+  const roster=loadRoster();
+  const descStore=descendants();
+  const npcStore=npcs();
+  const meta=universeMeta();
+
+  repairMissingBirthEvents(
+    roster,
+    descStore
+  );
+
+  const result=
+    resolveBirthEventsInStores({
+      roster,
+      descendants:descStore,
+      npcs:npcStore,
+      meta,
+      currentSeason:seasonNumber,
+
+      birthEventChildIds,
+      characterSeasonFromId,
+      seasonCompleted,
+      tournamentChampionForSeason,
+      ensureGenealogyShape,
+
+      weightedValue,
+      randomPick:rpick,
+      improbableOrigins:
+        IMPROBABLE_ORIGINS,
+
+      chooseOtherFighter,
+      makeNpc,
+      childCountRoll,
+      createChild
+    });
+
+  saveRoster(roster);
+
+  saveStore(
+    STORAGE_DESC,
+    descStore
+  );
+
+  saveStore(
+    STORAGE_NPCS,
+    npcStore
+  );
+
+  saveStore(
+    STORAGE_META,
+    meta
+  );
+
+  if(
+    typeof saveEmergencyLocalBackup===
+    'function'
+  ){
+    saveEmergencyLocalBackup();
+  }
+
+  if(
+    typeof cloudSyncAllData===
+    'function'
+  ){
+    try{
+      await cloudSyncAllData();
+    }catch(e){
+      console.warn(
+        'Sync naissances',
+        e
+      );
     }
-    roster[pa.id]=pa;
   }
-  saveRoster(roster);saveStore(STORAGE_DESC,descStore);saveStore(STORAGE_NPCS,npcStore);saveStore(STORAGE_META,meta);
-  // Sauvegarde locale immédiatement après la naissance : elle permet une restauration
-  // même si l'onglet est fermé ou rechargé pendant la synchronisation Supabase.
-  if(typeof saveEmergencyLocalBackup==='function')saveEmergencyLocalBackup();
-  if(typeof cloudSyncAllData==='function'){
-    try{await cloudSyncAllData()}catch(e){console.warn('Sync naissances',e)}
-  }
-  // Une saison complète ne valide cette étape qu'une fois toutes ses naissances effectivement résolues.
-  for(let s=1;s<=seasonNumber;s++){
-    if(seasonCompleted(s)&&tournamentChampionForSeason(s)&&pendingBirthEventsForSeason(s).length===0){
+
+  for(
+    let s=1;
+    s<=seasonNumber;
+    s++
+  ){
+    if(
+      seasonCompleted(s) &&
+      tournamentChampionForSeason(s) &&
+      pendingBirthEventsForSeason(s)
+        .length===0
+    ){
       markBirthResolutionComplete(s);
     }
   }
-  renderRoster();renderGenealogy();
-  const suffix=skippedIncomplete?`\n\n${skippedIncomplete} personnage${skippedIncomplete>1?'s':''} encore en cours de génération n${skippedIncomplete>1?'ont':'a'} pas été traité${skippedIncomplete>1?'s':''}.`:'';
-  const seasons=Object.keys(resolvedByBirthSeason).map(Number).sort((a,b)=>a-b);
-  const seasonText=seasons.length?seasons.map(s=>`S${s} → éligible S${s+1}`).join(', '):'';
-  alert(events?`${made} descendant${made>1?'s':''} généré${made>1?'s':''} à partir de ${events} événement${events>1?'s':''}.${seasonText?`\n${seasonText}`:''}${suffix}`:`Aucune naissance en attente à résoudre jusqu'à S${seasonNumber}.${suffix}`);
+
+  renderRoster();
+  renderGenealogy();
+
+  const suffix=
+    result.skippedIncomplete
+      ? `\n\n${result.skippedIncomplete} personnage${result.skippedIncomplete>1?'s':''} encore en cours de génération n${result.skippedIncomplete>1?'ont':'a'} pas été traité${result.skippedIncomplete>1?'s':''}.`
+      : '';
+
+  const seasons=
+    Object.keys(
+      result.resolvedByBirthSeason
+    )
+      .map(Number)
+      .sort((a,b)=>a-b);
+
+  const seasonText=
+    seasons.length
+      ? seasons
+          .map(
+            s=>
+              `S${s} → éligible S${s+1}`
+          )
+          .join(', ')
+      : '';
+
+  alert(
+    result.events
+      ? `${result.made} descendant${result.made>1?'s':''} généré${result.made>1?'s':''} à partir de ${result.events} événement${result.events>1?'s':''}.${seasonText?`\n${seasonText}`:''}${suffix}`
+      : `Aucune naissance en attente à résoudre jusqu'à S${seasonNumber}.${suffix}`
+  );
 }
 function selectDescendantsForNextSeason(){
   migrateExistingDescendantsToLegacy();
