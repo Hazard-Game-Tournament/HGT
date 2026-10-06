@@ -1,4 +1,12 @@
 import {
+  inheritMutationsForChild,
+  inheritPowersForChild,
+  inheritedAppearanceForChild,
+  mutationForChildRace,
+  childCountRollFor
+} from "./rules/genealogy/birth-inheritance.js";
+
+import {
   eligibleDescendantsForSeason,
   freeFighterNumbersForSeason,
   selectDescendantsForSeason
@@ -2204,23 +2212,21 @@ function raceTraitsFor(race,parts){
   return [...new Set(list)].map(name=>({name,origin:race,active:ACTIVE_RACIAL_TRAITS.has(name),mastery:ACTIVE_RACIAL_TRAITS.has(name)?centeredRoll():null,natural:true}));
 }
 function inheritMutations(pa,pb){
-  const map={};
-  for(const p of [pa,pb].filter(Boolean))for(const m of parentMutationTraits(p)){if(!map[m.name])map[m.name]=[];map[m.name].push(p.id||p.name||'PNJ')}
-  let out=[];
-  for(const [name,origins] of Object.entries(map)){
-    const prob=origins.length>=2?50:25;
-    if(chance(prob))out.push({name,originIds:[...new Set(origins)],hereditary:true,transmissionChance:25});
-  }
-  return out;
+  return inheritMutationsForChild({
+    parentA:pa,
+    parentB:pb,
+    parentMutationTraits,
+    chance
+  });
 }
 function inheritPowers(pa,pb){
-  const map={};
-  for(const p of [pa,pb].filter(Boolean))for(const pow of personalPowers(p)){if(!map[pow.name])map[pow.name]=[];map[pow.name].push(pow.source)}
-  let out=[];
-  for(const [name,origins] of Object.entries(map)){
-    if(chance(origins.length>=2?50:25))out.push({name,mastery:centeredRoll(),inherited:true,origins:[...new Set(origins)]});
-  }
-  return out;
+  return inheritPowersForChild({
+    parentA:pa,
+    parentB:pb,
+    personalPowers,
+    chance,
+    masteryRoll:centeredRoll
+  });
 }
 function makeNpc(parent,meta,npcStore){
   let id=`PNJ-${String(meta.nextNpc++).padStart(3,'0')}`;
@@ -2229,32 +2235,35 @@ function makeNpc(parent,meta,npcStore){
   let npc={id,name:childName(),gender,race,raceParts:[race],job:rpick(NPC_JOBS),appearance:{age:rpick(['Jeune adulte','Adulte','Mature','Âgé']),body:rpick(bodies),c1:rpick(colors.filter(x=>x!=='Couleur unique')),c2:rpick(colors.filter(x=>x!=='Couleur unique')),sign:rpick(signs.filter(x=>x!=='Signe unique'))},racialTraits:raceTraitsFor(race,[race]),npcPower:rpick(powers.filter(x=>x!=='Pouvoir unique')),genealogy:{parents:[],children:[],siblings:[],generation:1,lineage:[],partnerLinks:[]},status:'PNJ extérieur'};
   npcStore[id]=npc;return npc;
 }
-function inheritedAppearance(pa,pb,finalRace){
-  const fresh=()=>({body:rpick(bodies),c1:rpick(colors.filter(x=>x!=='Couleur unique')),c2:rpick(colors.filter(x=>x!=='Couleur unique')),sign:rpick(signs.filter(x=>x!=='Signe unique'))});
-  let f=fresh(), app={};
-  if(pb){
-    app.body=weightedValue([[pa.appearance?.body||f.body,40],[pb.appearance?.body||f.body,40],[f.body,20]]);
-    app.c1=weightedValue([[pa.appearance?.c1||f.c1,40],[pb.appearance?.c1||f.c1,40],[f.c1,20]]);
-    app.c2=weightedValue([[pa.appearance?.c2||f.c2,40],[pb.appearance?.c2||f.c2,40],[f.c2,20]]);
-    app.sign=weightedValue([[pa.appearance?.sign||f.sign,25],[pb.appearance?.sign||f.sign,25],[f.sign,50]]);
-  }else app=f;
-  app.age='À tirer lors de l’entrée en tournoi';
-  return app;
+function inheritedAppearance(
+  pa,
+  pb,
+  finalRace
+){
+  return inheritedAppearanceForChild({
+    parentA:pa,
+    parentB:pb,
+    bodies,
+    colors,
+    signs,
+    randomPick:rpick,
+    weightedValue
+  });
 }
 function mutationForChild(raceInfo){
-  if(!chance(10))return null;
-  const ascensible={'Demi-dieu':'Divinité','Cyborg':'N.E.X.U.S.','Titan':'Titan primordial'};
-  const eligible=(raceInfo.parts||[]).filter(p=>ascensible[p]);
-  if(eligible.length&&chance(12)){
-    const from=rpick(eligible),to=ascensible[from];
-    raceInfo.parts=raceInfo.parts.map(p=>p===from?to:p);
-    if(raceInfo.parts.length===1){raceInfo.race=to}
-    else{let c=combineComponents(raceInfo.parts[0],raceInfo.parts[1]);raceInfo.race=c.race;raceInfo.parts=c.parts}
-    return {name:`Ascension raciale : ${from} → ${to}`,type:'Ascension raciale',hereditary:false};
-  }
-  return {name:rpick(CHILD_MUTATIONS),type:'Mutation',hereditary:false};
+  return mutationForChildRace({
+    raceInfo,
+    mutations:CHILD_MUTATIONS,
+    chance,
+    randomPick:rpick,
+    combineComponents
+  });
 }
-function childCountRoll(){let r=Math.random()*100;if(r<90)return 1;if(r<98)return 2;if(r<99.5)return 3;return 4+Math.floor(Math.random()*5)}
+function childCountRoll(){
+  return childCountRollFor(
+    Math.random
+  );
+}
 // V20 — migration unique : tout descendant existant avant ce moteur devient Legacy.
 function migrateExistingDescendantsToLegacy(){
   const meta=universeMeta();
