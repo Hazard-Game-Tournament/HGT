@@ -1,4 +1,7 @@
 import {
+  wheelMetalGradientFor
+} from "./rules/wheel/metal-gradient.js";
+import {
   wheelFitTextFor
 } from "./rules/wheel/text-fit.js";
 import {
@@ -3888,11 +3891,21 @@ function hgtWheelPalette(){
 
   return wheelPaletteFor(palette);
 }
-function hgtWheelMetalGradient(cx,cy,r1,r2,accent){
-  const g=ctx.createRadialGradient(cx,cy,r1,cx,cy,r2);
-  g.addColorStop(0,'#17130f');g.addColorStop(.28,'#8a6931');g.addColorStop(.48,'#e0bd67');
-  g.addColorStop(.62,'#5c431f');g.addColorStop(.82,'#b58b3e');g.addColorStop(1,'#120e0b');
-  return g;
+function hgtWheelMetalGradient(
+  cx,
+  cy,
+  r1,
+  r2,
+  accent
+){
+  return wheelMetalGradientFor(
+    ctx,
+    cx,
+    cy,
+    r1,
+    r2,
+    accent
+  );
 }
 function hgtWheelFitText(
   text,
