@@ -1,4 +1,8 @@
 import {
+  martialInheritedClanFor
+} from "./rules/martial/inheritance.js";
+
+import {
   martialMasteryRollFor,
   martialClanDomainCountFor
 } from "./rules/martial/rolls.js";
@@ -500,7 +504,12 @@ function saveMartialClans(x){localStorage.setItem(MARTIAL_CLANS_KEY,JSON.stringi
 
 
 
-function martialInheritedClan(){const ids=state?.genealogy?.parents||[];if(!ids.length)return null;const roster=loadRoster(), parents=ids.map(id=>roster[id]).filter(Boolean), cs=parents.map(p=>p?.martial?.clanId).filter(Boolean);if(!cs.length)return null;if(cs.length>=2){if(cs[0]===cs[1])return cs[0];return cs[Math.random()<.5?0:1]}return Math.random()<.5?cs[0]:null}
+function martialInheritedClan(){
+  return martialInheritedClanFor(
+    state?.genealogy?.parents||[],
+    loadRoster()
+  );
+}
 
 
 function martialMasteryRoll(){
