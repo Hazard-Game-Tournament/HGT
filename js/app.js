@@ -1,4 +1,8 @@
 import {
+  loadRosterFromStorage,
+  saveRosterToStorage
+} from "./services/roster-storage.js";
+import {
   martialChiStateFor,
   martialAscensionFor
 } from "./rules/martial/chi.js";
@@ -1171,13 +1175,18 @@ function characterImageIdentity(characterId,c=null){
 
 
 function loadRoster(){
-  try{
-    const raw=localStorage.getItem(STORAGE_ROSTER);
-    const data=raw?JSON.parse(raw):{};
-    return data&&typeof data==='object'?data:{};
-  }catch(e){return {}}
+  return loadRosterFromStorage(
+    localStorage,
+    STORAGE_ROSTER
+  );
 }
-function saveRoster(roster){localStorage.setItem(STORAGE_ROSTER,JSON.stringify(roster))}
+function saveRoster(roster){
+  return saveRosterToStorage(
+    localStorage,
+    STORAGE_ROSTER,
+    roster
+  );
+}
 
 // Réconcilie le curseur avec les personnages RÉELLEMENT terminés.
 // Important : des brouillons fantômes S2/S3 créés par un ancien bug ne doivent jamais
