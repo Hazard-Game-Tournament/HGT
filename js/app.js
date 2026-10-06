@@ -1,4 +1,9 @@
 import {
+  wheelDarkFantasyColorFor,
+  wheelHexRgbFor,
+  wheelRgbaFor
+} from "./rules/wheel/colors.js";
+import {
   wheelDisplayLabelFor
 } from "./rules/wheel/display-label.js";
 
@@ -3847,25 +3852,26 @@ function wheelDisplayLabel(label){
   );
 }
 function wheelDarkFantasyColor(i,count){
-  const palette=(window.HGT_THEME_WHEEL_COLORS&&window.HGT_THEME_WHEEL_COLORS.length?window.HGT_THEME_WHEEL_COLORS:['#b11226','#98152d','#7e1737','#65183f','#4d1742','#37143b','#26102f','#170b20','#08070b']);
-  if(count<=1)return palette[3];
-  const pos=(i/(count-1))*(palette.length-1);
-  const a=Math.floor(pos),b=Math.min(palette.length-1,a+1),t=pos-a;
-  const hex=x=>[parseInt(x.slice(1,3),16),parseInt(x.slice(3,5),16),parseInt(x.slice(5,7),16)];
-  const A=hex(palette[a]),B=hex(palette[b]);
-  const C=A.map((v,k)=>Math.round(v+(B[k]-v)*t));
-  return '#'+C.map(v=>v.toString(16).padStart(2,'0')).join('');
+  const palette=
+    window.HGT_THEME_WHEEL_COLORS &&
+    window.HGT_THEME_WHEEL_COLORS.length
+      ? window.HGT_THEME_WHEEL_COLORS
+      : undefined;
+
+  return wheelDarkFantasyColorFor(
+    i,
+    count,
+    palette
+  );
 }
 let __hgtWheelFx=0;
 let __hgtWheelWinner=-1;
 
 function hgtWheelHexRgb(hex){
-  let h=String(hex||'#d4a017').replace('#','');
-  if(h.length===3)h=h.split('').map(x=>x+x).join('');
-  return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0];
+  return wheelHexRgbFor(hex);
 }
 function hgtWheelRgba(hex,a){
-  const [r,g,b]=hgtWheelHexRgb(hex);return `rgba(${r},${g},${b},${a})`;
+  return wheelRgbaFor(hex,a);
 }
 function hgtWheelPalette(){
   const p=(window.HGT_THEME_WHEEL_COLORS&&window.HGT_THEME_WHEEL_COLORS.length?window.HGT_THEME_WHEEL_COLORS:['#b11226','#98152d','#7e1737','#65183f','#4d1742','#37143b','#26102f','#170b20','#08070b']);
