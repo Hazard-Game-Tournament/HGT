@@ -1,4 +1,13 @@
 import {
+  tournamentMatchCount,
+  tournamentResolvedMatchCount,
+  tournamentRoundComplete,
+  currentIncompleteTournamentRoundFor,
+  advanceTournamentRoundIfComplete,
+  tournamentChampionId
+} from "./rules/tournament/progression.js";
+
+import {
   loadTournamentArchiveFromStorage,
   saveTournamentArchiveToStorage,
   archiveTournamentInStorage,
@@ -4811,8 +4820,7 @@ function simulateTournamentBattle(ri,mi){
   if(!resolveTournamentBattleInto(t,ri,mi,roster))return;advanceTournamentIfRoundComplete(t,ri);saveTournament(t);renderTournament();
 }
 function currentIncompleteTournamentRound(t){
-  for(let ri=0;ri<t.rounds.length;ri++){const round=t.rounds[ri]||[],matches=Math.floor(round.length/2);if(round.length<=1)continue;for(let mi=0;mi<matches;mi++)if(!t.winners?.[`${ri}-${mi}`])return ri}
-  return -1;
+  return currentIncompleteTournamentRoundFor(t);
 }
 function simulateTournamentBatch(mode='round'){
   const t=loadTournament(),roster=loadRoster();if(!t){alert('Crée d’abord le tirage du tournoi.');return}
@@ -4820,9 +4828,14 @@ function simulateTournamentBatch(mode='round'){
   while(safety++<12){const ri=currentIncompleteTournamentRound(t);if(ri<0)break;const round=t.rounds[ri]||[],matches=Math.floor(round.length/2);for(let mi=0;mi<matches;mi++){const key=`${ri}-${mi}`;if(t.winners?.[key])continue;if(resolveTournamentBattleInto(t,ri,mi,roster))simulated++}advanceTournamentIfRoundComplete(t,ri);if(mode==='round')break}
   if(!simulated){alert('Aucun combat non résolu à simuler.');return}saveTournament(t);renderTournament();
 }
-function advanceTournamentIfRoundComplete(t,roundIndex){
-  const round=t.rounds[roundIndex]||[],matches=Math.ceil(round.length/2),all=[];for(let i=0;i<matches;i++){const w=t.winners[`${roundIndex}-${i}`];if(!w)return;all.push(w)}
-  if(round.length>1)t.rounds[roundIndex+1]=all;
+function advanceTournamentIfRoundComplete(
+  t,
+  roundIndex
+){
+  return advanceTournamentRoundIfComplete(
+    t,
+    roundIndex
+  );
 }
 async function tournamentPortrait(el,id){try{const f=await getIllustration(id);if(!f)return;const url=URL.createObjectURL(f),img=document.createElement('img');img.src=url;img.onload=()=>URL.revokeObjectURL(url);el.replaceChildren(img)}catch(e){}}
 function drawTournamentConnectors(){
