@@ -1,4 +1,8 @@
 import {
+  martialChiStateFor,
+  martialAscensionFor
+} from "./rules/martial/chi.js";
+import {
   martialClanChoicesFor,
   martialClanIdFromChoice,
   martialIdentityFor,
@@ -4190,7 +4194,54 @@ if(l.target==='Un artefact ancien'){let art=state.extraDetail.find(o=>o!==l&&(o.
 })])}else if(x==='Consommable rare'){let d={kind:'Consommable rare',manifestation:null,detail:null};state.extraDetail.push(d);insert([task('Consommable rare — Nature',EQ(rareConsumables),u=>{d.manifestation=u;if(u==='Fiole de résistance élémentaire')insert([task('Consommable rare — Élément',EQ(elementalAffinities),v=>d.detail=v)])})])}else if(x==='Sens extraordinaire'){let d={kind:'Sens extraordinaire',manifestation:null};state.extraDetail.push(d);insert([task('Sens extraordinaire — Nature',EQ(extraordinarySenses),u=>d.manifestation=u)])}else if(x==='Aura dominante'){let d={kind:'Aura dominante',manifestation:null};state.extraDetail.push(d);insert([task('Aura dominante — Nature',EQ(dominantAuras),u=>d.manifestation=u),task('Aura dominante — Intensité',centered,u=>d.power=valNum(u))])}else if(x==='Mutation'){let d={kind:'Mutation',manifestation:null};state.extraDetail.push(d);insert([task('Mutation — Nature',EQ(mutations),u=>d.manifestation=u)])}else if(x==='Double'){let d={kind:'Double',manifestation:null,power:null};state.extraDetail.push(d);insert([task('Double — Type',EQ(doubles),u=>{d.manifestation=u;if(u==='Double unique')insert([task('Double unique — Manifestation',EQ(doubleUnique),z=>d.manifestation=z)])}),task('Double — Puissance',[10,20,30,40,50,60,70,80,90,100].map(n=>W(n+' %')),u=>d.power=parseInt(u))])}else if(x==='Possède un enfant'){
   let c={kind:'Enfant',status:'Naissance en attente de résolution',birthEventId:`BIRTH-${state.id}`,childIds:[],otherParentId:null,origin:null,birthSeason:seasonNumber,eligibleSeason:seasonNumber+1};
   state.extraDetail.push(c);
-}else if(x==='Extra improbable')insert([task('Extra improbable — Manifestation',EQ(improbableExtras),u=>{let d={kind:'Extra improbable',manifestation:u,detail:null};state.extraDetail.push(d);if(u==='Ses chaussures refusent certains terrains')insert([task('Extra improbable — Terrain refusé',EQ(improbableShoeTerrains),v=>d.detail=v)])})]);else if(x==='Extra légendaire')addLegendaryExtra()}),task('Personnalité',EQ(personalities),x=>{state.personality=x;if(x==='Personnalité unique')insert([task('Personnalité unique — manifestation',EQ(uniquePersonalities),u=>state.personality=u)])}),...['Combat','Force','Intelligence','Résilience','Vitesse'].map((stat,si)=>task(`Stat — ${stat}`,centered,x=>{let base=valNum(x),m=modSum()[si];state.stats[stat]=Math.max(0,base+m);state.stats[stat+'_detail']={base,mod:m,breakdown:statBreakdown(si)}})),task('Pouvoir / Chi',()=>activeArchs().includes('Artiste martial')?[W('Chi')]:activeArchs().includes('Sorcier')?EQ(chaos):vaeloriaPowerOptions(),x=>{if(activeArchs().includes('Artiste martial')){insert([task('Chi — Rang',()=>centered.map(o=>W(`${valNum(o.label)} — ${chiRanks[valNum(o.label)-1]}`,o.weight)),m=>{let base=valNum(m),n=Math.min(10,Math.max(1,base+(state._historyChiMod||0)+(state._advancedChiBonus||0)));state.chi={rank:n,base,label:chiRanks[n-1],multiplier:martialChiMultiplier(n)};insert(martialIdentityTasks());if(n>=9&&n<10){state.raceParts.push('Ascension Demi-dieu');applyAscensionMods('Demi-dieu')}else if(n>=10){state.raceParts.push('Martial God');state.lineage=state.lineage||{};state.lineage.divineRank='Divinité';state.lineage.divineDomain='Arts martiaux';applyAscensionMods('Divinité')}})]);return;}let p={name:x,mastery:null};state.powers.push(p);let follow=[];if(x==='Pouvoir unique')follow.push(task('Pouvoir principal — Manifestation unique',EQ(uniquePowers),u=>p.name=u));follow.push(...metamorphosisTasks(p,'Pouvoir principal'));follow.push(task('Pouvoir principal — Maîtrise',centered,m=>{p.masteryBase=valNum(m);p.masteryMod=masteryMod('power');p.mastery=Math.max(0,p.masteryBase+p.masteryMod+(state._historyPowerMasteryMod||0));if(state._lateAwakenedPower)p.awakenedLate=true;if(activeArchs().includes('Mage'))addPower('Pouvoir de Mage',false);if(state._extraPower){state._extraPower=false;addPower('Deuxième pouvoir (Extra)',true)}}));insert(follow)}),
+}else if(x==='Extra improbable')insert([task('Extra improbable — Manifestation',EQ(improbableExtras),u=>{let d={kind:'Extra improbable',manifestation:u,detail:null};state.extraDetail.push(d);if(u==='Ses chaussures refusent certains terrains')insert([task('Extra improbable — Terrain refusé',EQ(improbableShoeTerrains),v=>d.detail=v)])})]);else if(x==='Extra légendaire')addLegendaryExtra()}),task('Personnalité',EQ(personalities),x=>{state.personality=x;if(x==='Personnalité unique')insert([task('Personnalité unique — manifestation',EQ(uniquePersonalities),u=>state.personality=u)])}),...['Combat','Force','Intelligence','Résilience','Vitesse'].map((stat,si)=>task(`Stat — ${stat}`,centered,x=>{let base=valNum(x),m=modSum()[si];state.stats[stat]=Math.max(0,base+m);state.stats[stat+'_detail']={base,mod:m,breakdown:statBreakdown(si)}})),task('Pouvoir / Chi',()=>activeArchs().includes('Artiste martial')?[W('Chi')]:activeArchs().includes('Sorcier')?EQ(chaos):vaeloriaPowerOptions(),x=>{if(activeArchs().includes('Artiste martial')){insert([task('Chi — Rang',()=>centered.map(o=>W(`${valNum(o.label)} — ${chiRanks[valNum(o.label)-1]}`,o.weight)),m=>{
+  const base=valNum(m);
+
+  state.chi=
+    martialChiStateFor({
+      base,
+      historyModifier:
+        state._historyChiMod||0,
+      advancedBonus:
+        state._advancedChiBonus||0,
+      ranks:chiRanks,
+      multiplierFor:
+        martialChiMultiplier
+    });
+
+  insert(
+    martialIdentityTasks()
+  );
+
+  const ascension=
+    martialAscensionFor(
+      state.chi.rank
+    );
+
+  if(!ascension)
+    return;
+
+  state.raceParts.push(
+    ascension.racePart
+  );
+
+  if(
+    ascension.type==='divinity'
+  ){
+    state.lineage=
+      state.lineage||{};
+
+    state.lineage.divineRank=
+      ascension.divineRank;
+
+    state.lineage.divineDomain=
+      ascension.divineDomain;
+  }
+
+  applyAscensionMods(
+    ascension.ascensionMod
+  );
+})]);return;}let p={name:x,mastery:null};state.powers.push(p);let follow=[];if(x==='Pouvoir unique')follow.push(task('Pouvoir principal — Manifestation unique',EQ(uniquePowers),u=>p.name=u));follow.push(...metamorphosisTasks(p,'Pouvoir principal'));follow.push(task('Pouvoir principal — Maîtrise',centered,m=>{p.masteryBase=valNum(m);p.masteryMod=masteryMod('power');p.mastery=Math.max(0,p.masteryBase+p.masteryMod+(state._historyPowerMasteryMod||0));if(state._lateAwakenedPower)p.awakenedLate=true;if(activeArchs().includes('Mage'))addPower('Pouvoir de Mage',false);if(state._extraPower){state._extraPower=false;addPower('Deuxième pouvoir (Extra)',true)}}));insert(follow)}),
 task('Arme principale',()=>activeArchs().includes('Artiste martial')?[W('Armes du clan')]:finalDragonComponent()?EQ(DRAGON_TAIL_WEAPONS):weaponOptions(activeArchs().includes('Tireur')),x=>{if(activeArchs().includes('Artiste martial'))return;let sys=DRAGON_TAIL_WEAPONS.includes(x)?'dragon-tail':'classic';let w=attachWeaponTraits({name:x,mastery:null,ench:[]},sys);if(sys==='dragon-tail'){w.racial=true;w.enchantmentCount=0;const dc=finalDragonComponent();if(dc)dc.dragonWeapon=x}state.weapons.push(w);let follow=[];if(x==='Arme unique')follow.push(task('Arme principale — Manifestation unique',EQ(uniqueWeapons),u=>w.name=u));if(x==='Arme caudale unique')follow.push(dragonTailUniqueMutationTask(w,'Arme principale'));if(x==='Arme improvisée')follow.push(task('Arme principale — Objet improvisé',EQ(improvisedWeapons),u=>w.name=`Arme improvisée — ${u}`));let afterMainWeapon=()=>{if(activeArchs().includes('Berserker'))addWeapon('Deuxième arme du Berserker');if(state._extraWeapon){state._extraWeapon=false;addWeapon('Deuxième arme (Extra)')}};if(x==='Aucune arme'){w.mastery='—';w.enchantmentCount=0;afterMainWeapon()}else{follow.push(task('Arme principale — Maîtrise',centered,m=>{w.masteryBase=valNum(m);w.masteryMod=masteryMod('weapon');w.mastery=Math.max(0,w.masteryBase+w.masteryMod);let n=(w.mastery>=8?2:(w.mastery>=5?1:0));w.directEnchantBonus=activeArchs().includes('Tireur')?1:0;n+=w.directEnchantBonus;w.enchantmentCount=n;insert(enchantTasks(w,'Arme principale',n));afterMainWeapon()}))}insert(follow)}),task('Type de faiblesse',weaknessTypeOptions,x=>{if(x==='Aucune faiblesse')state.weakness='Aucune faiblesse';else if(x==='Faiblesse improbable')insert([task('Faiblesse improbable',EQ(improbableWeak),w=>{state._weak=w}),task('Gravité de la faiblesse',centered,g=>{state.weakness=`Improbable : ${state._weak} — ${valNum(g)}/10`;delete state._weak})]);else insert([task('Faiblesse classique',EQ(classicalWeak),w=>state._weak=w),task('Gravité de la faiblesse',centered,g=>{state.weakness=`${state._weak} — ${valNum(g)}/10`;delete state._weak})])}),task('Âge apparent',[W('Très jeune adulte',10),W('Jeune adulte',25),W('Adulte',35),W('Mature',20),W('Âgé',10)],x=>state.appearance.age=x),task('Corpulence',EQ(bodies),x=>state.appearance.body=x),task('Couleur dominante 1',()=>vaeloriaColorOptions(),x=>{state.appearance.c1=x;if(x==='Couleur unique')insert([task('Couleur dominante 1 — Couleur unique',EQ(uniqueColors),u=>state.appearance.c1=u)])}),task('Couleur dominante 2',()=>vaeloriaColorOptions(state.appearance.c1),x=>{state.appearance.c2=x;if(x==='Couleur unique')insert([task('Couleur dominante 2 — Couleur unique',EQ(uniqueColors.filter(c=>c!==state.appearance.c1)),u=>state.appearance.c2=u)])}),task('Style vestimentaire',clothingStyleOptions,x=>{const resolved=resolveClothingStyle(x);state.clothingStyle=resolved;if(resolved!==x){result.innerHTML=`${resolved}<small>Style vestimentaire — ${x}</small>`;const last=state.logs[state.logs.length-1];if(last&&last.cat==='Style vestimentaire')last.val=resolved}}),task('Signe distinctif',EQ(signs),x=>{state.appearance.sign=x;if(x==='Signe unique')insert([task('Signe unique — manifestation',EQ(['Œil supplémentaire','Halo fracturé','Veines lumineuses','Ombre indépendante','Corne asymétrique','Runes mouvantes','Main cristalline','Cheveux flottant sans vent','Cicatrice en forme de constellation','Tatouage vivant','Peau irisée','Reflet absent','Voix visible comme de la brume','Couronne d’étincelles','Marque impossible']),u=>state.appearance.sign=u)])}),task('Prénom — Structure',EQ(['Court','Long']),x=>{state._nameParts=[];let set=namingSets[namingStyle()]||namingSets.Default;let ts=[task('Prénom — Début',EQ(set.start),v=>state._nameParts.push(v))];if(x==='Long')ts.push(task('Prénom — Milieu',EQ(set.mid),v=>state._nameParts.push(v)));ts.push(task('Prénom — Fin',EQ(set.end),v=>{state._nameParts.push(v);let raw=state._nameParts.join('');state.name=raw.charAt(0).toUpperCase()+raw.slice(1);if(state.martial?.status==='Fondateur'&&state.martial?.clanId)martialUpdateClan(c=>{c.founderName=state.name;c.name=`Clan ${state.name}`});delete state._nameParts}));insert(ts)}),task('Titre',titleOptions,x=>{state.title=x;finalizeMartialClanName()})];}
 
 function wheelRankType(){
