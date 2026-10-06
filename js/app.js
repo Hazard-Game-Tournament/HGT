@@ -1,4 +1,8 @@
 import {
+  weaknessTypeOptionsFor
+} from "./rules/weakness/index.js";
+
+import {
   morphologyRaceNamesFor,
   sizeOptionsFor
 } from "./rules/races/morphology.js";
@@ -3581,7 +3585,9 @@ function addArtifact(kind){let a={kind,form:null,effect:null,effectDetail:null,p
 
 function addPower(label='Pouvoir',excludeExisting=false){insert([task(label,()=>{const src=(state.archParts.includes('Sorcier')||state.arch==='Sorcier')?chaos:powers;if(!excludeExisting)return EQ(src);const used=new Set((state.powers||[]).map(p=>p&&p.name).filter(Boolean));return EQ(src.filter(v=>!used.has(v)));},x=>{const p={name:x,mastery:null};state.powers.push(p);state._powerIndex=state.powers.length-1;if(x==='Pouvoir unique')replaceUniquePower(state._powerIndex,label);if(x==='Métamorphose')insert(metamorphosisTasks(p,label))}),task(`${label} — Maîtrise`,centered,x=>{state.powers[state._powerIndex].masteryBase=valNum(x);state.powers[state._powerIndex].masteryMod=masteryMod('power');state.powers[state._powerIndex].mastery=Math.max(0,state.powers[state._powerIndex].masteryBase+state.powers[state._powerIndex].masteryMod);delete state._powerIndex})])}
 
-function weaknessTypeOptions(){return [W('Aucune faiblesse',50),W('Faiblesse improbable',25),W('Faiblesse classique',25)]}
+function weaknessTypeOptions(){
+  return weaknessTypeOptionsFor();
+}
 function applyAscensionMods(kind){const map={
 'Demi-dieu':[2,2,1,2,2],
 'Divinité':[3,4,2,3,3]
