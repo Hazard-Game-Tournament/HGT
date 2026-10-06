@@ -1,4 +1,9 @@
 import {
+  loadJsonStore,
+  saveJsonStore,
+  loadUniverseMetaFromStorage
+} from "./services/universe-storage.js";
+import {
   characterIdFor,
   firstEmptyCharacterNumberFor,
   normalizeSeasonCursor,
@@ -2037,12 +2042,60 @@ const NPC_JOBS=['Artisan','Marchand','Érudit','Médecin','Explorateur','Mercena
 const CHILD_NAME_START=['Ael','Ny','Ka','Va','Iri','Ze','Or','Tha','Ly','Sa','Myr','Eli','No','Ra','Shi','Vor','Ae','Ky'];
 const CHILD_NAME_MID=['ra','li','en','or','ae','yn','is','va','eth','io','ar','un'];
 const CHILD_NAME_END=['n','a','is','or','el','yx','ia','en','os','ar','eth','i'];
-function loadStore(key,fallback){try{const x=JSON.parse(localStorage.getItem(key)||'null');return x??fallback}catch(e){return fallback}}
-function saveStore(key,v){localStorage.setItem(key,JSON.stringify(v)); if(typeof queueCloudUniverseSync==='function') queueCloudUniverseSync()}
-function descendants(){return loadStore(STORAGE_DESC,{})}
-function npcs(){return loadStore(STORAGE_NPCS,{})}
-function saveUniverseMeta(meta){saveStore(STORAGE_META,meta)}
-function universeMeta(){const m=loadStore(STORAGE_META,{nextDesc:1,nextNpc:1,selectedBySeason:{},champions:{},championTeam:[],multiplayerStats:{}});m.selectedBySeason??={};m.champions??={};m.championTeam=Array.isArray(m.championTeam)?m.championTeam:[];m.championTeamDraft=Array.isArray(m.championTeamDraft)?m.championTeamDraft:[];m.multiplayerStats=(m.multiplayerStats&&typeof m.multiplayerStats==='object')?m.multiplayerStats:{};m.multiplayerStats.teamWins=Number(m.multiplayerStats.teamWins)||0;m.multiplayerStats.teamLosses=Number(m.multiplayerStats.teamLosses)||0;m.multiplayerStats.duelWins=Number(m.multiplayerStats.duelWins)||0;m.multiplayerStats.duelLosses=Number(m.multiplayerStats.duelLosses)||0;m.multiplayerStats.teamHistory=Array.isArray(m.multiplayerStats.teamHistory)?m.multiplayerStats.teamHistory.slice(0,10):[];m.multiplayerStats.duelHistory=Array.isArray(m.multiplayerStats.duelHistory)?m.multiplayerStats.duelHistory.slice(0,10):[];return m}
+function loadStore(key,fallback){
+  return loadJsonStore(
+    localStorage,
+    key,
+    fallback
+  );
+}
+
+function saveStore(key,value){
+  saveJsonStore(
+    localStorage,
+    key,
+    value
+  );
+
+  if(
+    typeof queueCloudUniverseSync===
+    'function'
+  ){
+    queueCloudUniverseSync();
+  }
+
+  return value;
+}
+
+function descendants(){
+  return loadJsonStore(
+    localStorage,
+    STORAGE_DESC,
+    {}
+  );
+}
+
+function npcs(){
+  return loadJsonStore(
+    localStorage,
+    STORAGE_NPCS,
+    {}
+  );
+}
+
+function saveUniverseMeta(meta){
+  return saveStore(
+    STORAGE_META,
+    meta
+  );
+}
+
+function universeMeta(){
+  return loadUniverseMetaFromStorage(
+    localStorage,
+    STORAGE_META
+  );
+}
 function rpick(a){return a[Math.floor(Math.random()*a.length)]}
 function chance(p){return Math.random()*100<p}
 function weightedValue(items){let r=Math.random()*items.reduce((s,x)=>s+x[1],0);for(const [v,w] of items){r-=w;if(r<0)return v}return items[items.length-1][0]}
