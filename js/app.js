@@ -1,4 +1,11 @@
 import {
+  characterIdFor,
+  firstEmptyCharacterNumberFor,
+  normalizeSeasonCursor,
+  canonicalSeasonCursorFor,
+  isCursorAheadOf
+} from "./rules/seasons/cursor.js";
+import {
   loadRosterFromStorage,
   saveRosterToStorage
 } from "./services/roster-storage.js";
@@ -1130,27 +1137,59 @@ const divineEchoDomains=['Guerre','Protection','Vie','Mort','Lumière','Ténèbr
 const CHARACTERS_PER_SEASON=64;
 const STORAGE_SEASON='roue_seasonNumber_v18';
 let seasonNumber=parseInt(localStorage.getItem(STORAGE_SEASON)||'1',10);
-if(!Number.isFinite(seasonNumber)||seasonNumber<1) seasonNumber=1;
 const STORAGE_ROSTER='roue_roster_v16';
 const STORAGE_CURRENT='roue_characterNumber_v16';
 const STORAGE_DESC='roue_descendants_v18';
 const STORAGE_NPCS='roue_npcs_v18';
 const STORAGE_META='roue_universe_meta_v18';
 let characterNumber=parseInt(localStorage.getItem(STORAGE_CURRENT)||'1',10);
-if(!Number.isFinite(characterNumber)||characterNumber<1) characterNumber=1;
-// Migration des anciennes versions : S1-065 devient automatiquement S2-001, etc.
-if(characterNumber>CHARACTERS_PER_SEASON){
-  seasonNumber += Math.floor((characterNumber-1)/CHARACTERS_PER_SEASON);
-  characterNumber = ((characterNumber-1)%CHARACTERS_PER_SEASON)+1;
-  localStorage.setItem(STORAGE_SEASON,String(seasonNumber));
-  localStorage.setItem(STORAGE_CURRENT,String(characterNumber));
+
+{
+  const normalizedCursor=
+    normalizeSeasonCursor(
+      seasonNumber,
+      characterNumber,
+      CHARACTERS_PER_SEASON
+    );
+
+  const changed=
+    normalizedCursor.season!==seasonNumber ||
+    normalizedCursor.number!==characterNumber;
+
+  seasonNumber=
+    normalizedCursor.season;
+
+  characterNumber=
+    normalizedCursor.number;
+
+  if(changed){
+    localStorage.setItem(
+      STORAGE_SEASON,
+      String(seasonNumber)
+    );
+
+    localStorage.setItem(
+      STORAGE_CURRENT,
+      String(characterNumber)
+    );
+  }
 }
 
-function currentCharacterId(){return `S${seasonNumber}-${String(characterNumber).padStart(3,'0')}`}
-function firstEmptyCharacterNumber(season=seasonNumber,roster=loadRoster()){
-  const used=new Set(Object.keys(roster||{}).map(id=>String(id).match(/^S(\d+)-(\d+)$/)).filter(Boolean).filter(m=>Number(m[1])===Number(season)).map(m=>Number(m[2])).filter(n=>n>=1&&n<=CHARACTERS_PER_SEASON));
-  for(let n=1;n<=CHARACTERS_PER_SEASON;n++) if(!used.has(n)) return n;
-  return null;
+function currentCharacterId(){
+  return characterIdFor(
+    seasonNumber,
+    characterNumber
+  );
+}
+function firstEmptyCharacterNumber(
+  season=seasonNumber,
+  roster=loadRoster()
+){
+  return firstEmptyCharacterNumberFor(
+    season,
+    roster,
+    CHARACTERS_PER_SEASON
+  );
 }
 function moveCursorToFirstEmptySlot(season=seasonNumber){
   const n=firstEmptyCharacterNumber(season);
@@ -1194,220 +1233,57 @@ function saveRoster(roster){
 let seasonCursorReconciled=false;
 function reconcileSeasonCursor(){
   const roster=loadRoster();
-  const completed=Object.values(roster||{}).filter(c=>{
-    if(!c?.id) return false;
-    try{return isCharacterGenerationComplete(c)}catch(e){return !!c._generationComplete}
-  });
-  const parsed=completed.map(c=>parseCharacterCode(c.id)).filter(p=>Number.isFinite(p.season)&&Number.isFinite(p.number));
 
-  // Aucun combattant terminé : on reste en S1-001. Un brouillon futur ne suffit pas à changer cela.
-  if(!parsed.length){
-    if(seasonNumber!==1 || characterNumber!==1){
-      seasonNumber=1;characterNumber=1;
-      localStorage.setItem(STORAGE_SEASON,'1');
-      localStorage.setItem(STORAGE_CURRENT,'1');
-      seasonCursorReconciled=true;
-    }
+  const completed=
+    Object.values(roster||{})
+      .filter(character=>{
+        if(!character?.id)
+          return false;
+
+        try{
+          return isCharacterGenerationComplete(
+            character
+          );
+        }catch(error){
+          return !!character._generationComplete;
+        }
+      });
+
+  const canonical=
+    canonicalSeasonCursorFor(
+      completed,
+      parseCharacterCode,
+      CHARACTERS_PER_SEASON
+    );
+
+  if(
+    !isCursorAheadOf(
+      seasonNumber,
+      characterNumber,
+      canonical.season,
+      canonical.number
+    )
+  ){
     return;
   }
 
-  // On cherche la première saison qui n'est pas encore complète (64 combattants terminés).
-  // Tant que S1 est complète, on autorise S2 ; tant que S2 n'est pas complète, jamais S3, etc.
-  const counts={};
-  for(const p of parsed){
-    if(p.number>=1 && p.number<=CHARACTERS_PER_SEASON) counts[p.season]=(counts[p.season]||0)+1;
-  }
-  let canonicalSeason=1;
-  while((counts[canonicalSeason]||0)>=CHARACTERS_PER_SEASON) canonicalSeason++;
+  seasonNumber=
+    canonical.season;
 
-  // Dans la saison courante, le prochain numéro canonique est le premier emplacement non terminé.
-  const used=new Set(parsed.filter(p=>p.season===canonicalSeason).map(p=>p.number));
-  let canonicalNumber=1;
-  while(canonicalNumber<=CHARACTERS_PER_SEASON && used.has(canonicalNumber)) canonicalNumber++;
-  if(canonicalNumber>CHARACTERS_PER_SEASON){canonicalSeason++;canonicalNumber=1}
+  characterNumber=
+    canonical.number;
 
-  // Ne corrige automatiquement que les curseurs placés APRÈS le prochain emplacement canonique.
-  // Cela préserve la navigation volontaire vers d'anciens personnages.
-  const cursorAhead=seasonNumber>canonicalSeason || (seasonNumber===canonicalSeason && characterNumber>canonicalNumber);
-  if(cursorAhead){
-    seasonNumber=canonicalSeason;
-    characterNumber=canonicalNumber;
-    localStorage.setItem(STORAGE_SEASON,String(seasonNumber));
-    localStorage.setItem(STORAGE_CURRENT,String(characterNumber));
-    seasonCursorReconciled=true;
-  }
-}
-function ensureGenealogyShape(s){
-  if(!s.genealogy) s.genealogy={parents:[],children:[],generation:1,lineage:[],partnerLinks:[]};
-  if(!Array.isArray(s.genealogy.parents)) s.genealogy.parents=[];
-  if(!Array.isArray(s.genealogy.children)) s.genealogy.children=[];
-  if(!Array.isArray(s.genealogy.lineage)) s.genealogy.lineage=[];
-  if(!Array.isArray(s.genealogy.partnerLinks)) s.genealogy.partnerLinks=[];
-  if(!Array.isArray(s.genealogy.siblings)) s.genealogy.siblings=[];
-  if(!Number.isFinite(s.genealogy.generation)) s.genealogy.generation=1;
-  if(!Array.isArray(s.relationships)) s.relationships=[];
-  return s;
-}
-function saveCurrentCharacter({renderRosterNow=true,cloudNow=true}={}){
-  applyAlienStateIfNeeded();
-  applyAlienModifiersToStats();
+  localStorage.setItem(
+    STORAGE_SEASON,
+    String(seasonNumber)
+  );
 
-  if(state.race==='Extraterrestre'){
-    applyAlienStateIfNeeded();
-    if(state.alienBiology?.trait && state.alienBiology?.mods?.length===3 && Array.isArray(state.logs) && !state.logs.some(x=>x.cat==='Biologie extraterrestre')){
-      state.logs.push({cat:'Biologie extraterrestre',val:state.alienBiology.trait});
-      state.logs.push({cat:'Adaptation extraterrestre',val:state.alienBiology.mods.map(x=>`${x.stat} ${x.value>0?'+':''}${x.value}`).join(' / ')});
-    }
-  }
+  localStorage.setItem(
+    STORAGE_CURRENT,
+    String(characterNumber)
+  );
 
-  if(!state || !state.id) return;
-  ensureCharacterInstanceId(state);
-  ensureGenealogyShape(state);
-  const roster=loadRoster();
-  // Ne jamais écraser silencieusement un combattant déjà matérialisé (notamment un
-  // descendant sélectionné) avec un nouveau brouillon qui porte momentanément le même ID.
-  // Cela pouvait arriver au début d'une saison : le curseur restait sur Sx-001 alors que
-  // Sx-001 était déjà occupé par un descendant, puis le premier tirage normal le remplaçait.
-  const existing=roster[state.id];
-  if(existing && existing.instanceId && state.instanceId && existing.instanceId!==state.instanceId && existing._generationComplete){
-    console.warn('Sauvegarde ignorée : ID déjà occupé par un combattant terminé',state.id);
-    return;
-  }
-  roster[state.id]=JSON.parse(JSON.stringify(state));
-  saveRoster(roster); // sécurité locale immédiate : reprise exacte même si l'app est quittée
-  if(renderRosterNow) renderRoster();
-  if(cloudNow){
-    if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-    if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
-  }
-}
-
-let __wheelPersistenceTimer=null;
-function scheduleWheelPersistence(){
-  clearTimeout(__wheelPersistenceTimer);
-  __wheelPersistenceTimer=setTimeout(()=>{
-    __wheelPersistenceTimer=null;
-    try{
-      renderRoster();
-      if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-      if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
-    }catch(e){console.warn('Persistance différée roue',e)}
-  },2600);
-}
-function flushWheelPersistence(){
-  clearTimeout(__wheelPersistenceTimer);__wheelPersistenceTimer=null;
-  try{
-    saveCurrentCharacter({renderRosterNow:false,cloudNow:false});
-    if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-    if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
-  }catch(e){}
-}
-window.addEventListener('pagehide',flushWheelPersistence);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushWheelPersistence()});
-
-reconcileSeasonCursor();
-
-function blankCharacterState(id){
-  return {alienBiology:null,id:id||currentCharacterId(),instanceId:newCharacterInstanceId(),name:'',title:'',raceParts:[],race:'',lineage:{},birthStratum:'',birthRegion:'',culture:'',gender:'',size:'',arch:'',archParts:[],slayerTarget:null,job:'',history:[],extra:'',extraDetail:[],extraStatMods:[],relationships:[],genealogy:{parents:[],children:[],generation:1,lineage:[],partnerLinks:[]},personality:'',stats:{},powers:[],weapons:[],weakness:'',blessings:[],curses:[],clothingStyle:'',appearance:{},transformation:null,awakening:null,chi:null,martial:null,prodigeMods:[],logs:[]};
-}
-function rebuildGenerationFromLogs(saved){
-  const logs=Array.isArray(saved?.logs)?JSON.parse(JSON.stringify(saved.logs)):[];
-  state=blankCharacterState(saved?.id||currentCharacterId());state.instanceId=saved?.instanceId||newCharacterInstanceId();
-  queue=[];index=0;rotation=0;spinNumber=0;
-  buildInitial();
-  for(const entry of logs){
-    const t=queue[index];
-    if(!t) break;
-    try{
-      t.apply(entry.val);
-      state.logs.push({cat:entry.cat||t.title,val:entry.val});
-      index++; spinNumber++;
-    }catch(e){
-      console.warn('Reprise arrêtée à',entry,e);
-      break;
-    }
-  }
-  ensureGenealogyShape(state);
-}
-function loadCharacterById(id){
-  const roster=loadRoster(), saved=roster[id];
-  if(!saved) return false;
-
-  // V21 : toute fiche terminée est un instantané complet et ne doit jamais être
-  // rejouée depuis ses anciens logs. L'ajout de nouvelles sous-roues changerait sinon
-  // l'alignement des logs et décalerait Genre/Taille/Archétype/etc.
-  if(saved._generationComplete){
-    state=ensureGenealogyShape(JSON.parse(JSON.stringify(saved)));
-    queue=[];index=0;rotation=0;spinNumber=Array.isArray(state.logs)?state.logs.length:0;
-    auto=false;spinning=false;autoBtn.textContent='Auto : OFF';spinBtn.disabled=false;
-    spinBtn.textContent='Nouveau personnage';taskTitle.textContent='Personnage terminé';
-    result.innerHTML='Fiche terminée et sauvegardée<small>'+state.id+' — '+state.name+'</small>';
-    count.textContent=`${state.logs?.length||0} tirages`;render();drawWheel([W('✓')]);return true;
-  }
-
-  rebuildGenerationFromLogs(saved);
-
-  // If an old file contains fields that are not reconstructed from wheel logs,
-  // preserve them without replacing the rebuilt queue/index.
-  const rebuilt=state;
-  for(const [k,v] of Object.entries(saved)){
-    if(k==='logs') continue;
-    if((rebuilt[k]===undefined || rebuilt[k]===null || rebuilt[k]==='' ||
-       (Array.isArray(rebuilt[k])&&rebuilt[k].length===0)) && v!==undefined){
-      rebuilt[k]=JSON.parse(JSON.stringify(v));
-    }
-  }
-  state=ensureGenealogyShape(rebuilt);
-
-  // Réparation/garantie d'identité des descendants déjà matérialisés :
-  // le combattant garde le prénom canonique de DESC-xxxx, même si une ancienne version
-  // de la roue avait tiré un nouveau prénom (ex. DESC-0004 Raoros devenu Ophir).
-  {
-    const ds=descendants();
-    // Les versions buggées ont parfois perdu descendantSourceId. fighterId dans DESC-xxxx
-    // reste alors la source de vérité et permet de réparer automatiquement le combattant.
-    const source=state.descendantSourceId?ds[state.descendantSourceId]:Object.values(ds).find(d=>d?.fighterId===state.id);
-    if(source){
-      state.descendantSourceId=source.id;
-      state.isDescendant=true;
-      state.name=source.name||state.name;
-      state.race=source.race||state.race;
-      state.raceParts=JSON.parse(JSON.stringify(source.raceParts||state.raceParts||[]));
-      state.gender=source.gender||state.gender;
-      state.racialTraits=JSON.parse(JSON.stringify(source.racialTraits||state.racialTraits||[]));
-      state.inheritedPowers=JSON.parse(JSON.stringify(source.inheritedPowers||state.inheritedPowers||[]));
-      state.inheritedMutations=JSON.parse(JSON.stringify(source.mutations||state.inheritedMutations||[]));
-      state.genealogy=JSON.parse(JSON.stringify(source.genealogy||state.genealogy||{}));
-      state.genealogy.parents=[...(source.parentIds||source.genealogy?.parents||[])];
-      // Un descendant chargé mais encore incomplet reste prioritaire dans la roue.
-      // fighterDataGenerated signifie désormais réellement « génération terminée » et non « fiche ouverte ».
-      source.fighterDataGenerated=!!state._generationComplete;
-      source.fighterId=state.id;
-      source.selectedForSeason=Number(String(state.id).match(/^S(\d+)-/)?.[1]||seasonNumber);
-      source.status=state._generationComplete
-        ? `Combattant S${source.selectedForSeason} — ${state.id}`
-        : `Descendant — génération en cours S${source.selectedForSeason} — ${state.id}`;
-      ds[source.id]=source;saveStore(STORAGE_DESC,ds);
-      const rr=loadRoster();rr[state.id]=JSON.parse(JSON.stringify(state));saveRoster(rr);
-    }
-  }
-
-  auto=false;spinning=false;autoBtn.textContent='Auto : OFF';spinBtn.disabled=false;
-  const complete=!!state.name && !!state.title && index>=queue.length;
-  if(complete){
-    spinBtn.textContent='Nouveau personnage';
-    taskTitle.textContent='Personnage terminé';
-    result.innerHTML='Fiche terminée et sauvegardée<small>'+state.id+' — '+state.name+'</small>';
-  }else{
-    spinBtn.textContent=index===0?'Commencer':'Continuer';
-    taskTitle.textContent=index<queue.length?'Reprise — '+queue[index].title:'Reprise';
-    result.innerHTML='Progression restaurée<small>Prochaine roue : '+(queue[index]?.title||'fin')+'.</small>';
-    if(index<queue.length){try{const resumeOpts=queue[index].options();if(Array.isArray(resumeOpts)&&resumeOpts.length>1)drawWheel(resumeOpts,rotation)}catch(e){console.warn('Impossible d’afficher la roue restaurée',e)}}
-  }
-  count.textContent=`${state.logs.length} tirages`;
-  render();
-  drawWheel(index<queue.length ? queue[index].options() : [W('✓')]);
-  return true;
+  seasonCursorReconciled=true;
 }
 function selectedDescendantForCurrentSlot(){
   if(seasonNumber<=1)return null;
