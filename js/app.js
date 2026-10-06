@@ -1,4 +1,8 @@
 import {
+  migrateLegacyDescendants
+} from "./services/descendant-legacy-migration.js";
+
+import {
   createBlankCharacterState
 } from "./services/character-state.js";
 
@@ -2297,18 +2301,19 @@ function childCountRoll(){
 function migrateExistingDescendantsToLegacy(){
   const meta=universeMeta();
   const ds=descendants();
-  let changed=false;
-  // Tout descendant provenant de l'ancien moteur n'a pas de fullFighterData figée.
-  // On le marque Legacy même si une tentative précédente avait déjà posé engineVersion=20.
-  // Cela évite qu'un ancien DESC puisse à nouveau bloquer ou piloter les roues normales.
-  for(const d of Object.values(ds)){
-    if(!d || d.fullFighterData)continue;
-    if(!d.legacy){d.legacy=true;changed=true;}
-    const legacyStatus=d.status?.includes('Legacy')?d.status:`Legacy — ${d.status||'ancien descendant'}`;
-    if(d.status!==legacyStatus){d.status=legacyStatus;changed=true;}
+
+  const result=migrateLegacyDescendants({
+    descendants:ds,
+    meta,
+    engineVersion:20
+  });
+
+  if(result.changed){
+    saveStore(STORAGE_DESC,ds);
+    saveStore(STORAGE_META,meta);
   }
-  if(Number(meta.descendantEngineVersion||0)<20){meta.descendantEngineVersion=20;changed=true;}
-  if(changed){saveStore(STORAGE_DESC,ds);saveStore(STORAGE_META,meta);}
+
+  return result.changed;
 }
 
 // Génère une fiche complète avec EXACTEMENT le moteur normal, sans rendu, sauvegarde de
@@ -2435,7 +2440,7 @@ function cleanupPrematureBirths(){
 
   return removed;
 }
-async async function resolveBirthEvents(){
+async function resolveBirthEvents(){
   saveCurrentCharacter();
 
   if(
