@@ -1,4 +1,9 @@
 import {
+  tournamentFighterValue,
+  resolveTournamentBattle
+} from "./rules/tournament/battle-resolution.js";
+
+import {
   tournamentMatchCount,
   tournamentResolvedMatchCount,
   tournamentRoundComplete,
@@ -4785,34 +4790,39 @@ function hgtConditionsHtml(c){if(!c)return'';return `<div class="combat-param"><
 /* ======================= END HGT COMBAT ENGINE V1 ======================= */
 
 function fighterValue(c,ctx){
-  const st=c?.stats||{}, combat=Number(st.Combat)||0, force=Number(st.Force)||0, intel=Number(st.Intelligence)||0, res=Number(st['Résilience'])||0, vit=Number(st['Vitesse'])||0;
-  const powers=(c?.powers||[]).map(p=>Number(p.mastery)||0); if(c?.martial?.techniques?.length)powers.push(...c.martial.techniques.map(t=>Number(t.equivalentPower)||0));
-  const weapons=(c?.weapons||[]).map(w=>Number(w.mastery)||0);
-  const p=powers.length?Math.max(...powers):0,w=weapons.length?Math.max(...weapons):0;
-  let v=combat*2.2+force*1.15+intel*1.15+res*1.45+vit*1.35+p*1.7+w*1.25;
-  const arch=String(c?.arch||'');
-  if(ctx.distance>=25){if(/Tireur|Mage|Sorcier/.test(arch))v+=4;if(/Assassin|Berserker|Artiste martial/.test(arch))v-=2}
-  if(ctx.distance<=8){if(/Artiste martial|Berserker|Guerrier|Assassin/.test(arch))v+=3;if(/Tireur/.test(arch))v-=2}
-  if(ctx.terrain==='Forêt dense'||ctx.terrain==='Ruines'){if(/Chasseur|Éclaireur|Assassin|Trickster/.test(arch))v+=2}
-  if(ctx.terrain==='Plaine ouverte'){if(/Tireur|Commandant/.test(arch))v+=2}
-  if(ctx.terrain==='Zone aquatique' && String(c?.race||'').match(/Requin|Baleine|Poulpe|Kraken|Serpent de mer|Léviathan/i))v+=5;
-  return v;
+  return tournamentFighterValue(c,ctx);
 }
-function resolveTournamentBattleInto(t,ri,mi,roster,{replace=false}={}){
-  t.battles??={};t.deaths??=[];t.winners??={};
-  const round=t.rounds[ri]||[],a=round[mi*2],b=round[mi*2+1];if(!a||!b)return false;
-  const key=`${ri}-${mi}`;if(t.winners[key]&&!replace)return false;
-  const terrain=TOURNAMENT_TERRAINS[Math.floor(Math.random()*TOURNAMENT_TERRAINS.length)],d=TOURNAMENT_DISTANCES[Math.floor(Math.random()*TOURNAMENT_DISTANCES.length)],region=randomCombatRegion();
-  const ctx={terrain,distanceLabel:d[0],distance:d[1],region:region[0],regionSlug:region[1],knowledgeA:TOURNAMENT_KNOWLEDGE[Math.floor(Math.random()*3)],knowledgeB:TOURNAMENT_KNOWLEDGE[Math.floor(Math.random()*3)]};
-  let va=fighterValue(roster[a],ctx),vb=fighterValue(roster[b],ctx);
-  if(ctx.knowledgeA==='Informations partielles')va+=1.5;else if(ctx.knowledgeA==='Bonne connaissance de l’adversaire')va+=3;
-  if(ctx.knowledgeB==='Informations partielles')vb+=1.5;else if(ctx.knowledgeB==='Bonne connaissance de l’adversaire')vb+=3;
-  const diff=va-vb,baseProbA=Math.max(.1,Math.min(.9,1/(1+Math.exp(-diff/10))));
-  const prepared=hgtPrepareBattleContext(ctx,t,roster[a],roster[b],a,b,baseProbA),probA=prepared.analysis.finalProbability.a,roll=Math.random(),winner=roll<probA?a:b,loser=winner===a?b:a;
-  const lr=Number(roster[loser]?.stats?.['Résilience'])||0,deathChance=Math.max(.01,Math.min(.18,.10-lr*.006+Math.abs(diff)*.002)),died=Math.random()<deathChance;
-  const battle={a,b,winner,loser,region:ctx.region,regionSlug:ctx.regionSlug,terrain,distanceLabel:d[0],distance:d[1],knowledgeA:ctx.knowledgeA,knowledgeB:ctx.knowledgeB,probA:+probA.toFixed(4),baseProbA:+baseProbA.toFixed(4),roll:+roll.toFixed(4),death:died?loser:null,conditions:prepared.conditions,analysis:prepared.analysis,engine:{version:HGT_COMBAT_ENGINE_VERSION,rulesVersion:HGT_COMBAT_RULES_VERSION,characterA:hgtSnapshot(prepared.profiles.a),characterB:hgtSnapshot(prepared.profiles.b)},at:new Date().toISOString()};
-  battle.narrative=null;battle.narrativeStatus='pending';t.battles[key]=battle;
-  if(died&&!t.deaths.includes(loser))t.deaths.push(loser);t.winners[key]=winner;return true;
+function resolveTournamentBattleInto(
+  t,
+  ri,
+  mi,
+  roster,
+  {replace=false}={}
+){
+  return resolveTournamentBattle({
+    tournament:t,
+    roundIndex:ri,
+    matchIndex:mi,
+    roster,
+    replace,
+
+    terrains:TOURNAMENT_TERRAINS,
+    distances:TOURNAMENT_DISTANCES,
+    knowledgeOptions:TOURNAMENT_KNOWLEDGE,
+    regions:COMBAT_REGIONS,
+
+    prepareBattleContext:
+      hgtPrepareBattleContext,
+
+    snapshot:
+      hgtSnapshot,
+
+    engineVersion:
+      HGT_COMBAT_ENGINE_VERSION,
+
+    rulesVersion:
+      HGT_COMBAT_RULES_VERSION
+  });
 }
 function simulateTournamentBattle(ri,mi){
   const t=loadTournament(),roster=loadRoster();if(!t)return;const key=`${ri}-${mi}`;
