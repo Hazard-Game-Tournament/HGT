@@ -1,4 +1,10 @@
 import {
+  martialClanChoicesFor,
+  martialClanIdFromChoice,
+  martialIdentityFor,
+  applyMartialDomains
+} from "./rules/martial/identity.js";
+import {
   applyMartialTechniqueMastery,
   martialWeaponMasteriesFor,
   martialDomainSelectionFor,
@@ -680,7 +686,13 @@ function joinMartialClan(clanId,status){
   saveMartialClans(clans);
   return clan;
 }
-function martialClanPoolOptions(){const clans=loadMartialClans();return Object.values(clans).map(c=>W(`${c.id} — ${c.name||c.id}`));}
+function martialClanPoolOptions(){
+  return martialClanChoicesFor(
+    loadMartialClans()
+  ).map(
+    choice=>W(choice.label)
+  );
+}
 function martialEnsureState(status,clan){
   state.powers=[];
   state._extraPower=false;
@@ -758,8 +770,124 @@ function martialPersonalTechniqueTasks(){const m=state.martial,clan=loadMartialC
  }
  out.push(task('Finalisation martiale',[W('Finaliser les maîtrises et les armes')],()=>finalizeMartialLoadout()));return out;}
 function martialPatrimonyTasks(clan){const out=[];for(const d of clan.domains){ensureMartialPatrimonyDomain(clan,d,true);for(let i=1;i<=5;i++)out.push(task(`Clan — ${d} — Technique secrète ${i}`,()=>MARTIAL_TECHNIQUES[d].secret.filter(n=>!clan.patrimony[d].secret.includes(n)).map(n=>W(n)),n=>{martialUpdateClan(c=>{addMartialPatrimonyTechnique(c,d,'secret',n)});clan=loadMartialClans()[state.martial.clanId]}));for(let i=1;i<=2;i++)out.push(task(`Clan — ${d} — Technique légendaire ${i}`,()=>MARTIAL_TECHNIQUES[d].legendary.filter(n=>!clan.patrimony[d].legendary.includes(n)).map(n=>W(n)),n=>{martialUpdateClan(c=>{addMartialPatrimonyTechnique(c,d,'legendary',n)});clan=loadMartialClans()[state.martial.clanId]}));}out.push(task('Clan — Patrimoine établi',[W('Valider le patrimoine')],()=>insert(martialPersonalTechniqueTasks())));return out;}
-function martialFounderDomainTasks(){let clan=loadMartialClans()[state.martial.clanId];return [task('Nombre de domaines martiaux',[W('1',50),W('2',35),W('3',15)],v=>{const n=Number(v)||1,chosen=[];insert([...Array.from({length:n},(_,i)=>task(`Domaine martial ${i+1}`,()=>MARTIAL_DOMAINS.filter(d=>!chosen.includes(d)).map(d=>W(d)),d=>{chosen.push(d);martialUpdateClan(c=>{c.domains=[...chosen];c.patrimony=c.patrimony||{}});state.martial.domains=[...chosen]})),task('Clan — Création du patrimoine',[W('Créer le patrimoine')],()=>{clan=loadMartialClans()[state.martial.clanId];insert(martialPatrimonyTasks(clan))})])})];}
-function martialIdentityTasks(){const inherited=martialInheritedClan(),clans=loadMartialClans();if(inherited&&clans[inherited]){return [task('Clan martial hérité',[W(`${clans[inherited].name} — Héritier`)],()=>{const c=joinMartialClan(inherited,'Héritier');martialEnsureState('Héritier',c);insert(martialPersonalTechniqueTasks())})];}const ids=Object.keys(clans),founderChance=martialFounderChance(ids.length);if(!ids.length)return [task('Statut martial',[W('Fondateur')],()=>{martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())})];return [task('Statut martial',[W('Fondateur',founderChance),W('Disciple',1-founderChance)],v=>{if(v==='Fondateur'){martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())}else insert([task('Clan martial rejoint',martialClanPoolOptions,v=>{const id=v.split(' — ')[0],c=joinMartialClan(id,'Disciple');martialEnsureState('Disciple',c);insert(martialPersonalTechniqueTasks())})])})];}
+function martialFounderDomainTasks(){let clan=loadMartialClans()[state.martial.clanId];return [task('Nombre de domaines martiaux',[W('1',50),W('2',35),W('3',15)],v=>{const n=Number(v)||1,chosen=[];insert([...Array.from({length:n},(_,i)=>task(`Domaine martial ${i+1}`,()=>MARTIAL_DOMAINS.filter(d=>!chosen.includes(d)).map(d=>W(d)),d=>{chosen.push(d);martialUpdateClan(c=>applyMartialDomains(c,state.martial,chosen))})),task('Clan — Création du patrimoine',[W('Créer le patrimoine')],()=>{clan=loadMartialClans()[state.martial.clanId];insert(martialPatrimonyTasks(clan))})])})];}
+function martialIdentityTasks(){
+  const inherited=
+    martialInheritedClan();
+
+  const clans=
+    loadMartialClans();
+
+  const identity=
+    martialIdentityFor({
+      inheritedClanId:inherited,
+      clans,
+      founderChanceFor:
+        martialFounderChance
+    });
+
+  if(identity.mode==='inherited'){
+    const clan=
+      clans[identity.clanId];
+
+    return [
+      task(
+        'Clan martial hérité',
+        [
+          W(
+            `${clan.name} — Héritier`
+          )
+        ],
+        ()=>{
+          const c=
+            joinMartialClan(
+              identity.clanId,
+              'Héritier'
+            );
+
+          martialEnsureState(
+            'Héritier',
+            c
+          );
+
+          insert(
+            martialPersonalTechniqueTasks()
+          );
+        }
+      )
+    ];
+  }
+
+  if(identity.mode==='founder-only'){
+    return [
+      task(
+        'Statut martial',
+        [W('Fondateur')],
+        ()=>{
+          martialCreateEmptyFounderClan();
+          insert(
+            martialFounderDomainTasks()
+          );
+        }
+      )
+    ];
+  }
+
+  return [
+    task(
+      'Statut martial',
+      [
+        W(
+          'Fondateur',
+          identity.founderChance
+        ),
+        W(
+          'Disciple',
+          1-identity.founderChance
+        )
+      ],
+      value=>{
+        if(value==='Fondateur'){
+          martialCreateEmptyFounderClan();
+
+          insert(
+            martialFounderDomainTasks()
+          );
+
+          return;
+        }
+
+        insert([
+          task(
+            'Clan martial rejoint',
+            martialClanPoolOptions,
+            choice=>{
+              const id=
+                martialClanIdFromChoice(
+                  choice
+                );
+
+              const clan=
+                joinMartialClan(
+                  id,
+                  'Disciple'
+                );
+
+              martialEnsureState(
+                'Disciple',
+                clan
+              );
+
+              insert(
+                martialPersonalTechniqueTasks()
+              );
+            }
+          )
+        ]);
+      }
+    )
+  ];
+}
 function finalizeMartialLoadout(){
   const m=state.martial;
   const clan=
