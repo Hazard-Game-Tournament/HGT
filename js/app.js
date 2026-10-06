@@ -1,4 +1,10 @@
 import {
+  applyMartialTechniqueMastery,
+  martialWeaponMasteriesFor,
+  martialDomainSelectionFor,
+  martialEnchantmentCountFor
+} from "./rules/martial/loadout.js";
+import {
   martialTechniqueFor,
   martialPatrimonyPoolFor,
   ensureMartialPatrimonyDomain,
@@ -732,7 +738,7 @@ function martialUpdateClan(mutator){
 
   return clan;
 }
-function martialMasteryTask(tech){return task(`${tech.type==='legendary'?'Technique légendaire':'Technique secrète'} — Maîtrise — ${tech.name}`,()=>MARTIAL_MASTERY_WEIGHTS.map((w,i)=>W(`${i+1} — ${masteryRanks[i]||rankLabel(i+1,'mastery')}`,w)),v=>{const base=valNum(v),bonus=martialTechniqueBonus(Number(state.chi?.rank)||1,tech.type);tech.masteryBase=base;tech.chiBonus=bonus;tech.mastery=Math.min(10,base+bonus);tech.equivalentPower=tech.mastery*(tech.type==='legendary'?1.5:1)*martialChiMultiplier(state.chi?.rank);});}
+function martialMasteryTask(tech){return task(`${tech.type==='legendary'?'Technique légendaire':'Technique secrète'} — Maîtrise — ${tech.name}`,()=>MARTIAL_MASTERY_WEIGHTS.map((w,i)=>W(`${i+1} — ${masteryRanks[i]||rankLabel(i+1,'mastery')}`,w)),v=>{const base=valNum(v);applyMartialTechniqueMastery(tech,base,state.chi?.rank,martialTechniqueBonus,martialChiMultiplier);});}
 function martialPersonalTechniqueTasks(){const m=state.martial,clan=loadMartialClans()[m?.clanId];if(!m||!clan)return[];const out=[],chosenS=new Set(),chosenL=new Set();const secretPool=()=>martialPatrimonyPoolFor(
   clan,
   'secret',
@@ -754,7 +760,81 @@ function martialPersonalTechniqueTasks(){const m=state.martial,clan=loadMartialC
 function martialPatrimonyTasks(clan){const out=[];for(const d of clan.domains){ensureMartialPatrimonyDomain(clan,d,true);for(let i=1;i<=5;i++)out.push(task(`Clan — ${d} — Technique secrète ${i}`,()=>MARTIAL_TECHNIQUES[d].secret.filter(n=>!clan.patrimony[d].secret.includes(n)).map(n=>W(n)),n=>{martialUpdateClan(c=>{addMartialPatrimonyTechnique(c,d,'secret',n)});clan=loadMartialClans()[state.martial.clanId]}));for(let i=1;i<=2;i++)out.push(task(`Clan — ${d} — Technique légendaire ${i}`,()=>MARTIAL_TECHNIQUES[d].legendary.filter(n=>!clan.patrimony[d].legendary.includes(n)).map(n=>W(n)),n=>{martialUpdateClan(c=>{addMartialPatrimonyTechnique(c,d,'legendary',n)});clan=loadMartialClans()[state.martial.clanId]}));}out.push(task('Clan — Patrimoine établi',[W('Valider le patrimoine')],()=>insert(martialPersonalTechniqueTasks())));return out;}
 function martialFounderDomainTasks(){let clan=loadMartialClans()[state.martial.clanId];return [task('Nombre de domaines martiaux',[W('1',50),W('2',35),W('3',15)],v=>{const n=Number(v)||1,chosen=[];insert([...Array.from({length:n},(_,i)=>task(`Domaine martial ${i+1}`,()=>MARTIAL_DOMAINS.filter(d=>!chosen.includes(d)).map(d=>W(d)),d=>{chosen.push(d);martialUpdateClan(c=>{c.domains=[...chosen];c.patrimony=c.patrimony||{}});state.martial.domains=[...chosen]})),task('Clan — Création du patrimoine',[W('Créer le patrimoine')],()=>{clan=loadMartialClans()[state.martial.clanId];insert(martialPatrimonyTasks(clan))})])})];}
 function martialIdentityTasks(){const inherited=martialInheritedClan(),clans=loadMartialClans();if(inherited&&clans[inherited]){return [task('Clan martial hérité',[W(`${clans[inherited].name} — Héritier`)],()=>{const c=joinMartialClan(inherited,'Héritier');martialEnsureState('Héritier',c);insert(martialPersonalTechniqueTasks())})];}const ids=Object.keys(clans),founderChance=martialFounderChance(ids.length);if(!ids.length)return [task('Statut martial',[W('Fondateur')],()=>{martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())})];return [task('Statut martial',[W('Fondateur',founderChance),W('Disciple',1-founderChance)],v=>{if(v==='Fondateur'){martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())}else insert([task('Clan martial rejoint',martialClanPoolOptions,v=>{const id=v.split(' — ')[0],c=joinMartialClan(id,'Disciple');martialEnsureState('Disciple',c);insert(martialPersonalTechniqueTasks())})])})];}
-function finalizeMartialLoadout(){const m=state.martial,clan=loadMartialClans()[m?.clanId];if(!m||!clan)return;for(const d of clan.domains){const vals=m.techniques.filter(t=>t.domain===d&&t.type==='secret').map(t=>Number(t.mastery)||0);m.weaponMasteries[d]=vals.length?Math.max(...vals):1}const physical=clan.domains.filter(d=>d!=='Mains nues'),best=Math.max(0,...physical.map(d=>m.weaponMasteries[d]||1)),ties=physical.filter(d=>(m.weaponMasteries[d]||1)===best);m.primaryDomain=ties.length?ties[Math.floor(Math.random()*ties.length)]:'Mains nues';m.secondaryDomains=clan.domains.filter(d=>d!==m.primaryDomain);state.weapons=[];for(const d of physical){const mastery=m.weaponMasteries[d]||1,w=attachWeaponTraits({name:MARTIAL_DOMAIN_WEAPON[d]||d,masteryBase:mastery,mastery,ench:[],martialDomain:d,martialPrimary:d===m.primaryDomain},'classic');w.enchantmentCount=mastery>=8?2:mastery>=5?1:0;state.weapons.push(w);if(w.enchantmentCount)for(let i=0;i<w.enchantmentCount;i++){const opts=vaeloriaEnchantOptions(),idx=weightedPick(opts);w.ench.push(opts[idx].label)}}}
+function finalizeMartialLoadout(){
+  const m=state.martial;
+  const clan=
+    loadMartialClans()[m?.clanId];
+
+  if(!m||!clan)
+    return;
+
+  m.weaponMasteries=
+    martialWeaponMasteriesFor(
+      clan.domains,
+      m.techniques
+    );
+
+  const selection=
+    martialDomainSelectionFor(
+      clan.domains,
+      m.weaponMasteries
+    );
+
+  m.primaryDomain=
+    selection.primaryDomain;
+
+  m.secondaryDomains=
+    selection.secondaryDomains;
+
+  state.weapons=[];
+
+  for(
+    const d of
+    selection.physicalDomains
+  ){
+    const mastery=
+      m.weaponMasteries[d]||1;
+
+    const w=attachWeaponTraits(
+      {
+        name:
+          MARTIAL_DOMAIN_WEAPON[d]||d,
+        masteryBase:mastery,
+        mastery,
+        ench:[],
+        martialDomain:d,
+        martialPrimary:
+          d===m.primaryDomain
+      },
+      'classic'
+    );
+
+    w.enchantmentCount=
+      martialEnchantmentCountFor(
+        mastery
+      );
+
+    state.weapons.push(w);
+
+    if(w.enchantmentCount){
+      for(
+        let i=0;
+        i<w.enchantmentCount;
+        i++
+      ){
+        const opts=
+          vaeloriaEnchantOptions();
+
+        const idx=
+          weightedPick(opts);
+
+        w.ench.push(
+          opts[idx].label
+        );
+      }
+    }
+  }
+}
 
 
 
