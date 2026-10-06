@@ -1,4 +1,12 @@
 import {
+  birthEventChildIdsFor,
+  characterSeasonFromIdFor,
+  characterHasChildExtra,
+  pendingBirthEventsForSeasonFromRoster,
+  pendingBirthEventsDueFromRoster
+} from "./rules/genealogy/birth-events.js";
+
+import {
   tournamentFighterValue,
   resolveTournamentBattle
 } from "./rules/tournament/battle-resolution.js";
@@ -1463,22 +1471,19 @@ function previousCharacter(){
   goToCharacterNumber(characterNumber-1);
 }
 function birthEventChildIds(ev){
-  const ids=[];
-  if(Array.isArray(ev?.childIds)) ids.push(...ev.childIds.filter(Boolean));
-  if(ev?.childId && !ids.includes(ev.childId)) ids.push(ev.childId);
-  return ids;
+  return birthEventChildIdsFor(ev);
 }
-function characterSeasonFromId(p,fallback=seasonNumber){
-  return Number(String(p?.id||'').match(/^S(\d+)-/)?.[1]||fallback);
+function characterSeasonFromId(
+  p,
+  fallback=seasonNumber
+){
+  return characterSeasonFromIdFor(
+    p,
+    fallback
+  );
 }
 function characterHasPossessesChildExtra(p){
-  if(!p) return false;
-  const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const isPossessChild=v=>norm(v).includes('possede un enfant');
-  if(isPossessChild(p.extra)) return true;
-  if(Array.isArray(p.extras)&&p.extras.some(isPossessChild)) return true;
-  if(Array.isArray(p.logs)&&p.logs.some(x=>isPossessChild(x?.val)||isPossessChild(x?.label)||isPossessChild(x?.result))) return true;
-  try{return isPossessChild(JSON.stringify({extra:p.extra,extras:p.extras,logs:p.logs,extraDetail:p.extraDetail}))}catch(e){return false}
+  return characterHasChildExtra(p);
 }
 function emergencyBackupUniverse(){
   try{return JSON.parse(localStorage.getItem(CLOUD_BACKUP_KEY)||'null')}catch(e){return null}
@@ -1541,34 +1546,35 @@ function isCharacterGenerationComplete(p){
   const statsOk=['Combat','Force','Intelligence','Résilience','Vitesse'].every(k=>Number.isFinite(Number(p.stats?.[k])));
   return !!(p.name&&p.title&&p.race&&p.gender&&p.arch&&p.job&&p.personality&&p.appearance?.age&&p.appearance?.body&&p.appearance?.c1&&p.appearance?.c2&&p.appearance?.sign&&statsOk);
 }
-function pendingBirthEventsForSeason(season=seasonNumber){
+function pendingBirthEventsForSeason(
+  season=seasonNumber
+){
   const roster=loadRoster();
-  repairMissingBirthEvents(roster,descendants());
-  const pending=[];
-  for(const p of Object.values(roster)){
-    for(const ev of (p?.extraDetail||[])){
-      if(ev?.kind!=='Enfant') continue;
-      const birthSeason=Number(ev.birthSeason||characterSeasonFromId(p,season));
-      if(birthSeason===Number(season) && birthEventChildIds(ev).length===0){
-        pending.push({parent:p,event:ev});
-      }
-    }
-  }
-  return pending;
+
+  repairMissingBirthEvents(
+    roster,
+    descendants()
+  );
+
+  return pendingBirthEventsForSeasonFromRoster(
+    roster,
+    season
+  );
 }
-function pendingBirthEventsDue(upToSeason=seasonNumber){
+function pendingBirthEventsDue(
+  upToSeason=seasonNumber
+){
   const roster=loadRoster();
-  repairMissingBirthEvents(roster,descendants());
-  const pending=[];
-  for(const p of Object.values(roster)){
-    for(const ev of (p?.extraDetail||[])){
-      if(ev?.kind!=='Enfant'||birthEventChildIds(ev).length) continue;
-      ev.birthSeason=Number(ev.birthSeason||characterSeasonFromId(p,upToSeason));
-      ev.eligibleSeason=Number(ev.eligibleSeason||ev.birthSeason+1);
-      if(ev.birthSeason<=Number(upToSeason)) pending.push({parent:p,event:ev});
-    }
-  }
-  return pending.sort((a,b)=>(a.event.birthSeason-b.event.birthSeason)||String(a.parent.id).localeCompare(String(b.parent.id)));
+
+  repairMissingBirthEvents(
+    roster,
+    descendants()
+  );
+
+  return pendingBirthEventsDueFromRoster(
+    roster,
+    upToSeason
+  );
 }
 function blockSeasonAdvanceForBirths(){
   const pending=pendingBirthEventsForSeason(seasonNumber);
