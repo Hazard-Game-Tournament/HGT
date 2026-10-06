@@ -1,4 +1,7 @@
 import {
+  weaponContextMultiplierFor
+} from "./rules/weapons/context.js";
+import {
   wheelMetalGradientFor
 } from "./rules/wheel/metal-gradient.js";
 import {
@@ -525,25 +528,14 @@ function racialProfile7(){
 }
 
 function weaponContextMultiplier(name){
- let m=1, arch=(state.archParts||[]).join(' / '), culture=state.culture||'', region=state.birthRegion||'';
- const melee=['Épée','Épée à deux mains','Katana','Dagues doubles','Hache','Hache à deux mains','Marteau de guerre','Rope Dart / Corde-dard','Lance','Hallebarde','Faux','Bâton','Nunchaku','Chaîne / Kusarigama','Fouet','Gantelets de combat','Bouclier offensif'];
- const rangedSet=['Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique'];
- const heavy=['Épée à deux mains','Hache à deux mains','Marteau de guerre','Hallebarde','Bouclier offensif'];
- const subtle=['Dagues doubles','Fouet','Chaîne / Kusarigama','Rope Dart / Corde-dard'];
- const mystic=['Grimoire / catalyseur','Arme énergétique'];
- // Archétype = influence principale.
- if(/Tireur/i.test(arch)&&rangedSet.includes(name))m*=3;
- if(/Guerrier|Berserker|Tank|Paladin|Slayer/i.test(arch)&&melee.includes(name))m*=2;
- if(/Berserker|Tank/i.test(arch)&&heavy.includes(name))m*=1.5;
- if(/Assassin|Voleur/i.test(arch)&&subtle.includes(name))m*=2;
- if(/Mage|Sorcier|Invocateur/i.test(arch)&&mystic.includes(name))m*=2;
- // Culture/région = influence secondaire.
- if((region==='Nexara'||/Nexus|Technopolit|techno/i.test(culture))&&['Pistolet','Fusil','Fusil de précision','Arme énergétique'].includes(name))m*=2;
- if(/Forteresses|Hautes-cimes|Forgienne|Martiale/i.test(culture)&&heavy.includes(name))m*=1.5;
- if(/Nomade|Itinérante|Navigatrice|Frontière/i.test(culture)&&['Arc','Lance','Dagues doubles','Bâton'].includes(name))m*=1.5;
- if(/Sylvaine|Clairières|Forestière|Jungle/i.test(culture)&&['Arc','Lance','Dagues doubles'].includes(name))m*=1.5;
- if(/Haute-céleste|Savante|Spirituelle|Cristalline/i.test(culture)&&['Grimoire / catalyseur','Arme énergétique','Bâton'].includes(name))m*=1.5;
- return m;
+  return weaponContextMultiplierFor(
+    name,
+    {
+      archParts:state.archParts||[],
+      culture:state.culture||'',
+      birthRegion:state.birthRegion||''
+    }
+  );
 }
 function weaponOptions(forceRanged=false){
  // « Aucune arme » reste exactement à 25 % ; les 75 % restants sont répartis contextuellement.
