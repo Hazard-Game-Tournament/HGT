@@ -1,4 +1,10 @@
 import {
+  saveCloudCharacter,
+  deleteCloudCharacter,
+  saveCloudGameState
+} from "./services/cloud-character-storage.js";
+
+import {
   seasonTournamentIds,
   createTournamentState,
   automaticTournamentDecision,
@@ -6289,12 +6295,55 @@ async function cloudLoadGameToLocal(id){
 }
 function queueCloudCharacterSave(character){if(!cloudReady()||!character?.id)return;const copy=JSON.parse(JSON.stringify(character));clearTimeout(__cloudCharacterTimers.get(character.id));__cloudCharacterTimers.set(character.id,setTimeout(()=>cloudSaveCharacter(copy).catch(cloudSyncError),900))}
 async function cloudSaveCharacter(character){
-  if(!cloudReady()||!character?.id)return;cloudStatus(`☁️ ${cloudCurrentGame.name} • sauvegarde…`,'syncing');
-  const p=parseCharacterCode(character.id);const {error}=await cloudClient.from('characters').upsert({game_id:cloudCurrentGame.id,character_code:character.id,season:p.season,character_number:p.number,name:character.name||null,data:character},{onConflict:'game_id,character_code'});if(error)throw error;queueCloudGameStateSave();cloudUpdateTopStatus();
+  if(
+    !cloudReady() ||
+    !character?.id
+  ){
+    return;
+  }
+
+  cloudStatus(
+    `☁️ ${cloudCurrentGame.name} • sauvegarde…`,
+    'syncing'
+  );
+
+  await saveCloudCharacter({
+    client:cloudClient,
+    gameId:cloudCurrentGame.id,
+    character,
+    parseCharacterCode
+  });
+
+  queueCloudGameStateSave();
+  cloudUpdateTopStatus();
 }
-async function cloudDeleteCharacter(code){if(!cloudReady())return;const {error}=await cloudClient.from('characters').delete().eq('game_id',cloudCurrentGame.id).eq('character_code',code);if(error)cloudSyncError(error)}
+async function cloudDeleteCharacter(code){
+  if(!cloudReady())
+    return;
+
+  try{
+    await deleteCloudCharacter({
+      client:cloudClient,
+      gameId:cloudCurrentGame.id,
+      code
+    });
+  }catch(error){
+    cloudSyncError(error);
+  }
+}
 function queueCloudGameStateSave(){if(!cloudReady())return;clearTimeout(__cloudGameTimer);__cloudGameTimer=setTimeout(()=>cloudSaveGameState().catch(cloudSyncError),900)}
-async function cloudSaveGameState(){if(!cloudReady())return;const {error}=await cloudClient.from('games').update({current_season:seasonNumber,current_character_number:characterNumber,universe_meta:universeMeta()}).eq('id',cloudCurrentGame.id);if(error)throw error}
+async function cloudSaveGameState(){
+  if(!cloudReady())
+    return;
+
+  await saveCloudGameState({
+    client:cloudClient,
+    gameId:cloudCurrentGame.id,
+    seasonNumber,
+    characterNumber,
+    universeMeta:universeMeta()
+  });
+}
 function queueCloudUniverseSync(){if(!cloudReady())return;clearTimeout(__cloudUniverseTimer);__cloudUniverseTimer=setTimeout(()=>cloudSyncGenealogy().catch(cloudSyncError),1400)}
 async function cloudSyncGenealogy(){
   if(!cloudReady())return;
