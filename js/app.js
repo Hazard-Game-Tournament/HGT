@@ -1,4 +1,10 @@
 import {
+  createMartialClanRecord,
+  createEmptyFounderClanRecord,
+  addMartialClanMember,
+  updateMartialClan
+} from "./services/martial-clans.js";
+import {
   loadMartialClansFromStorage,
   saveMartialClansToStorage
 } from "./services/martial-clans-storage.js";
@@ -607,12 +613,108 @@ function martialClanDomainCount(){
     MARTIAL_DOMAIN_COUNT_WEIGHTS
   );
 }
-function createMartialClan(founderId){const clans=loadMartialClans(),id=`CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,domains=martialPickN(MARTIAL_DOMAINS,martialClanDomainCount()),patrimony={};for(const d of domains){const cat=MARTIAL_TECHNIQUES[d];patrimony[d]={secret:martialPickN(cat.secret,5),legendary:martialPickN(cat.legendary,2)}}clans[id]={id,name:`Clan ${founderId}`,founderId,founderName:state.name||'',foundedSeason:seasonNumber,domains,patrimony,members:[founderId]};saveMartialClans(clans);return clans[id]}
-function joinMartialClan(clanId,status){const clans=loadMartialClans(),c=clans[clanId];if(!c)return null;c.members=[...new Set([...(c.members||[]),state.id])];saveMartialClans(clans);return c}
+function createMartialClan(founderId){
+  const clans=loadMartialClans();
+  const id=
+    `CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+
+  const domains=
+    martialPickN(
+      MARTIAL_DOMAINS,
+      martialClanDomainCount()
+    );
+
+  const patrimony={};
+
+  for(const d of domains){
+    const cat=MARTIAL_TECHNIQUES[d];
+
+    patrimony[d]={
+      secret:martialPickN(cat.secret,5),
+      legendary:martialPickN(cat.legendary,2)
+    };
+  }
+
+  const clan=createMartialClanRecord({
+    id,
+    founderId,
+    founderName:state.name||'',
+    foundedSeason:seasonNumber,
+    domains,
+    patrimony
+  });
+
+  clans[id]=clan;
+  saveMartialClans(clans);
+
+  return clan;
+}
+function joinMartialClan(clanId,status){
+  const clans=loadMartialClans();
+  const clan=clans[clanId];
+
+  if(!clan)
+    return null;
+
+  addMartialClanMember(
+    clan,
+    state.id
+  );
+
+  saveMartialClans(clans);
+  return clan;
+}
 function martialClanPoolOptions(){const clans=loadMartialClans();return Object.values(clans).map(c=>W(`${c.id} — ${c.name||c.id}`));}
 function martialEnsureState(status,clan){state.powers=[];state._extraPower=false;state.martial={status,clanId:clan?.id||null,clanName:clan?.name||null,domains:[...(clan?.domains||[])],techniques:[],weaponMasteries:{}};}
-function martialCreateEmptyFounderClan(){const clans=loadMartialClans(),id=`CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const clan={id,name:`Clan ${state.name||state.id}`,founderId:state.id,founderName:state.name||'',foundedSeason:seasonNumber,domains:[],patrimony:{},members:[state.id]};clans[id]=clan;saveMartialClans(clans);martialEnsureState('Fondateur',clan);return clan;}
-function martialUpdateClan(mutator){const clans=loadMartialClans(),id=state.martial?.clanId,c=clans[id];if(!c)return null;mutator(c);clans[id]=c;saveMartialClans(clans);state.martial.clanName=c.name;state.martial.domains=[...(c.domains||[])];return c;}
+function martialCreateEmptyFounderClan(){
+  const clans=loadMartialClans();
+
+  const id=
+    `CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+
+  const clan=
+    createEmptyFounderClanRecord({
+      id,
+      fighterId:state.id,
+      fighterName:state.name||'',
+      foundedSeason:seasonNumber
+    });
+
+  clans[id]=clan;
+  saveMartialClans(clans);
+
+  martialEnsureState(
+    'Fondateur',
+    clan
+  );
+
+  return clan;
+}
+function martialUpdateClan(mutator){
+  const clans=loadMartialClans();
+  const id=state.martial?.clanId;
+  const clan=clans[id];
+
+  if(!clan)
+    return null;
+
+  updateMartialClan(
+    clan,
+    mutator
+  );
+
+  clans[id]=clan;
+  saveMartialClans(clans);
+
+  state.martial.clanName=
+    clan.name;
+
+  state.martial.domains=[
+    ...(clan.domains||[])
+  ];
+
+  return clan;
+}
 function martialMasteryTask(tech){return task(`${tech.type==='legendary'?'Technique légendaire':'Technique secrète'} — Maîtrise — ${tech.name}`,()=>MARTIAL_MASTERY_WEIGHTS.map((w,i)=>W(`${i+1} — ${masteryRanks[i]||rankLabel(i+1,'mastery')}`,w)),v=>{const base=valNum(v),bonus=martialTechniqueBonus(Number(state.chi?.rank)||1,tech.type);tech.masteryBase=base;tech.chiBonus=bonus;tech.mastery=Math.min(10,base+bonus);tech.equivalentPower=tech.mastery*(tech.type==='legendary'?1.5:1)*martialChiMultiplier(state.chi?.rank);});}
 function martialPersonalTechniqueTasks(){const m=state.martial,clan=loadMartialClans()[m?.clanId];if(!m||!clan)return[];const out=[],chosenS=new Set(),chosenL=new Set();const secretPool=()=>clan.domains.flatMap(d=>(clan.patrimony[d]?.secret||[]).map(n=>({d,n}))).filter(x=>!chosenS.has(`${x.d}|${x.n}`));const legendaryPool=()=>clan.domains.flatMap(d=>(clan.patrimony[d]?.legendary||[]).map(n=>({d,n}))).filter(x=>!chosenL.has(`${x.d}|${x.n}`));
  const addPick=(type,i,poolFn,chosen)=>task(`${type==='secret'?'Technique secrète':'Technique légendaire'} personnelle ${i}`,()=>poolFn().map(x=>W(`${x.d} — ${x.n}`)),v=>{const cut=v.indexOf(' — '),d=v.slice(0,cut),n=v.slice(cut+3),t={domain:d,name:n,type,masteryBase:null,chiBonus:0,mastery:null,equivalentPower:null};chosen.add(`${d}|${n}`);m.techniques.push(t);insert([martialMasteryTask(t)]);});
