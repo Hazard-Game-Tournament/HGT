@@ -1,4 +1,13 @@
 import {
+  appearanceContextFor,
+  appearanceWeightContextFor,
+  colorContextFor,
+  jobContextFor,
+  historyContextFor,
+  extraContextFor
+} from "./rules/context/index.js";
+
+import {
   powerExact,
   weightedPick,
   readableText
@@ -3656,45 +3665,29 @@ function addLegendaryExtra(){insert([task('Extra légendaire — Catégorie',()=
 function contextualOutfitLabel(kind){
   return contextualOutfitLabelFor(
     kind,
-    {
-      archParts:state.archParts||[],
-      arch:state.arch||'',
-      job:state.job||''
-    }
+    appearanceContextFor(state)
   );
 }
 
 function resolveClothingStyle(choice){
   return resolveClothingStyleFor(
     choice,
-    {
-      archParts:state.archParts||[],
-      arch:state.arch||'',
-      job:state.job||''
-    }
+    appearanceContextFor(state)
   );
 }
 
 
 
 function clothingStyleOptions(){
-  return clothingStyleOptionsFor({
-    culture:state.culture||'',
-    birthRegion:state.birthRegion||'',
-    job:state.job||'',
-    archParts:state.archParts||[]
-  });
+  return clothingStyleOptionsFor(
+    appearanceWeightContextFor(state)
+  );
 }
 
 function vaeloriaColorOptions(exclude=null){
   return vaeloriaColorOptionsFor(
     colors,
-    {
-      race:state.race||'',
-      lineage:state.lineage||{},
-      birthRegion:state.birthRegion||'',
-      culture:state.culture||''
-    },
+    colorContextFor(state),
     exclude
   );
 }
@@ -3704,36 +3697,24 @@ function vaeloriaColorOptions(exclude=null){
 function vaeloriaJobOptions(){
   return vaeloriaJobOptionsFor(
     jobs,
-    {
-      culture:state.culture||'',
-      birthRegion:state.birthRegion||'',
-      archParts:state.archParts||[]
-    }
+    jobContextFor(state)
   );
 }
 
 function vaeloriaHistoryOptions(){
   return vaeloriaHistoryOptionsFor(
     histories,
-    {
-      lineage:state.lineage||{},
-      birthRegion:state.birthRegion||'',
-      culture:state.culture||'',
-      race:state.race||''
-    }
+    historyContextFor(state)
   );
 }
 
 function vaeloriaExtraOptions(){
   return vaeloriaExtraOptionsFor(
     extras,
-    {
-      activeArchs:activeArchs(),
-      birthRegion:state.birthRegion||'',
-      culture:state.culture||'',
-      race:state.race||'',
-      archParts:state.archParts||[]
-    }
+    extraContextFor(
+      state,
+      activeArchs()
+    )
   );
 }
 
