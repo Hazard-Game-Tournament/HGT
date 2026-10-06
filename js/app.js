@@ -1,4 +1,9 @@
 import {
+  vaeloriaPowerOptionsFor,
+  vaeloriaEnchantOptionsFor
+} from "./rules/vaeloria/power-enchantment.js";
+
+import {
   vaeloriaJobOptionsFor,
   vaeloriaHistoryOptionsFor,
   vaeloriaExtraOptionsFor
@@ -3122,41 +3127,17 @@ function applyArchetypeSubwheels(a){
   if(a==='Prodige')addProdigeBonuses();
 }
 
+
 function vaeloriaPowerOptions(){
- const score=Object.fromEntries(powers.map(x=>[x,1]));
- const boost=(names,m)=>names.forEach(n=>{if(score[n]!=null)score[n]*=m});
- const L=state.lineage||{}, race=state.race||'', region=state.birthRegion||'', culture=state.culture||'';
-
- // 1. Lignée / nature raciale — influence la plus forte.
- const tokens=[
-  L.vampire,L.werewolf,L.spiritEssence,L.dragonLineage,L.artificialOrigin,
-  L.alienType,L.alienEnvironment,L.divineDomain,L.titanOrigin,L.undeadForm,L.beastSpecies
- ].filter(Boolean).join(' ');
- if(/Sanguine|Sang|Vampire/i.test(tokens+' '+race))boost(['Sang','Régénération','Absorption'],3);
- if(/Nocturne|Spectrale|Ombre|Squelette|Liche/i.test(tokens+' '+race))boost(['Ténèbres','Invisibilité','Illusion'],3);
- if(/Psychique|Énergétique/i.test(tokens))boost(['Télépathie','Télékinésie','Barrières'],3);
- if(/Lunaire|Spirituelle/i.test(tokens))boost(['Métamorphose','Régénération','Nature'],2);
- if(/Tempête|Foudre/i.test(tokens))boost(['Foudre','Air'],3);
- if(/Volcan|Magma|Feu/i.test(tokens))boost(['Feu','Explosion'],3);
- if(/Glace|Glaciaire/i.test(tokens))boost(['Glace','Eau'],3);
- if(/Océan|Aquatique|Abyssale/i.test(tokens))boost(['Eau','Glace'],3);
- if(/Forêt|Forestière|Végétaloïde|Nature/i.test(tokens))boost(['Nature','Terre'],3);
- if(/Cristal|Cristallin/i.test(tokens))boost(['Terre','Barrières'],3);
- if(/Lumière|Céleste|Ange/i.test(tokens+' '+race))boost(['Lumière','Barrières','Régénération'],3);
- if(/Démon/i.test(race))boost(['Ténèbres','Feu','Malédiction'].filter(x=>score[x]!=null),2);
- if(/Nexus|Synthétique|Artificiel|Cyborg|N\.E\.X\.U\.S/i.test(tokens+' '+race))boost(['Magnétisme','Barrières','Télékinésie'],2);
-
- // 2. Région / culture — influence secondaire.
- if(region==='Varkhoryn'||/Volcanique|Forgienne/i.test(culture))boost(['Feu','Explosion'],2);
- if(region==='Kythera'||/Cristalline|Minière/i.test(culture))boost(['Terre','Barrières'],2);
- if(region==='Lumerys'||/Forestière|Bioluminescente/i.test(culture))boost(['Nature','Lumière'],2);
- if(region==='Naeroth'||/Maritime|Littorale|Abyssale/i.test(culture))boost(['Eau','Glace'],2);
- if(region==='Thoryndra'||region==='Vaerunn'||/tempêtes/i.test(culture))boost(['Foudre','Air'],2);
- if(region==='Sylvaeryn'||/Sylvaine|Clairières/i.test(culture))boost(['Nature','Terre'],2);
- if(region==='Nexara'||/Nexus|Technopolit|techno/i.test(culture))boost(['Magnétisme','Télékinésie','Barrières'],2);
- if(region==='Aetherys'||/Haute-céleste/i.test(culture))boost(['Air','Lumière'],2);
-
- return powers.map(x=>W(x,score[x]));
+  return vaeloriaPowerOptionsFor(
+    powers,
+    {
+      lineage:state.lineage||{},
+      race:state.race||'',
+      birthRegion:state.birthRegion||'',
+      culture:state.culture||''
+    }
+  );
 }
 
 function addPower(label='Pouvoir',chaosMode=false){insert([task(label,()=>chaosMode?EQ(chaos):vaeloriaPowerOptions(),x=>{let p={name:x,mastery:null};state.powers.push(p);let follow=[];if(x==='Pouvoir unique')follow.push(task(`${label} — Manifestation unique`,EQ(uniquePowers),u=>p.name=u));follow.push(...metamorphosisTasks(p,label));follow.push(task(`${label} — Maîtrise`,centered,m=>{p.masteryBase=valNum(m);p.masteryMod=masteryMod('power');p.mastery=Math.max(0,p.masteryBase+p.masteryMod)}));insert(follow)})])}
@@ -3679,26 +3660,6 @@ function vaeloriaExtraOptions(){
   );
 }
 
-function vaeloriaEnchantOptions(){
- // Enchantments are lightly influenced by power/lineage/environment.
- const score=Object.fromEntries(ench.map(x=>[x,1]));
- const boost=(xs,m=1.5)=>xs.forEach(x=>{if(score[x]!=null)score[x]*=m});
- const L=state.lineage||{},r=state.birthRegion||'',c=state.culture||'',race=state.race||'';
- const ps=(state.powers||[]).map(p=>p?.name||'').join(' ');
- const t=[ps,L.vampire,L.spiritEssence,L.dragonLineage,L.divineDomain,L.titanOrigin,r,c,race].filter(Boolean).join(' ');
- if(/Feu|Volcan|Magma/i.test(t))boost(['Flamme','Explosion']);
- if(/Glace|Givre|Glaciaire/i.test(t))boost(['Givre']);
- if(/Foudre|Tempête/i.test(t))boost(['Foudre']);
- if(/Poison/i.test(t))boost(['Poison']);
- if(/Sang|Vampire/i.test(t))boost(['Vampirisme']);
- if(/Lumière|Ange|Divin|Sacré/i.test(t))boost(['Sacré']);
- if(/Spectral|Esprit|Squelette|Liche/i.test(t))boost(['Spectral']);
- if(/Ténèbres|Démon/i.test(t))boost(['Démoniaque']);
- if(/Temps/i.test(t))boost(['Time Slasher']);
- if(/Espace|Téléport/i.test(t))boost(['Distorsion']);
- if(/Chaos/i.test(t))boost(['Chaos','Reality Break']);
- return ench.map(x=>W(x,score[x]));
-}
 
 function originsLineageRows(){
  const L=state.lineage||{},rows=[]; const add=(k,v)=>{if(v!==null&&v!==undefined&&v!==''&&(!(Array.isArray(v))||v.length))rows.push([k,Array.isArray(v)?v.join(' / '):v])};
@@ -3707,6 +3668,19 @@ function originsLineageRows(){
  for(const [k,v] of Object.entries(L))if(labels[k])add(labels[k],v);
  const sc=L.primaryComponent;if(sc&&['Demi-dieu','Cyborg','Titan','Dragon humanoïde'].includes(sc.race)){add('Pureté / puissance',sc.power?`${sc.power} %`:null);add('Stade supérieur',sc.divineRank||sc.nexusStage||sc.titanRank||sc.dragonRank);add('Race d’origine',sc.originRace);add('Domaines divins',sc.divineDomains);add(sc.titanRank==='Titan'?'Affinité titanesque':'Origine primordiale',sc.titanOrigin);add('Lignée draconique',sc.dragonBlood);add('Affinité draconique',sc.dragonAffinity);add('Capacité draconique',sc.dragonAbility);add('Augmentations / structures',sc.nexusStructures);add('Armes Nexus',sc.nexusWeapons)}
  add('Style vestimentaire',state.clothingStyle);return rows;
+}
+
+function vaeloriaEnchantOptions(){
+  return vaeloriaEnchantOptionsFor(
+    ench,
+    {
+      lineage:state.lineage||{},
+      race:state.race||'',
+      birthRegion:state.birthRegion||'',
+      culture:state.culture||'',
+      powers:state.powers||[]
+    }
+  );
 }
 
 function buildInitial(){queue=[task('Strate de naissance',vaeloriaBirthStrataOptions,x=>state.birthStratum=x),
