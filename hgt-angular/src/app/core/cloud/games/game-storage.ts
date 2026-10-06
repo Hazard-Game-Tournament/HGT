@@ -1,141 +1,30 @@
-import {
-  CloudClient,
-  throwCloudError
-} from '../cloud-client';
-
-import {
-  CloudGame,
-  CloudGamePayload
-} from './game.models';
+import { CloudClient } from '../cloud-client';
+import { CloudGame, CloudGamePayload } from './game.models';
+import { GameCloudReader } from './game-reader';
+import { GameCloudWriter } from './game-writer';
 
 export class GameCloudStorage {
-  constructor(
-    private readonly client:
-      CloudClient
-  ) {}
+  private readonly reader: GameCloudReader;
+  private readonly writer: GameCloudWriter;
 
-  async list():
-    Promise<CloudGame[]> {
-    const result =
-      await this.client
-        .from<CloudGame[]>('games')
-        .select('*')
-        .order(
-          'updated_at',
-          { ascending: false }
-        );
-
-    throwCloudError(result);
-
-    return result.data ?? [];
+  constructor(client: CloudClient) {
+    this.reader = new GameCloudReader(client);
+    this.writer = new GameCloudWriter(client);
   }
 
-  async rename(
-    id: string,
-    name: string
-  ): Promise<void> {
-    const result =
-      await this.client
-        .from('games')
-        .update({ name })
-        .eq('id', id);
-
-    throwCloudError(result);
+  list(): Promise<CloudGame[]> {
+    return this.reader.list();
   }
 
-  async delete(
-    id: string
-  ): Promise<void> {
-    const result =
-      await this.client
-        .from('games')
-        .delete()
-        .eq('id', id);
-
-    throwCloudError(result);
+  load(id: string): Promise<CloudGamePayload> {
+    return this.reader.load(id);
   }
 
-  async load(
-    id: string
-  ): Promise<CloudGamePayload> {
-    const [
-      game,
-      characters,
-      descendants,
-      npcs,
-      tournaments
-    ] = await Promise.all([
-      this.client
-        .from<CloudGame>('games')
-        .select('*')
-        .eq('id', id)
-        .single(),
+  rename(id: string, name: string): Promise<void> {
+    return this.writer.rename(id, name);
+  }
 
-      this.client
-        .from('characters')
-        .select('*')
-        .eq('game_id', id),
-
-      this.client
-        .from('descendants')
-        .select('*')
-        .eq('game_id', id),
-
-      this.client
-        .from('npcs')
-        .select('*')
-        .eq('game_id', id),
-
-      this.client
-        .from('tournaments')
-        .select('*')
-        .eq('game_id', id)
-        .order(
-          'season',
-          { ascending: false }
-        )
-    ]);
-
-    [
-      game,
-      characters,
-      descendants,
-      npcs,
-      tournaments
-    ].forEach(throwCloudError);
-
-    if (!game.data) {
-      throw new Error(
-        'Partie Cloud introuvable'
-      );
-    }
-
-    return {
-      game: game.data,
-
-      characters:
-        (characters.data ?? []) as
-          CloudGamePayload[
-            'characters'
-          ],
-
-      descendants:
-        (descendants.data ?? []) as
-          CloudGamePayload[
-            'descendants'
-          ],
-
-      npcs:
-        (npcs.data ?? []) as
-          CloudGamePayload[
-            'npcs'
-          ],
-
-      tournaments:
-        (tournaments.data ?? []) as
-          CloudGamePayload[
-            'tournaments'
-          ]
-    };
+  delete(id: string): Promise<void> {
+    return this.writer.delete(id);
   }
 }

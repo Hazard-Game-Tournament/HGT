@@ -4,7 +4,7 @@ import {
 
 import {
   CloudController
-} from '../cloud-controller';
+} from '../controllers';
 
 import {
   CloudRuntime,

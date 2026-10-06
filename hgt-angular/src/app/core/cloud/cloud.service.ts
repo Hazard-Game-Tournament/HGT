@@ -1,134 +1,54 @@
-import {
-  HgtCharacter,
-  HgtDescendant,
-  HgtNpc,
-  HgtTournament
-} from '../models/cloud.models';
+import { HgtCharacter, HgtDescendant, HgtNpc, HgtTournament } from '../models/cloud.models';
+import { cloudGameStateRow } from './game-state';
+import { CloudCharacterDomain } from './domain/cloud-character.domain';
+import { CloudDomainConfig } from './domain/cloud-domain.models';
+import { CloudGenealogyDomain } from './domain/cloud-genealogy.domain';
+import { CloudTournamentDomain } from './domain/cloud-tournament.domain';
 
-import {
-  CharacterCodeParser,
-  characterCloudRow,
-  rosterCloudRows
-} from './characters';
-
-import {
-  descendantCloudRows,
-  npcCloudRows,
-  staleCloudCodes
-} from './genealogy';
-
-import {
-  tournamentCloudRow,
-  tournamentPruneCutoff
-} from './tournaments';
-
-import {
-  cloudGameStateRow
-} from './game-state';
-
-export interface CloudDomainConfig {
-  gameId: string;
-  parseCharacterCode: CharacterCodeParser;
-}
+export type { CloudDomainConfig } from './domain/cloud-domain.models';
 
 export class CloudService {
-  constructor(
-    private readonly config: CloudDomainConfig
-  ) {}
+  private readonly character: CloudCharacterDomain;
+  private readonly genealogy: CloudGenealogyDomain;
+  private readonly tournament: CloudTournamentDomain;
 
-  get gameId(): string {
-    return this.config.gameId;
+  constructor(private readonly config: CloudDomainConfig) {
+    this.character = new CloudCharacterDomain(config.gameId, config.parseCharacterCode);
+    this.genealogy = new CloudGenealogyDomain(config.gameId);
+    this.tournament = new CloudTournamentDomain(config.gameId);
   }
 
-  characterRow(
-    character: HgtCharacter
-  ) {
-    return characterCloudRow(
-      character,
-      this.config.gameId,
-      this.config.parseCharacterCode
-    );
+  get gameId(): string { return this.config.gameId; }
+
+  characterRow(value: HgtCharacter) {
+    return this.character.characterRow(value);
   }
 
-  rosterRows(
-    roster: Record<
-      string,
-      HgtCharacter | null | undefined
-    >
-  ) {
-    return rosterCloudRows(
-      roster,
-      this.config.gameId,
-      this.config.parseCharacterCode
-    );
+  rosterRows(value: Record<string, HgtCharacter | null | undefined>) {
+    return this.character.rosterRows(value);
   }
 
-  descendantRows(
-    descendants: Record<
-      string,
-      HgtDescendant | null | undefined
-    >
-  ) {
-    return descendantCloudRows(
-      descendants,
-      this.config.gameId
-    );
+  descendantRows(value: Record<string, HgtDescendant | null | undefined>) {
+    return this.genealogy.descendantRows(value);
   }
 
-  npcRows(
-    npcs: Record<
-      string,
-      HgtNpc | null | undefined
-    >
-  ) {
-    return npcCloudRows(
-      npcs,
-      this.config.gameId
-    );
+  npcRows(value: Record<string, HgtNpc | null | undefined>) {
+    return this.genealogy.npcRows(value);
   }
 
-  staleCodes(
-    remoteCodes: Array<
-      string | null | undefined
-    >,
-    localCodes: Array<
-      string | null | undefined
-    >
-  ) {
-    return staleCloudCodes(
-      remoteCodes,
-      localCodes
-    );
+  staleCodes(remote: Array<string | null | undefined>, local: Array<string | null | undefined>) {
+    return this.genealogy.staleCodes(remote, local);
   }
 
-  tournamentRow(
-    tournament: HgtTournament
-  ) {
-    return tournamentCloudRow(
-      tournament,
-      this.config.gameId
-    );
+  tournamentRow(value: HgtTournament) {
+    return this.tournament.tournamentRow(value);
   }
 
-  tournamentCutoff(
-    season: number,
-    keepSeasons: number
-  ) {
-    return tournamentPruneCutoff(
-      season,
-      keepSeasons
-    );
+  tournamentCutoff(season: number, keep: number) {
+    return this.tournament.tournamentCutoff(season, keep);
   }
 
-  gameStateRow(
-    seasonNumber: number,
-    characterNumber: number,
-    universeMeta: unknown
-  ) {
-    return cloudGameStateRow(
-      seasonNumber,
-      characterNumber,
-      universeMeta
-    );
+  gameStateRow(season: number, character: number, meta: unknown) {
+    return cloudGameStateRow(season, character, meta);
   }
 }

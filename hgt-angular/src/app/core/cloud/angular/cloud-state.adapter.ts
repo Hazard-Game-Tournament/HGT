@@ -1,6 +1,6 @@
 import {
   CloudControllerState
-} from '../cloud-controller';
+} from '../controllers';
 
 import {
   HgtCharacter,

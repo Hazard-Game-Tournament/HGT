@@ -1,4 +1,3 @@
-import {createBrowserCloudApi} from "./services/cloud-runtime.js";
 import {
   saveCloudTournament as saveCloudTournamentStorage,
   deleteCloudTournament as deleteCloudTournamentStorage
@@ -5686,37 +5685,14 @@ if(exportUniverseBtn)exportUniverseBtn.onclick=exportUniverse;
 // ============================================================
 const SUPABASE_URL='https://qeuqxvyrmrqvymrafvtv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_cRbNvF-wSAkFrSUYq_Uc6g_sJ56grrF';
-const CLOUD_GAME_KEY='roue_cloud_game_id_v1';
-const CLOUD_LOADED_GAME_KEY='roue_cloud_loaded_game_id_v1';
-const CLOUD_BACKUP_KEY='roue_local_backup_before_cloud_v1';
 let cloudClient=null,cloudUser=null,cloudGames=[],cloudCurrentGame=null,cloudProfile=null;
 const PLAYER_PROFILE_TABLE='player_profiles';
-let __cloudCharacterTimers=new Map(),__cloudUniverseTimer=null,__cloudGameTimer=null,__cloudTournamentTimer=null;
-let __cloudSyncBusy=false;
 
 function hgtEntryMessage(text,kind=''){const e=document.getElementById('hgtEntryMessage');if(e){e.textContent=text||'';e.style.color=kind==='error'?'#f0b5b5':'#b9aab1'}}
 function validPseudo(v){return typeof v==='string'&&v.trim().length>=3&&v.trim().length<=24&&/^[A-Za-zÀ-ÖØ-öø-ÿ0-9 _.-]+$/u.test(v.trim())}
-async function loadCloudProfile(){
-  cloudProfile=null;if(!cloudClient||!cloudUser)return null;
-  const {data,error}=await cloudClient.from(PLAYER_PROFILE_TABLE).select('user_id,username,avatar_champion_id,avatar_image_path,avatar_focus_x,avatar_focus_y,avatar_zoom,created_at,updated_at').eq('user_id',cloudUser.id).maybeSingle();
-  if(error){console.warn('Profil joueur indisponible',error);return null}cloudProfile=data||null;return cloudProfile;
-}
-async function createCloudProfile(username){
-  const clean=String(username||'').trim();if(!validPseudo(clean))throw new Error('Pseudo : 3 à 24 caractères, lettres/chiffres/espaces/._- uniquement.');
-  const {data,error}=await cloudClient.from(PLAYER_PROFILE_TABLE).insert({user_id:cloudUser.id,username:clean}).select('user_id,username,avatar_champion_id,avatar_image_path,avatar_focus_x,avatar_focus_y,avatar_zoom,created_at,updated_at').single();
-  if(error){if(error.code==='23505')throw new Error('Ce pseudo exact existe déjà. La casse compte : Damien et damien sont différents.');throw error}
-  cloudProfile=data;updatePlayerPseudo();return data;
-}
 let __profileAvatarObjectUrl=null;
 async function renderPlayerAvatar(){const host=document.getElementById('playerAvatar');if(!host)return;host.style.setProperty('--avatar-x',(cloudProfile?.avatar_focus_x??50)+'%');host.style.setProperty('--avatar-y',(cloudProfile?.avatar_focus_y??32)+'%');host.style.setProperty('--avatar-zoom',String((Number(cloudProfile?.avatar_zoom??160)||160)/100));if(__profileAvatarObjectUrl){URL.revokeObjectURL(__profileAvatarObjectUrl);__profileAvatarObjectUrl=null}host.textContent='👤';const path=cloudProfile?.avatar_image_path;if(!path||!cloudReady())return;try{const blob=await cloudDownloadPortraitPath(path);if(!blob)return;const u=URL.createObjectURL(blob);__profileAvatarObjectUrl=u;const img=document.createElement('img');img.src=u;img.alt='Icône de profil';host.replaceChildren(img)}catch(e){}}
 function updatePlayerPseudo(){const e=document.getElementById('playerPseudo'),label=document.getElementById('playerPseudoText');if(!e)return;if(cloudUser&&cloudProfile?.username){e.hidden=false;if(label)label.textContent=cloudProfile.username;e.title='Ouvrir le profil';e.onclick=openProfileModal;const av=e.querySelector('#playerAvatar');if(av){av.title='Ouvrir le profil';av.onclick=null}renderPlayerAvatar()}else{e.hidden=true;e.onclick=null}}
-async function saveProfileChampionAvatar(championId,x,y,zoom){
- const ch=championHistory().find(v=>v.id===championId);if(!ch)throw new Error("Ce personnage n’est pas un Champion du joueur.");
- const c=loadRoster()[championId]||{},path=c?.imageGeneration?.championPath||c?.imageGeneration?.selectedPortrait||null;if(!path)throw new Error("Ce Champion n’a pas encore de portrait disponible.");
- x=Math.max(0,Math.min(100,Number(x)));y=Math.max(0,Math.min(100,Number(y)));zoom=Math.max(100,Math.min(300,Math.round(Number(zoom)||160)));
- const {data,error}=await cloudClient.from(PLAYER_PROFILE_TABLE).update({avatar_champion_id:championId,avatar_image_path:path,avatar_focus_x:x,avatar_focus_y:y,avatar_zoom:zoom}).eq('user_id',cloudUser.id).select('user_id,username,avatar_champion_id,avatar_image_path,avatar_focus_x,avatar_focus_y,avatar_zoom,created_at,updated_at').single();
- if(error)throw error;cloudProfile=data;updatePlayerPseudo();return data;
-}
 let __avatarEditChampionId=null,__avatarEditObjectUrl=null;
 function closeAvatarChampionModal(){document.getElementById('avatarChampionModal')?.classList.remove('active')}
 function closeAvatarCropModal(){document.getElementById('avatarCropModal')?.classList.remove('active');if(__avatarEditObjectUrl){URL.revokeObjectURL(__avatarEditObjectUrl);__avatarEditObjectUrl=null}}
@@ -5770,32 +5746,6 @@ function renderEntryGate(){
   if(!cloudProfile?.username){sub.textContent='Choisis ton identité publique pour les combats en ligne.';root.innerHTML=`<div class="hgt-entry-form"><input id="entryPseudo" maxlength="24" autocomplete="nickname" placeholder="Pseudo (3–24 caractères)"><button id="entryPseudoBtn">Créer mon pseudo</button><button class="secondary" id="entryLogout">Se déconnecter</button></div><div class="muted" style="margin-top:8px">Le pseudo est unique à l’identique. La casse compte : « Damien » et « damien » peuvent coexister.</div>`;document.getElementById('entryPseudoBtn').onclick=async()=>{const b=document.getElementById('entryPseudoBtn');b.disabled=true;try{await createCloudProfile(document.getElementById('entryPseudo').value);renderEntryGate()}catch(e){hgtEntryMessage(e.message||String(e),'error')}finally{b.disabled=false}};document.getElementById('entryLogout').onclick=cloudLogout;return}
   sub.replaceChildren(document.createTextNode('Bienvenue, '),Object.assign(document.createElement('span'),{className:'hgt-entry-user',textContent:cloudProfile.username}),document.createTextNode('.'));root.innerHTML=`<div class="hgt-entry-form"><button id="entryPlay">⚔️ Jouer</button></div>`;document.getElementById('entryPlay').onclick=enterHgt;
 }
-async function entryForgotPassword(){
-  const email=document.getElementById('entryEmail')?.value.trim();
-  if(!email){hgtEntryMessage('Entre d’abord ton adresse e-mail.','error');return}
-  if(!cloudClient){hgtEntryMessage('Connexion au service en cours… réessaie dans un instant.','error');return}
-  hgtEntryMessage('Envoi du lien de récupération…');
-  const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
-  if(error){hgtEntryMessage('Envoi impossible : '+error.message,'error');return}
-  hgtEntryMessage('Lien envoyé. Vérifie ta boîte e-mail.');
-}
-async function entryUpdatePassword(){
-  const password=document.getElementById('entryNewPassword')?.value||'',confirmPassword=document.getElementById('entryNewPasswordConfirm')?.value||'';
-  if(password.length<6){hgtEntryMessage('Le nouveau mot de passe doit contenir au moins 6 caractères.','error');return}
-  if(password!==confirmPassword){hgtEntryMessage('Les deux mots de passe ne correspondent pas.','error');return}
-  hgtEntryMessage('Mise à jour du mot de passe…');
-  const {error}=await cloudClient.auth.updateUser({password});
-  if(error){hgtEntryMessage('Mise à jour impossible : '+error.message,'error');return}
-  hgtEntryMessage('Mot de passe modifié ✓');
-  hgtPasswordRecovery=false;
-  history.replaceState({},document.title,location.origin+location.pathname);
-  await cloudClient.auth.signOut();
-  cloudUser=null;cloudProfile=null;cloudGames=[];cloudCurrentGame=null;
-  setTimeout(()=>renderEntryGate(),700);
-}
-async function entryLogin(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||!password){hgtEntryMessage('Entre ton e-mail et ton mot de passe.','error');return}if(!cloudClient){hgtEntryMessage('Connexion au service en cours… réessaie dans un instant.','error');return}hgtEntryMessage('Connexion…');const {error}=await cloudClient.auth.signInWithPassword({email,password});if(error)hgtEntryMessage('Connexion impossible : '+error.message,'error')}
-async function entrySignup(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||password.length<6){hgtEntryMessage('Entre un e-mail et un mot de passe d’au moins 6 caractères.','error');return}hgtEntryMessage('Création du compte…');const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});if(error){hgtEntryMessage('Inscription impossible : '+error.message,'error');return}if(!data.session)hgtEntryMessage('Compte créé. Vérifie ton e-mail si une confirmation est demandée.');}
-
 function cloudReady(){return !!(cloudClient&&cloudUser&&cloudCurrentGame?.id)}
 const HGT_PREF_HIDE_SUBWHEELS='hgt_pref_hide_subwheels';
 function hideSubwheelsEnabled(){return localStorage.getItem(HGT_PREF_HIDE_SUBWHEELS)==='1'}
@@ -5810,20 +5760,11 @@ function hgtTimeZoneOptions(){
   if(!zones.length)zones=['UTC','Europe/Paris','Europe/London','Asia/Seoul','Asia/Tokyo','America/New_York','America/Los_Angeles'];
   const current=hgtTimeZone();if(!zones.includes(current))zones.unshift(current);return zones;
 }
-async function saveHgtTimeZone(zone){
-  zone=String(zone||'').trim();try{new Intl.DateTimeFormat('fr-FR',{timeZone:zone}).format(new Date())}catch(_){throw new Error('Fuseau horaire invalide.')}
-  if(!cloudClient||!cloudUser)throw new Error('Compte non connecté.');
-  const {data,error}=await cloudClient.auth.updateUser({data:{...(cloudUser.user_metadata||{}),[HGT_TIMEZONE_META_KEY]:zone}});
-  if(error)throw error;cloudUser=data?.user||cloudUser;return zone;
-}
 function formatHgtDateTime(value,withDate=true){
   const d=value instanceof Date?value:new Date(value);if(Number.isNaN(d.getTime()))return '—';
   return d.toLocaleString('fr-FR',{timeZone:hgtTimeZone(),...(withDate?{day:'2-digit',month:'2-digit'}:{}),hour:'2-digit',minute:'2-digit'});
 }
 function hgtDuration(ms){ms=Math.max(0,Number(ms)||0);const h=Math.floor(ms/3600000),m=Math.ceil((ms%3600000)/60000);return h?`${h} h ${m} min`:`${Math.max(1,m)} min`}
-async function getRollingNeuronUsage(){
-  if(!cloudClient||!cloudUser)return null;const {data,error}=await cloudClient.functions.invoke('Generate-character-image',{body:{action:'usage24h'}});if(error)throw error;if(!data?.success)throw new Error(data?.error||'Compteur 24 h indisponible');return data;
-}
 function closeNeuronDetail(){document.getElementById('neuronDetailModal')?.classList.remove('active')}
 async function openNeuronDetail(){
   const modal=document.getElementById('neuronDetailModal'),root=document.getElementById('neuronDetailContent');if(!modal||!root)return;modal.classList.add('active');root.innerHTML='<h2>⚡ Énergie de Vaeloria — 24 h</h2><div class="muted">Chargement…</div>';
@@ -6171,7 +6112,6 @@ function clearLocalUniverse(){
   localStorage.setItem(STORAGE_SEASON,'1');localStorage.setItem(STORAGE_CURRENT,'1');
 }
 function parseCharacterCode(code){const m=String(code||'').match(/^S(\d+)-(\d+)$/);return m?{season:+m[1],number:+m[2]}:{season:1,number:1}}
-async function cloudRefreshGames(){if(!cloudClient||!cloudUser)return[];cloudGames=await __cloudApi.listGames();const id=localStorage.getItem(CLOUD_GAME_KEY);cloudCurrentGame=cloudGames.find(g=>g.id===id)||null;return cloudGames}
 function renderCloudModal(){
   const root=document.getElementById('cloudModalContent');if(!root)return;
   if(!cloudUser){
@@ -6193,132 +6133,7 @@ function renderCloudModal(){
   document.getElementById('cloudLogoutBtn').onclick=cloudLogout;
 }
 function escapeHtml(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function cloudForgotPassword(){
-  const email=document.getElementById('cloudEmail')?.value.trim();
-  if(!email){cloudSetMessage('Entre d’abord ton adresse e-mail.');return}
-  cloudSetMessage('Envoi du lien de récupération…');
-  const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
-  if(error){cloudSetMessage('Envoi impossible : '+error.message);return}
-  cloudSetMessage('Lien envoyé. Vérifie ta boîte e-mail.');
-}
-async function cloudLogin(){
-  const email=document.getElementById('cloudEmail')?.value.trim(),password=document.getElementById('cloudPassword')?.value||'';
-  if(!email||!password){cloudSetMessage('Entre ton e-mail et ton mot de passe.');return}
-  cloudSetMessage('Connexion…');const {error}=await cloudClient.auth.signInWithPassword({email,password});if(error)cloudSetMessage('Connexion impossible : '+error.message);
-}
-async function cloudSignup(){
-  const email=document.getElementById('cloudEmail')?.value.trim(),password=document.getElementById('cloudPassword')?.value||'';
-  if(!email||password.length<6){cloudSetMessage('Entre un e-mail et un mot de passe d’au moins 6 caractères.');return}
-  cloudSetMessage('Création du compte…');
-  const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
-  if(error){cloudSetMessage('Inscription impossible : '+error.message);return}
-  if(data.session)cloudSetMessage('Compte créé et connecté ✓');else cloudSetMessage('Compte créé. Vérifie ton e-mail si Supabase demande une confirmation.');
-}
-async function cloudLogout(){if(cloudReady())try{await cloudSyncAllData()}catch(e){} await cloudClient.auth.signOut();localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY);cloudCurrentGame=null;cloudProfile=null;closeCloudModal();leaveHgtGate()}
-async function cloudCreateGame(){
-  const root=document.getElementById('cloudModalContent');if(!root)return;
-  root.innerHTML=`<div class="hgt-new-game-card"><div class="hgt-new-game-emblem"><img src="assets/icons/hgt-512.png" alt=""></div><h2>Nouvelle partie</h2><div class="muted">Crée une nouvelle aventure sans modifier les règles actuelles de génération.</div><div class="hgt-new-game-form"><label for="cloudNewGameName">Nom de la partie</label><input id="cloudNewGameName" maxlength="60" value="Ma partie" autocomplete="off"><div class="hgt-new-game-actions"><button id="cloudCreateGameConfirm" type="button">Commencer</button><button id="cloudCreateGameCancel" class="secondary" type="button">Annuler</button></div><div id="cloudNewGameMessage" class="cloud-message" hidden></div></div></div>`;
-  const input=root.querySelector('#cloudNewGameName'),confirmBtn=root.querySelector('#cloudCreateGameConfirm'),cancelBtn=root.querySelector('#cloudCreateGameCancel'),msg=root.querySelector('#cloudNewGameMessage');
-  const create=async()=>{const name=(input?.value||'').trim()||'Ma partie';confirmBtn.disabled=true;if(msg){msg.hidden=false;msg.textContent='Création…'}try{const {data,error}=await cloudClient.from('games').insert({owner_id:cloudUser.id,name}).select().single();if(error)throw error;await cloudRefreshGames();await cloudOpenGame(data.id,true)}catch(e){confirmBtn.disabled=false;if(msg){msg.hidden=false;msg.textContent='Création impossible : '+(e.message||e)}}};
-  confirmBtn.onclick=create;cancelBtn.onclick=renderCloudModal;input.onkeydown=e=>{if(e.key==='Enter')create()};setTimeout(()=>{input.focus();input.select()},0);
-}
-async function cloudRenameGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;const name=prompt('Nouveau nom :',g.name||'Partie');if(name===null||!name.trim())return;try{await __cloudApi.renameGame(id,name.trim())}catch(error){cloudSetMessage(error.message||String(error));return}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
-async function cloudDeleteGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;if(!confirm(`Supprimer définitivement la partie « ${g.name} » et toutes ses données en ligne ?`))return;try{await __cloudApi.deleteGame(id)}catch(error){cloudSetMessage(error.message||String(error));return}if(cloudCurrentGame?.id===id){cloudCurrentGame=null;localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY)}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
-async function cloudOpenGame(id,justCreated=false){
-  const g=cloudGames.find(x=>x.id===id);if(!g)return;
-  const loadedId=localStorage.getItem(CLOUD_LOADED_GAME_KEY);
-  if(cloudCurrentGame?.id&&loadedId===cloudCurrentGame.id&&cloudCurrentGame.id!==id){try{await cloudSyncAllData()}catch(e){if(!confirm('La sauvegarde de la partie actuelle vers le cloud a échoué. Changer quand même de partie ?'))return}}
-  // Première migration : protéger la partie locale existante et proposer de l'envoyer dans la nouvelle partie.
-  if(!loadedId&&hasLocalUniverse()){
-    saveEmergencyLocalBackup();
-    const n=Object.keys(loadRoster()).length;
-    if(confirm(`Une partie locale contenant ${n} personnage${n>1?'s':''} est présente sur cet appareil.\n\nL’importer dans « ${g.name} » ?\n\nOK = migrer la partie locale vers ce compte.\nAnnuler = charger la partie en ligne à la place.`)){
-      cloudCurrentGame=g;localStorage.setItem(CLOUD_GAME_KEY,id);localStorage.setItem(CLOUD_LOADED_GAME_KEY,id);
-      await cloudSyncAllData();cloudUpdateTopStatus();closeCloudModal();location.reload();return;
-    }
-  }
-  saveEmergencyLocalBackup();cloudCurrentGame=g;localStorage.setItem(CLOUD_GAME_KEY,id);
-  await cloudLoadGameToLocal(id);localStorage.setItem(CLOUD_LOADED_GAME_KEY,id);closeCloudModal();location.reload();
-}
-async function cloudLoadGameToLocal(id){
-  cloudStatus('☁️ Chargement…','syncing');
-  // IMPORTANT : on capture l’état local en mémoire AVANT tout chargement cloud.
-  // On ne détruit plus jamais une partie locale valide pour la remplacer par une réponse cloud partielle.
-  const before=localUniverseSnapshot();
-  if(Object.keys(before.roster||{}).length||before.tournament||Object.keys(before.meta?.champions||{}).length){
-    try{localStorage.setItem(CLOUD_BACKUP_KEY,JSON.stringify(before))}catch(e){}
-  }
-  const payload=await __cloudApi.loadGame(id);const gr={data:payload.game},cr={data:payload.characters},dr={data:payload.descendants},nr={data:payload.npcs},tr={data:payload.tournaments};
-  const remoteRoster={};for(const r of cr.data||[]){const c=r.data||{};const code=r.character_code||c.id;if(code)remoteRoster[code]=c}
-  const roster={...(before.roster||{}),...remoteRoster};saveRoster(roster);
-  const remoteDesc={};for(const r of dr.data||[]){const x=r.data||{};const code=r.descendant_code||x.id;if(code)remoteDesc[code]=x}
-  localStorage.setItem(STORAGE_DESC,JSON.stringify({...(before.descendants||{}),...remoteDesc}));
-  const remoteNpcs={};for(const r of nr.data||[]){const x=r.data||{};const code=r.npc_code||x.id;if(code)remoteNpcs[code]=x}
-  localStorage.setItem(STORAGE_NPCS,JSON.stringify({...(before.npcs||{}),...remoteNpcs}));
 
-  const remoteMeta=(gr.data?.universe_meta&&typeof gr.data.universe_meta==='object')?gr.data.universe_meta:{};
-  const localMeta=(before.meta&&typeof before.meta==='object')?before.meta:{};
-  const mergedMeta={...localMeta,...remoteMeta};
-  mergedMeta.champions={...(localMeta.champions||{}),...(remoteMeta.champions||{})};
-  mergedMeta.championTeam=(remoteMeta.championTeam?.length?remoteMeta.championTeam:(localMeta.championTeam||[]));
-  mergedMeta.championTeamDraft=(remoteMeta.championTeamDraft?.length?remoteMeta.championTeamDraft:(localMeta.championTeamDraft||[]));
-  mergedMeta.multiplayerStats={...(localMeta.multiplayerStats||{}),...(remoteMeta.multiplayerStats||{})};
-  localStorage.setItem(STORAGE_META,JSON.stringify(mergedMeta));
-
-  // Choisit le tournoi cloud le plus utile : priorité à celui qui possède une vraie progression,
-  // sinon conserve le tournoi local existant.
-  const cloudTs=(tr.data||[]).map(r=>r.data).filter(Boolean).sort((a,b)=>Number(b.season)-Number(a.season));
-  const archive=loadTournamentArchive();
-  cloudTs.slice(0,TOURNAMENT_KEEP_SEASONS).forEach(ct=>{if(ct?.season)archive[String(ct.season)]=ct});
-  saveTournamentArchive(archive);
-  const scoreT=t=>{const first=Array.isArray(t?.rounds?.[0])?t.rounds[0].length:0;const wins=Object.keys(t?.winners||{}).length;return Number(t?.season||0)*100000+first*100+wins};
-  let chosen=before.tournament||null;
-  for(const ct of cloudTs.slice(0,TOURNAMENT_KEEP_SEASONS))if(!chosen||scoreT(ct)>scoreT(chosen))chosen=ct;
-  if(chosen)localStorage.setItem(TOURNAMENT_KEY,JSON.stringify(chosen));
-
-  // Le curseur cloud n’est accepté que s’il ne ferait pas régresser une partie locale existante.
-  const remoteSeason=Number(gr.data?.current_season||1),remoteChar=Number(gr.data?.current_character_number||1);
-  const localSeason=Number(before.season||1),localChar=Number(before.characterNumber||1);
-  const useRemote=remoteSeason>localSeason||(remoteSeason===localSeason&&remoteChar>=localChar);
-  localStorage.setItem(STORAGE_SEASON,String(useRemote?remoteSeason:localSeason));
-  localStorage.setItem(STORAGE_CURRENT,String(useRemote?remoteChar:localChar));
-
-  recoverCriticalHgtStateFromBackup();
-  const activeT=loadTournament();if(activeT)ensureTournamentChampion(activeT);
-  const repairedBirths=repairMissingBirthEvents(loadRoster(),descendants());
-  if((repairedBirths.changed||Object.keys(remoteRoster).length<Object.keys(roster).length) && typeof cloudSyncAllData==='function') setTimeout(()=>cloudSyncAllData().catch(cloudSyncError),350);
-}
-const __cloudApi=createBrowserCloudApi({
-  client:()=>cloudClient,game:()=>cloudCurrentGame,ready:()=>cloudReady(),parseCharacterCode,
-  keepTournamentSeasons:TOURNAMENT_KEEP_SEASONS,
-  state:()=>({seasonNumber,characterNumber,universeMeta:universeMeta(),roster:loadRoster(),descendants:descendants(),npcs:npcs(),tournament:loadTournament()}),
-  status:(message,state)=>cloudStatus(message,state),updated:()=>cloudUpdateTopStatus()
-});
-function queueCloudCharacterSave(character){if(!cloudReady()||!character?.id)return;const copy=JSON.parse(JSON.stringify(character));clearTimeout(__cloudCharacterTimers.get(character.id));__cloudCharacterTimers.set(character.id,setTimeout(async()=>{try{await cloudSaveCharacter(copy);queueCloudGameStateSave()}catch(error){cloudSyncError(error)}},900))}
-async function cloudSaveCharacter(character){if(!cloudReady()||!character?.id)return;cloudStatus(`☁️ ${cloudCurrentGame.name} • sauvegarde…`,'syncing');await __cloudApi.saveCharacter(character)}
-async function cloudDeleteCharacter(code){if(!cloudReady())return;try{await __cloudApi.deleteCharacter(code)}catch(error){cloudSyncError(error)}}
-function queueCloudGameStateSave(){if(!cloudReady())return;clearTimeout(__cloudGameTimer);__cloudGameTimer=setTimeout(()=>cloudSaveGameState().catch(cloudSyncError),900)}
-async function cloudSaveGameState(){if(!cloudReady())return;await __cloudApi.saveGameState()}
-function queueCloudUniverseSync(){if(!cloudReady())return;clearTimeout(__cloudUniverseTimer);__cloudUniverseTimer=setTimeout(()=>cloudSyncGenealogy().catch(cloudSyncError),1400)}
-async function cloudSyncGenealogy(){if(!cloudReady())return;await __cloudApi.syncGenealogy()}
-function queueCloudTournamentSave(tournament){if(!cloudReady()||!tournament)return;const copy=JSON.parse(JSON.stringify(tournament));clearTimeout(__cloudTournamentTimer);__cloudTournamentTimer=setTimeout(()=>cloudSaveTournament(copy).catch(cloudSyncError),900)}
-async function cloudSaveTournament(tournament){if(!cloudReady()||!tournament)return;await __cloudApi.saveTournament(tournament)}
-async function cloudDeleteTournament(season){if(!cloudReady()||!season)return;try{await __cloudApi.deleteTournament(season)}catch(error){cloudSyncError(error)}}
-async function cloudSyncAllData(){if(!cloudReady()||__cloudSyncBusy)return;__cloudSyncBusy=true;cloudStatus(`☁️ ${cloudCurrentGame.name} • synchronisation…`,'syncing');try{await __cloudApi.syncAll()}finally{__cloudSyncBusy=false}}
-const IMAGE_REGEN_LIMIT_PER_DAY=5;
-const __imageGenerationBusy=new Set();
-function imageStorageCharacterKey(characterId){return `${cloudCurrentGame.id}__${characterImageIdentity(characterId)}`}
-function cloudGeneratedImageDir(characterId){return `${cloudUser.id}/characters/${imageStorageCharacterKey(characterId)}`}
-function cloudGeneratedImagePath(characterId,portraitNumber=1){return `${cloudGeneratedImageDir(characterId)}/${characterImageIdentity(characterId)}-Portrait_${portraitNumber}.png`}
-async function cloudListGeneratedPortraits(characterId){
-  if(!cloudReady())return [];
-  const dir=cloudGeneratedImageDir(characterId);
-  const {data,error}=await cloudClient.storage.from('character-images').list(dir,{limit:100,sortBy:{column:'name',order:'asc'}});
-  if(error){console.warn('Liste portraits',error);return []}
-  return (data||[]).filter(x=>x.name.startsWith(`${characterImageIdentity(characterId)}-Portrait_`) && /-Portrait_\d+\.png$/.test(x.name)).map(x=>({name:x.name,path:`${dir}/${x.name}`,number:Number((x.name.match(/Portrait_(\d+)\.png$/)||[])[1])||0})).sort((a,b)=>a.number-b.number);
-}
-async function cloudDownloadPortraitPath(path){if(!cloudReady()||!path)return null;const r=await cloudClient.storage.from('character-images').download(path);return (!r.error&&r.data)?r.data:null}
-async function nextPortraitNumber(characterId){const list=await cloudListGeneratedPortraits(characterId);return list.length?Math.max(...list.map(x=>x.number))+1:1}
 async function selectGeneratedPortrait(characterId,path){
   const roster=loadRoster(),c=roster[characterId];if(!c||!cloudReady())return;
   const list=await cloudListGeneratedPortraits(characterId),chosen=list.find(x=>x.path===path);if(!chosen)return;
@@ -6449,16 +6264,6 @@ The stated race must be unmistakable at first glance. Preserve its iconic physic
 CLEAN ILLUSTRATION ONLY:
 Absolutely no readable or pseudo-readable text anywhere in the image. No words, letters, numbers, names, captions, signatures, runes arranged like writing, labels, emblems containing text, poster typography, card typography, watermark, logo, interface, frame or decorative title block. Keep the lower part of the image as pure environment and character artwork, with no graphic-design elements.`;
 }
-function regenCounterFor(c){
-  const day=new Date().toISOString().slice(0,10),r=c?.imageGeneration?.regenDaily;
-  return r?.day===day?Math.max(0,Number(r.count)||0):0;
-}
-function recordRegeneration(c){
-  const day=new Date().toISOString().slice(0,10),count=regenCounterFor(c)+1;
-  c.imageGeneration={...(c.imageGeneration||{}),regenDaily:{day,count},lastGeneratedAt:new Date().toISOString()};
-  const roster=loadRoster();roster[c.id]=JSON.parse(JSON.stringify(c));saveRoster(roster);if(typeof queueCloudCharacterSave==='function')queueCloudCharacterSave(c);
-  return count;
-}
 async function refreshNeuronStatus(){
   const el=document.getElementById('neuronRemaining');if(!el)return;
   try{
@@ -6530,9 +6335,6 @@ async function scheduleAutomaticCharacterImageGeneration(characterId){
 const HGT_IMAGE_TRANSIENT_MAX_RETRIES=3;
 const hgtImageRetrySleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function hgtImageErrorText(err){return String(err?.message||err||'').toLowerCase()}
-function hgtImageIsFlagged(err){const code=String(err?.code||err?.hgtCode||'').toUpperCase();if(code==='3030_RETRY_FLAGGED'||code==='3030')return true;const t=hgtImageErrorText(err);return /3030_retry_flagged|cloudflare 3030|retry_also_flagged/.test(t)}
-function hgtImageIsQuota(err){const t=hgtImageErrorText(err);return /429|4006|daily free allocation|quota|neurons? used|allocation.*used|too many requests/.test(t)}
-function hgtImageIsTransient(err){const t=hgtImageErrorText(err);return /failed to fetch|network|timeout|timed out|d[ée]pass[ée]|temporar|unavailable|502|503|504|gateway|connection|edge function/.test(t)}
 async function hgtVaeloriaQuotaMessage(){
   try{
     const u=await getRollingNeuronUsage(),now=Date.now(),events=Array.isArray(u?.events)?u.events:[];
@@ -6541,40 +6343,6 @@ async function hgtVaeloriaQuotaMessage(){
   }catch(_){ }
   return '⚡ Les réserves d’Énergie de Vaeloria sont épuisées. Réessaie lorsque de l’EV sera de nouveau disponible.';
 }
-async function hgtInvokeImageWithRecovery(characterId,payload){
-  let flaggedCount=0,transientCount=0;
-  for(;;){
-    try{
-      const invokePromise=cloudClient.functions.invoke('Generate-character-image',{body:payload});
-      const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('generation timeout')),240000));
-      const result=await Promise.race([invokePromise,timeoutPromise]);
-      if(result?.error){
-        let detail=result.error.message||String(result.error),code=result.error?.code||'';
-        try{if(result.error.context&&typeof result.error.context.json==='function'){const b=await result.error.context.json();detail=b?.error||b?.message||detail;code=b?.code||b?.errorCode||code}}catch(_){ }
-        const invokeError=new Error(detail);if(code)invokeError.code=String(code);throw invokeError;
-      }
-      if(!result?.data?.success){const dataError=new Error(result?.data?.error||result?.data?.message||result?.data?.code||'generation failed');if(result?.data?.code)dataError.code=String(result.data.code);throw dataError;}
-      return result.data;
-    }catch(e){
-      if(hgtImageIsQuota(e))throw Object.assign(new Error(await hgtVaeloriaQuotaMessage()),{hgtFriendly:true,hgtQuota:true,cause:e});
-      if(hgtImageIsFlagged(e)){
-        flaggedCount++;
-        const variants=['🛡️ Les Arbitres de Vaeloria ont refusé cette vision… Nouvelle tentative en cours.','🛡️ Encore rejetée par les Arbitres. Ils sont difficiles aujourd’hui… Nouvelle tentative en cours.','🛡️ Cette vision n’a pas franchi les portes de Vaeloria… Nouvelle tentative en cours.'];
-        illustrationStatus(characterId,variants[(flaggedCount-1)%variants.length]);
-        await hgtImageRetrySleep(Math.min(5000,1000+flaggedCount*250));
-        continue;
-      }
-      if(hgtImageIsTransient(e)&&transientCount<HGT_IMAGE_TRANSIENT_MAX_RETRIES){
-        transientCount++;
-        illustrationStatus(characterId,transientCount===1?'🌩️ Les communications avec Elyrion vacillent… Reconnexion en cours.':`🌀 Une perturbation traverse les strates de Vaeloria… Nouvelle tentative ${transientCount}/${HGT_IMAGE_TRANSIENT_MAX_RETRIES}.`);
-        await hgtImageRetrySleep([0,2000,5000,10000][transientCount]);
-        continue;
-      }
-      if(hgtImageIsTransient(e))throw Object.assign(new Error('🌌 Le lien avec Vaeloria est rompu. Impossible de poursuivre la génération pour le moment.'),{hgtFriendly:true,cause:e});
-      throw e;
-    }
-  }
-}
 async function hgtDownloadPortraitWithRecovery(characterId,path){
   let last=null;
   for(let attempt=1;attempt<=3;attempt++){
@@ -6582,26 +6350,6 @@ async function hgtDownloadPortraitWithRecovery(characterId,path){
     if(attempt<3){illustrationStatus(characterId,'📜 Les Archives de Vaeloria ont égaré l’illustration… Recherche en cours.');await hgtImageRetrySleep(1200*attempt)}
   }
   throw Object.assign(new Error('📚 Les Archives refusent obstinément ce portrait. Impossible de l’enregistrer pour le moment.'),{hgtFriendly:true,cause:last});
-}
-async function champion9bPreflight(characterId,character){
-  const [usageResult,costResult]=await Promise.all([
-    getRollingNeuronUsage(),
-    cloudClient.functions.invoke('Generate-character-image',{body:{action:'estimateChampionCost',character}})
-  ]);
-  if(costResult?.error){
-    let detail=costResult.error.message||String(costResult.error);
-    try{if(costResult.error.context&&typeof costResult.error.context.json==='function'){const b=await costResult.error.context.json();detail=b?.error||b?.message||detail}}catch(_){}
-    throw new Error(`Estimation 9B indisponible : ${detail}`);
-  }
-  const estimate=costResult?.data;
-  if(!estimate?.success)throw new Error(estimate?.error||'Estimation 9B indisponible');
-  const cost=Number(estimate.estimated_cost||0),referenceCount=Math.max(0,Number(estimate.reference_count||0));
-  const remaining=Number(usageResult?.neurons_remaining??Math.max(0,Number(usageResult?.neurons_limit||10000)-Number(usageResult?.neurons_used||0)));
-  if(remaining+1e-9>=cost)return {ok:true,cost,referenceCount,remaining};
-  const needed=Math.max(0,cost-remaining),events=(Array.isArray(usageResult?.events)?usageResult.events:[]).filter(e=>new Date(e.releases_at).getTime()>Date.now()).sort((a,b)=>new Date(a.releases_at)-new Date(b.releases_at));
-  let released=0,availableAt=null;
-  for(const e of events){released+=Number(e.neurons||0);if(released+1e-9>=needed){availableAt=e.releases_at;break}}
-  return {ok:false,cost,referenceCount,remaining,availableAt};
 }
 async function invokeCharacterImageGeneration(characterId,{regenerate=false,champion=false,championSeason=null}={}){
   const busyKey=champion?`${characterId}::champion`:characterId;
@@ -6824,18 +6572,6 @@ async function ensureMissingCharacterPortraits(){
     }
   }finally{__portraitCatchupRunning=false}
 }
-function cloudImagePath(characterId){return `${cloudUser.id}/${cloudCurrentGame.id}/${characterImageIdentity(characterId)}`}
-
-async function cloudUploadIllustration(characterId,file){if(!cloudReady()||!file)return;const {error}=await cloudClient.storage.from('character-images').upload(cloudImagePath(characterId),file,{upsert:true,contentType:file.type||'application/octet-stream'});if(error)cloudSyncError(error)}
-async function cloudDownloadIllustration(characterId,generatedOnly=false){
-  if(!cloudReady())return null;const c=loadRoster()[characterId];
-  // Un Champion utilise toujours son portrait 9B comme portrait principal.
-  if(c?.imageGeneration?.championPath){const b=await cloudDownloadPortraitPath(c.imageGeneration.championPath);if(b)return b}
-  if(c?.imageGeneration?.selectedPortrait){const b=await cloudDownloadPortraitPath(c.imageGeneration.selectedPortrait);if(b)return b}
-  const list=await cloudListGeneratedPortraits(characterId);if(list.length){const b=await cloudDownloadPortraitPath(list[list.length-1].path);if(b)return b}
-  if(generatedOnly)return null;const r=await cloudClient.storage.from('character-images').download(cloudImagePath(characterId));return (!r.error&&r.data)?r.data:null
-}
-async function cloudDeleteIllustration(characterId){if(!cloudReady())return;const list=await cloudListGeneratedPortraits(characterId);const paths=[cloudImagePath(characterId),...list.map(x=>x.path)];const {error}=await cloudClient.storage.from('character-images').remove(paths);if(error)cloudSyncError(error)}
 function cloudSyncError(e){console.error('Supabase sync',e);cloudStatus('☁️ Erreur de synchronisation','error')}
 function cloudUpdateTopStatus(){
   const btn=document.getElementById('cloudAccountBtn');
@@ -6843,32 +6579,9 @@ function cloudUpdateTopStatus(){
   if(cloudCurrentGame){cloudStatus(`☁️ ${cloudCurrentGame.name} • synchronisé`,'online');if(btn)btn.textContent='☁️ Mes parties'}
   else{cloudStatus('☁️ Connecté • aucune partie','online');if(btn)btn.textContent='☁️ Mes parties'}updatePlayerPseudo();
 }
-async function initCloud(){
-  if(!window.supabase){cloudStatus('☁️ Supabase indisponible','error');return}
-  cloudClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-  const {data}=await cloudClient.auth.getSession();cloudUser=data.session?.user||null;
-  if(cloudUser){
-    try{
-      await loadCloudProfile();
-      await cloudRefreshGames();
-      if(seasonCursorReconciled && cloudCurrentGame){
-        await cloudSaveGameState();
-        seasonCursorReconciled=false;
-        await cloudRefreshGames();
-      }
-    }catch(e){cloudSyncError(e)}
-  }
-  cloudUpdateTopStatus();
-  renderEntryGate();
-  // Le compteur dépend de cloudClient + cloudUser : le charger seulement après restauration de session.
-  await refreshNeuronStatus();
-  if(cloudReady()) setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1800);
-  cloudClient.auth.onAuthStateChange(async(_event,session)=>{if(_event==='PASSWORD_RECOVERY')hgtPasswordRecovery=true;cloudUser=session?.user||null;if(cloudUser&&!hgtPasswordRecovery){try{await loadCloudProfile();await startHgtPresence();await loadHgtFriends();await startHgtInviteRealtime();await startCommunityRealtime();await cloudRefreshGames();if(cloudReady())setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1200)}catch(e){cloudSyncError(e)}}else if(!cloudUser){cloudGames=[];cloudCurrentGame=null;cloudProfile=null}cloudUpdateTopStatus();renderEntryGate();renderCloudModal();await refreshNeuronStatus()});
-}
 const cloudAccountBtn=document.getElementById('cloudAccountBtn');if(cloudAccountBtn)cloudAccountBtn.onclick=()=>cloudUser?openProfileModal():openCloudModal();
 document.getElementById('cloudCloseBtn').onclick=closeCloudModal;
 document.getElementById('cloudModal').onclick=e=>{if(e.target.id==='cloudModal')closeCloudModal()};document.getElementById('profileModal').onclick=e=>{if(e.target.id==='profileModal')closeProfileModal()};document.getElementById('profileCloseBtn').onclick=closeProfileModal;document.getElementById('tutorialModal').onclick=e=>{if(e.target.id==='tutorialModal')closeTutorial()};document.getElementById('tutorialCloseBtn').onclick=closeTutorial;document.getElementById('friendsModal').onclick=e=>{if(e.target.id==='friendsModal')closeFriendsModal()};document.getElementById('friendsCloseBtn').onclick=closeFriendsModal;document.getElementById('friendGameModal').onclick=e=>{if(e.target.id==='friendGameModal')closeFriendGameModal()};document.getElementById('friendGameCloseBtn').onclick=closeFriendGameModal;document.getElementById('avatarChampionModal').onclick=e=>{if(e.target.id==='avatarChampionModal')closeAvatarChampionModal()};document.getElementById('avatarCropModal').onclick=e=>{if(e.target.id==='avatarCropModal')closeAvatarCropModal()};
-initCloud().catch(cloudSyncError);
 
 // Répare aussi une session déjà touchée par l'ancienne synchro, sans attendre une nouvelle ouverture cloud.
 try{recoverCriticalHgtStateFromBackup();const __t=loadTournament();if(__t)ensureTournamentChampion(__t)}catch(e){console.warn('Auto-réparation HGT',e)}
