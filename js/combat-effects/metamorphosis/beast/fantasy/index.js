@@ -1,0 +1,1 @@
+export const BEAST_FANTASY_FORMS = ["Licorne", "Pégase", "Griffon", "Phénix", "Basilic", "Cockatrice", "Fenrir", "Cerbère", "Hydre", "Manticore", "Chimère", "Minotaure", "Kelpie", "Kraken", "Serpent de mer", "Léviathan", "Loup spectral", "Kitsune", "Tengu", "Naga"];

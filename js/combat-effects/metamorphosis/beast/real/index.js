@@ -1,0 +1,1 @@
+export const BEAST_REAL_FORMS = ["Lion", "Tigre", "Loup", "Renard", "Ours", "Sanglier", "Taureau", "Cheval", "Cerf", "Chèvre", "Gorille", "Singe", "Éléphant", "Rhinocéros", "Crocodile", "Serpent", "Lézard", "Tortue", "Aigle", "Hibou", "Chauve-souris", "Requin", "Baleine", "Poulpe", "Scorpion", "Araignée", "Scarabée", "Fourmi", "Guépard", "Papillon"];

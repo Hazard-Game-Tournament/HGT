@@ -1,0 +1,1 @@
+export const legendaryRelics=['Fragment d’une arme divine','Couronne d’un royaume disparu','Cœur cristallisé de dragon','Orbe d’une étoile morte','Chaîne ayant lié un titan','Masque d’un dieu oublié','Clé dimensionnelle antique','Calice du premier vampire','Éclat du Chaos solidifié','Œil fossilisé d’un dieu primordial'];

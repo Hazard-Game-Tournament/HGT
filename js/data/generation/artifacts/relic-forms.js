@@ -1,0 +1,1 @@
+export const relicForms=['Dent de dragon fossilisée','Fragment de statue divine','Médaille d’un empire disparu','Os gravé ancestral','Éclat de lame antique','Cendre enfermée dans un reliquaire','Œil pétrifié','Cloche rituelle miniature','Fragment de trône','Sceau royal brisé'];

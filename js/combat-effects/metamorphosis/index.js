@@ -1,0 +1,56 @@
+export { METAMORPHOSIS_ALIASES } from "./aliases.js";
+export { METAMORPHOSIS_FORMS } from "./forms.js";
+import { METAMORPHOSIS_EFFECTS_FANTASY } from "./fantasy/index.js";
+import { METAMORPHOSIS_EFFECTS_RACIAL } from "./racial/index.js";
+import { METAMORPHOSIS_EFFECTS_ELEMENTAL } from "./elemental/index.js";
+import { METAMORPHOSIS_EFFECTS_BEAST } from "./beast/beast-effects.js";
+export { BEAST_METAMORPHOSIS_EFFECTS } from "./beast/index.js";
+
+export const METAMORPHOSIS_EFFECTS = {
+  "Phénix":METAMORPHOSIS_EFFECTS_FANTASY["Phénix"],
+  "Basilic":METAMORPHOSIS_EFFECTS_FANTASY["Basilic"],
+  "Cockatrice":METAMORPHOSIS_EFFECTS_FANTASY["Cockatrice"],
+  "Hydre":METAMORPHOSIS_EFFECTS_FANTASY["Hydre"],
+  "Griffon":METAMORPHOSIS_EFFECTS_FANTASY["Griffon"],
+  "Hippogriffe":METAMORPHOSIS_EFFECTS_FANTASY["Hippogriffe"],
+  "Manticore":METAMORPHOSIS_EFFECTS_FANTASY["Manticore"],
+  "Chimère":METAMORPHOSIS_EFFECTS_FANTASY["Chimère"],
+  "Pégase":METAMORPHOSIS_EFFECTS_FANTASY["Pégase"],
+  "Licorne":METAMORPHOSIS_EFFECTS_FANTASY["Licorne"],
+  "Cerbère":METAMORPHOSIS_EFFECTS_FANTASY["Cerbère"],
+  "Minotaure":METAMORPHOSIS_EFFECTS_FANTASY["Minotaure"],
+  "Sphinx":METAMORPHOSIS_EFFECTS_FANTASY["Sphinx"],
+  "Kraken":METAMORPHOSIS_EFFECTS_FANTASY["Kraken"],
+  "Wyverne":METAMORPHOSIS_EFFECTS_FANTASY["Wyverne"],
+  "Roc":METAMORPHOSIS_EFFECTS_FANTASY["Roc"],
+  "Kitsune":METAMORPHOSIS_EFFECTS_FANTASY["Kitsune"],
+  "Kirin":METAMORPHOSIS_EFFECTS_FANTASY["Kirin"],
+  "Naga":METAMORPHOSIS_EFFECTS_FANTASY["Naga"],
+  "Oni":METAMORPHOSIS_EFFECTS_FANTASY["Oni"],
+  "Wendigo":METAMORPHOSIS_EFFECTS_FANTASY["Wendigo"],
+  "Gargouille":METAMORPHOSIS_EFFECTS_FANTASY["Gargouille"],
+  "Golem":METAMORPHOSIS_EFFECTS_FANTASY["Golem"],
+  "Ent":METAMORPHOSIS_EFFECTS_FANTASY["Ent"],
+  "Slime":METAMORPHOSIS_EFFECTS_FANTASY["Slime"],
+  "Mimique":METAMORPHOSIS_EFFECTS_FANTASY["Mimique"],
+  "Dragon":METAMORPHOSIS_EFFECTS_FANTASY["Dragon"],
+  "Elfe":METAMORPHOSIS_EFFECTS_RACIAL["Elfe"],
+  "Orc":METAMORPHOSIS_EFFECTS_RACIAL["Orc"],
+  "Nain":METAMORPHOSIS_EFFECTS_RACIAL["Nain"],
+  "Gobelin":METAMORPHOSIS_EFFECTS_RACIAL["Gobelin"],
+  "Fée":METAMORPHOSIS_EFFECTS_RACIAL["Fée"],
+  "Neoxus":METAMORPHOSIS_EFFECTS_RACIAL["Neoxus"],
+  "Ange":METAMORPHOSIS_EFFECTS_RACIAL["Ange"],
+  "Démon":METAMORPHOSIS_EFFECTS_RACIAL["Démon"],
+  "Drakéon":METAMORPHOSIS_EFFECTS_RACIAL["Drakéon"],
+  "Liche":METAMORPHOSIS_EFFECTS_RACIAL["Liche"],
+  "Homme-bête":METAMORPHOSIS_EFFECTS_BEAST["Homme-bête"],
+  "Élémentaire de feu":METAMORPHOSIS_EFFECTS_ELEMENTAL["Élémentaire de feu"],
+  "Élémentaire d’eau":METAMORPHOSIS_EFFECTS_ELEMENTAL["Élémentaire d’eau"],
+  "Élémentaire de terre":METAMORPHOSIS_EFFECTS_ELEMENTAL["Élémentaire de terre"],
+  "Élémentaire d’air":METAMORPHOSIS_EFFECTS_ELEMENTAL["Élémentaire d’air"],
+  "Élémentaire de glace":METAMORPHOSIS_EFFECTS_ELEMENTAL["Élémentaire de glace"],
+  "Élémentaire de foudre":METAMORPHOSIS_EFFECTS_ELEMENTAL["Élémentaire de foudre"],
+  "Élémentaire de lumière":METAMORPHOSIS_EFFECTS_ELEMENTAL["Élémentaire de lumière"],
+  "Élémentaire d’ombre":METAMORPHOSIS_EFFECTS_ELEMENTAL["Élémentaire d’ombre"],
+};

@@ -1,0 +1,1 @@
+export const dominantAuras=['Aura de terreur','Aura royale','Aura apaisante','Aura prédatrice','Aura sacrée','Aura écrasante','Aura glaciale','Aura brûlante','Aura de silence','Aura de commandement','Aura chaotique','Aura lumineuse'];

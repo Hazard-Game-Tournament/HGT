@@ -1,0 +1,1 @@
+export const artifactPhenomena=['Feu','Froid / Glace','Électricité / Foudre','Eau','Vent','Terre','Poison','Explosions','Magnétisme','Magie','Téléportation','Manipulation spatiale','Manipulation temporelle','Altération de réalité','Illusions','Attaques mentales','Attaques spirituelles','Régénération','Énergie sacrée','Énergie démoniaque'];

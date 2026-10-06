@@ -1,0 +1,1 @@
+export const legendaryTechniques=['Frappe des Cent Horizons','Mur du Dernier Gardien','Pas au-delà de la Foudre','Coupe du Roi sans Couronne','Contre des Mille Guerres','Sceau du Dragon Endormi','Poing qui fend la Montagne','Tir de l’Étoile Morte','Danse du Champ de Bataille','Technique légendaire unique'];

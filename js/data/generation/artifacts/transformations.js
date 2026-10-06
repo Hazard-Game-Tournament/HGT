@@ -1,0 +1,1 @@
+export const artifactTransformations=['Dragon','Démon','Ange','Spectre','Loup','Félin','Ours','Rapace','Serpent','Arachnide','Requin','Insecte','Griffon','Hydre','Basilic','Manticore','Chimère','Golem','Machine','Feu','Glace','Foudre','Eau','Terre','Vent','Cristal','Lumière','Ténèbres','Cosmique','Chaos'];

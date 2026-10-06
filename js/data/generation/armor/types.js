@@ -1,0 +1,1 @@
+export const armorTypes=['Armure légère','Armure moyenne','Armure lourde','Armure segmentée','Armure de plaques','Armure organique','Armure énergétique','Exosquelette','Armure runique','Armure vivante','Armure extraterrestre','Armure unique'];

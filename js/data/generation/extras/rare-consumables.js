@@ -1,0 +1,1 @@
+export const rareConsumables=['Potion de régénération majeure','Élixir de célérité','Fiole de résistance élémentaire','Capsule de surcharge énergétique','Baume anti-malédiction','Sérum de concentration','Grenade de fumée spectrale','Poudre d’invisibilité','Cristal de recharge magique','Injection de force temporaire','Talisman consommable de barrière','Antidote universel rare'];
