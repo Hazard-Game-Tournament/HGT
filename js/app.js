@@ -1,4 +1,8 @@
 import {
+  martialStateFor,
+  syncMartialStateWithClan
+} from "./rules/martial/state.js";
+import {
   createMartialClanRecord,
   createEmptyFounderClanRecord,
   addMartialClanMember,
@@ -665,7 +669,16 @@ function joinMartialClan(clanId,status){
   return clan;
 }
 function martialClanPoolOptions(){const clans=loadMartialClans();return Object.values(clans).map(c=>W(`${c.id} — ${c.name||c.id}`));}
-function martialEnsureState(status,clan){state.powers=[];state._extraPower=false;state.martial={status,clanId:clan?.id||null,clanName:clan?.name||null,domains:[...(clan?.domains||[])],techniques:[],weaponMasteries:{}};}
+function martialEnsureState(status,clan){
+  state.powers=[];
+  state._extraPower=false;
+
+  state.martial=
+    martialStateFor(
+      status,
+      clan
+    );
+}
 function martialCreateEmptyFounderClan(){
   const clans=loadMartialClans();
 
@@ -706,12 +719,10 @@ function martialUpdateClan(mutator){
   clans[id]=clan;
   saveMartialClans(clans);
 
-  state.martial.clanName=
-    clan.name;
-
-  state.martial.domains=[
-    ...(clan.domains||[])
-  ];
+  syncMartialStateWithClan(
+    state.martial,
+    clan
+  );
 
   return clan;
 }
