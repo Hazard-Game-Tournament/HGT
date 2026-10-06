@@ -1,4 +1,11 @@
 import {
+  raceOptionsFor,
+  vampireWerewolfOriginOptionsFor,
+  spiritOriginRaceOptionsFor,
+  undeadOriginRaceOptionsFor
+} from "./rules/races/origin-options.js";
+
+import {
   beastSpeciesOptionsFor,
   spiritElementOptionsFor
 } from "./rules/races/regional-options.js";
@@ -396,7 +403,14 @@ const W=(label,weight=1)=>({label,weight}); const EQ=a=>a.map(x=>W(x));
 
 
 
-function raceOptions(excluded=[]){const labels=races.filter(r=>!excluded.includes(r));const region=(typeof state!=='undefined'&&state?.birthRegion)||'';return affinityWeightsFor(region,labels);}
+function raceOptions(excluded=[]){
+  return raceOptionsFor(
+    races,
+    excluded,
+    state?.birthRegion||'',
+    affinityWeightsFor
+  );
+}
 const POWER_STAGE=[W('1–49 %',60),W('50–90 %',30),W('91–100 %',10)];
 
 
@@ -3519,9 +3533,27 @@ function scheduleComponentDetails(prefix,comp){let r=comp.race;
  if(r==='Dragon humanoïde'){insert([task(`${prefix} — Lignée draconique`,[W('Ancestral',50),W('Originel',50)],x=>comp.dragonBlood=x),task(`${prefix} — Puissance`,POWER_STAGE,x=>{comp.power=powerExact(x);comp.powerBand=x;scheduleSuperiorAfterPower(prefix,comp)})]);return}
  if(['Demi-dieu','Cyborg','Titan'].includes(r)){schedulePower(prefix,comp);return}
 }
-function vampireWerewolfOriginOptions(){return raceOptions(['Squelette','Golem / Artificiel','Esprit','Vampire','Loup-garou'])}
-function spiritOriginRaceOptions(){return raceOptions(['Squelette','Golem / Artificiel','Esprit'])}
-function undeadOriginRaceOptions(){return raceOptions(['Squelette','Golem / Artificiel','Esprit','Vampire','Loup-garou'])}
+function vampireWerewolfOriginOptions(){
+  return vampireWerewolfOriginOptionsFor(
+    races,
+    state?.birthRegion||'',
+    affinityWeightsFor
+  );
+}
+function spiritOriginRaceOptions(){
+  return spiritOriginRaceOptionsFor(
+    races,
+    state?.birthRegion||'',
+    affinityWeightsFor
+  );
+}
+function undeadOriginRaceOptions(){
+  return undeadOriginRaceOptionsFor(
+    races,
+    state?.birthRegion||'',
+    affinityWeightsFor
+  );
+}
 function addRaceResult(r,depth=0){state.lineage=state.lineage||{};
  if(r==='Hybride'){state.raceParts=['Hybride'];state.race='Hybride';state.lineage.hybridCompA=null;state.lineage.hybridCompB=null;insert([task('Hybride — Ascendance A',()=>raceOptions(['Hybride','Vampire','Loup-garou','Esprit','Squelette']),x=>{let c=state.lineage.hybridCompA={race:x};state.lineage.hybridA=x;scheduleComponentDetails('Ascendance A',c)}),task('Hybride — Ascendance B',()=>raceOptions(['Hybride','Vampire','Loup-garou','Esprit','Squelette']),x=>{let c=state.lineage.hybridCompB={race:x};state.lineage.hybridB=x;scheduleComponentDetails('Ascendance B',c)})]);return}
  if(['Vampire','Loup-garou'].includes(r)){state.raceParts=[r];updateRace();insert([task(`${r} — Race d’origine`,vampireWerewolfOriginOptions,x=>{let c=state.lineage.originComponent={race:x};state.lineage.originRace=x;scheduleComponentDetails(`${r} — Origine`,c)})]);return}
