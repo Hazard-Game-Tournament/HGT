@@ -1,4 +1,13 @@
 import {
+  seasonCompletedFor,
+  descendantsAwaitingSelectionForSeasonFor,
+  normalizeSeasonTransitionMeta,
+  markBirthResolutionCompleteFor,
+  markDescendantSelectionCompleteFor,
+  birthsResolvedForSeasonFor,
+  descendantSelectionCompleteForSeasonFor
+} from "./rules/seasons/transition.js";
+import {
   loadJsonStore,
   saveJsonStore,
   loadUniverseMetaFromStorage
@@ -1570,83 +1579,68 @@ function blockGenerationIfPreviousTournamentIncomplete(){
   renderTournament();
   return true;
 }
-function descendantsAwaitingSelectionForSeason(season=seasonNumber){
-  if(Number(season)<=1)return [];
-  const d=descendants();
-  return Object.values(d).filter(x=>x && !x.legacy && !!x.fullFighterData && Number(x.eligibleSeason)===Number(season) && x.selectedForSeason==null);
+function descendantsAwaitingSelectionForSeason(
+  season=seasonNumber
+){
+  return descendantsAwaitingSelectionForSeasonFor(
+    descendants(),
+    season
+  );
 }
 function seasonCompleted(season){
-  const roster=loadRoster();
-  let n=0;
-  for(const c of Object.values(roster||{})){
-    const parsed=parseCharacterCode(c?.id||'');
-    if(Number(parsed?.season)!==Number(season)||Number(parsed?.number)<1||Number(parsed?.number)>CHARACTERS_PER_SEASON)continue;
-    try{if(isCharacterGenerationComplete(c))n++}catch(e){if(c?._generationComplete)n++}
-  }
-  return n>=CHARACTERS_PER_SEASON;
+  return seasonCompletedFor({
+    season,
+    roster:loadRoster(),
+    parseCharacterCode,
+    isCharacterGenerationComplete,
+    charactersPerSeason:
+      CHARACTERS_PER_SEASON
+  });
 }
 function seasonTransitionMeta(){
-  const meta=universeMeta();
-  meta.birthsResolvedBySeason=(meta.birthsResolvedBySeason&&typeof meta.birthsResolvedBySeason==='object')?meta.birthsResolvedBySeason:{};
-  meta.descendantsSelectedBySeason=(meta.descendantsSelectedBySeason&&typeof meta.descendantsSelectedBySeason==='object')?meta.descendantsSelectedBySeason:{};
-  return meta;
+  return normalizeSeasonTransitionMeta(
+    universeMeta()
+  );
 }
 function markBirthResolutionComplete(season){
-  const meta=seasonTransitionMeta();meta.birthsResolvedBySeason[String(season)]=new Date().toISOString();saveUniverseMeta(meta);
+  const meta=seasonTransitionMeta();
+
+  markBirthResolutionCompleteFor(
+    meta,
+    season,
+    new Date().toISOString()
+  );
+
+  saveUniverseMeta(meta);
 }
 function markDescendantSelectionComplete(season){
-  const meta=seasonTransitionMeta();meta.descendantsSelectedBySeason[String(season)]=new Date().toISOString();saveUniverseMeta(meta);
+  const meta=seasonTransitionMeta();
+
+  markDescendantSelectionCompleteFor(
+    meta,
+    season,
+    new Date().toISOString()
+  );
+
+  saveUniverseMeta(meta);
 }
 function birthsResolvedForSeason(season){
   const s=Number(season);
   const meta=seasonTransitionMeta();
-  if(meta.birthsResolvedBySeason?.[String(s)])return true;
-  // Source de vérité de secours : si la saison est terminée, a son champion et
-  // qu'aucun événement de naissance de cette saison n'est encore vide, l'étape
-  // est réellement résolue même si le marqueur de transition a été perdu.
-  if(seasonCompleted(s)&&tournamentChampionForSeason(s)){
-    const pending=pendingBirthEventsForSeason(s);
-    if(pending.length===0){
-      markBirthResolutionComplete(s);
-      return true;
-    }
-  }
-  return false;
-}
-function descendantsSelectedForSeason(season){
-  const s=Number(season), target=s+1;
-  const meta=seasonTransitionMeta();
-  if(meta.descendantsSelectedBySeason?.[String(s)])return true;
 
-  // Auto-réparation d'un marqueur de transition perdu :
-  // si la saison suivante existe déjà dans le roster, sa sélection a forcément
-  // été finalisée auparavant (même lorsqu'aucun descendant n'avait été retenu).
-  const roster=loadRoster();
-  const targetExists=Object.values(roster||{}).some(c=>{
-    const parsed=parseCharacterCode(c?.id||'');
-    return Number(parsed?.season)===target;
+  const pending=
+    pendingBirthEventsForSeason(s);
+
+  return birthsResolvedForSeasonFor({
+    season:s,
+    meta,
+    seasonCompleted:
+      seasonCompleted(s),
+    championId:
+      tournamentChampionForSeason(s),
+    pendingBirthCount:
+      pending.length
   });
-  if(targetExists){
-    markDescendantSelectionComplete(s);
-    return true;
-  }
-
-  // Deuxième preuve : des descendants portent déjà explicitement la sélection cible.
-  const d=descendants();
-  const selected=Object.values(d||{}).some(x=>Number(x?.selectedForSeason)===target);
-  if(selected){
-    markDescendantSelectionComplete(s);
-    return true;
-  }
-
-  // Compatibilité avec le registre historique selectedBySeason, y compris [] :
-  // la présence de la clé signifie que la sélection a été exécutée.
-  const raw=universeMeta();
-  if(raw.selectedBySeason && Object.prototype.hasOwnProperty.call(raw.selectedBySeason,String(target))){
-    markDescendantSelectionComplete(s);
-    return true;
-  }
-  return false;
 }
 function blockGenerationIfDescendantsNotSelected(){
   // Répare les descendants créés trop tôt par l'ancienne version (ex. S4 alors que S3 est en cours).
