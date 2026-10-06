@@ -1,4 +1,9 @@
 import {
+  martialMasteryRollFor,
+  martialClanDomainCountFor
+} from "./rules/martial/rolls.js";
+
+import {
   martialWeightedIndex,
   martialPickN
 } from "./rules/martial/random.js";
@@ -498,8 +503,16 @@ function saveMartialClans(x){localStorage.setItem(MARTIAL_CLANS_KEY,JSON.stringi
 function martialInheritedClan(){const ids=state?.genealogy?.parents||[];if(!ids.length)return null;const roster=loadRoster(), parents=ids.map(id=>roster[id]).filter(Boolean), cs=parents.map(p=>p?.martial?.clanId).filter(Boolean);if(!cs.length)return null;if(cs.length>=2){if(cs[0]===cs[1])return cs[0];return cs[Math.random()<.5?0:1]}return Math.random()<.5?cs[0]:null}
 
 
-function martialMasteryRoll(){return martialWeightedIndex(MARTIAL_MASTERY_WEIGHTS)+1}
-function martialClanDomainCount(){return martialWeightedIndex(MARTIAL_DOMAIN_COUNT_WEIGHTS)+1}
+function martialMasteryRoll(){
+  return martialMasteryRollFor(
+    MARTIAL_MASTERY_WEIGHTS
+  );
+}
+function martialClanDomainCount(){
+  return martialClanDomainCountFor(
+    MARTIAL_DOMAIN_COUNT_WEIGHTS
+  );
+}
 function createMartialClan(founderId){const clans=loadMartialClans(),id=`CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,domains=martialPickN(MARTIAL_DOMAINS,martialClanDomainCount()),patrimony={};for(const d of domains){const cat=MARTIAL_TECHNIQUES[d];patrimony[d]={secret:martialPickN(cat.secret,5),legendary:martialPickN(cat.legendary,2)}}clans[id]={id,name:`Clan ${founderId}`,founderId,founderName:state.name||'',foundedSeason:seasonNumber,domains,patrimony,members:[founderId]};saveMartialClans(clans);return clans[id]}
 function joinMartialClan(clanId,status){const clans=loadMartialClans(),c=clans[clanId];if(!c)return null;c.members=[...new Set([...(c.members||[]),state.id])];saveMartialClans(clans);return c}
 function martialClanPoolOptions(){const clans=loadMartialClans();return Object.values(clans).map(c=>W(`${c.id} — ${c.name||c.id}`));}
