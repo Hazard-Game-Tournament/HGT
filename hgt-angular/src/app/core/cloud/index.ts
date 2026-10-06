@@ -9,3 +9,4 @@ export * from './genealogy-storage';
 export * from './tournament-storage';
 export * from './game-state-storage';
 export * from './cloud-controller';
+export * from './angular';
