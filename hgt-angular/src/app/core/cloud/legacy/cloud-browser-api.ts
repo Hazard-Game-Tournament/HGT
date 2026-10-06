@@ -15,6 +15,15 @@ import {
 } from '../angular/cloud-runtime';
 
 import {
+  GameCloudStorage
+} from '../games/game-storage';
+
+import {
+  CloudGame,
+  CloudGamePayload
+} from '../games/game.models';
+
+import {
   CloudControllerState
 } from '../cloud-controller';
 
@@ -261,6 +270,68 @@ export class BrowserCloudApi {
     );
 
     this.context.updated?.();
+  }
+
+  async listGames():
+    Promise<CloudGame[]> {
+    const runtime =
+      this.getRuntime();
+
+    if (!runtime) {
+      return [];
+    }
+
+    return new GameCloudStorage(
+      this.context.client()!
+    ).list();
+  }
+
+  async renameGame(
+    id: string,
+    name: string
+  ): Promise<void> {
+    const client =
+      this.context.client();
+
+    if (!client) {
+      return;
+    }
+
+    await new GameCloudStorage(
+      client
+    ).rename(id, name);
+  }
+
+  async deleteGame(
+    id: string
+  ): Promise<void> {
+    const client =
+      this.context.client();
+
+    if (!client) {
+      return;
+    }
+
+    await new GameCloudStorage(
+      client
+    ).delete(id);
+  }
+
+  async loadGame(
+    id: string
+  ): Promise<CloudGamePayload> {
+    const client =
+      this.context.client();
+
+    if (!client) {
+      throw new Error(
+        'Client Cloud indisponible'
+      );
+    }
+
+    return new GameCloudStorage(
+      client
+    ).load(id);
   }
 
   reset(): void {

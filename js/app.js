@@ -6171,14 +6171,7 @@ function clearLocalUniverse(){
   localStorage.setItem(STORAGE_SEASON,'1');localStorage.setItem(STORAGE_CURRENT,'1');
 }
 function parseCharacterCode(code){const m=String(code||'').match(/^S(\d+)-(\d+)$/);return m?{season:+m[1],number:+m[2]}:{season:1,number:1}}
-async function cloudRefreshGames(){
-  if(!cloudClient||!cloudUser)return [];
-  const {data,error}=await cloudClient.from('games').select('*').order('updated_at',{ascending:false});
-  if(error)throw error;cloudGames=data||[];
-  const currentId=localStorage.getItem(CLOUD_GAME_KEY);
-  cloudCurrentGame=cloudGames.find(g=>g.id===currentId)||null;
-  return cloudGames;
-}
+async function cloudRefreshGames(){if(!cloudClient||!cloudUser)return[];cloudGames=await __cloudApi.listGames();const id=localStorage.getItem(CLOUD_GAME_KEY);cloudCurrentGame=cloudGames.find(g=>g.id===id)||null;return cloudGames}
 function renderCloudModal(){
   const root=document.getElementById('cloudModalContent');if(!root)return;
   if(!cloudUser){
@@ -6229,8 +6222,8 @@ async function cloudCreateGame(){
   const create=async()=>{const name=(input?.value||'').trim()||'Ma partie';confirmBtn.disabled=true;if(msg){msg.hidden=false;msg.textContent='Création…'}try{const {data,error}=await cloudClient.from('games').insert({owner_id:cloudUser.id,name}).select().single();if(error)throw error;await cloudRefreshGames();await cloudOpenGame(data.id,true)}catch(e){confirmBtn.disabled=false;if(msg){msg.hidden=false;msg.textContent='Création impossible : '+(e.message||e)}}};
   confirmBtn.onclick=create;cancelBtn.onclick=renderCloudModal;input.onkeydown=e=>{if(e.key==='Enter')create()};setTimeout(()=>{input.focus();input.select()},0);
 }
-async function cloudRenameGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;const name=prompt('Nouveau nom :',g.name||'Partie');if(name===null||!name.trim())return;const {error}=await cloudClient.from('games').update({name:name.trim()}).eq('id',id);if(error){cloudSetMessage(error.message);return}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
-async function cloudDeleteGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;if(!confirm(`Supprimer définitivement la partie « ${g.name} » et toutes ses données en ligne ?`))return;const {error}=await cloudClient.from('games').delete().eq('id',id);if(error){cloudSetMessage(error.message);return}if(cloudCurrentGame?.id===id){cloudCurrentGame=null;localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY)}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
+async function cloudRenameGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;const name=prompt('Nouveau nom :',g.name||'Partie');if(name===null||!name.trim())return;try{await __cloudApi.renameGame(id,name.trim())}catch(error){cloudSetMessage(error.message||String(error));return}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
+async function cloudDeleteGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;if(!confirm(`Supprimer définitivement la partie « ${g.name} » et toutes ses données en ligne ?`))return;try{await __cloudApi.deleteGame(id)}catch(error){cloudSetMessage(error.message||String(error));return}if(cloudCurrentGame?.id===id){cloudCurrentGame=null;localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY)}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
 async function cloudOpenGame(id,justCreated=false){
   const g=cloudGames.find(x=>x.id===id);if(!g)return;
   const loadedId=localStorage.getItem(CLOUD_LOADED_GAME_KEY);
@@ -6255,15 +6248,7 @@ async function cloudLoadGameToLocal(id){
   if(Object.keys(before.roster||{}).length||before.tournament||Object.keys(before.meta?.champions||{}).length){
     try{localStorage.setItem(CLOUD_BACKUP_KEY,JSON.stringify(before))}catch(e){}
   }
-  const [gr,cr,dr,nr,tr]=await Promise.all([
-    cloudClient.from('games').select('*').eq('id',id).single(),
-    cloudClient.from('characters').select('*').eq('game_id',id),
-    cloudClient.from('descendants').select('*').eq('game_id',id),
-    cloudClient.from('npcs').select('*').eq('game_id',id),
-    cloudClient.from('tournaments').select('*').eq('game_id',id).order('season',{ascending:false})
-  ]);
-  for(const r of [gr,cr,dr,nr,tr])if(r.error)throw r.error;
-
+  const payload=await __cloudApi.loadGame(id);const gr={data:payload.game},cr={data:payload.characters},dr={data:payload.descendants},nr={data:payload.npcs},tr={data:payload.tournaments};
   const remoteRoster={};for(const r of cr.data||[]){const c=r.data||{};const code=r.character_code||c.id;if(code)remoteRoster[code]=c}
   const roster={...(before.roster||{}),...remoteRoster};saveRoster(roster);
   const remoteDesc={};for(const r of dr.data||[]){const x=r.data||{};const code=r.descendant_code||x.id;if(code)remoteDesc[code]=x}
