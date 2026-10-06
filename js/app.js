@@ -1,4 +1,8 @@
 import {
+  createBlankCharacterState
+} from "./services/character-state.js";
+
+import {
   simulateTournamentMatch,
   simulateTournamentMatches
 } from "./services/tournament-simulation.js";
@@ -3704,7 +3708,21 @@ function applyAlienStateIfNeeded(){
   state.racialTraits=state.racialTraits||[];
 }
 
-function reset(){state={alienBiology:null,id:currentCharacterId(),instanceId:newCharacterInstanceId(),name:'',title:'',raceParts:[],race:'',lineage:{},birthStratum:'',birthRegion:'',culture:'',gender:'',size:'',arch:'',archParts:[],slayerTarget:null,job:'',history:[],extra:'',extraDetail:[],extraStatMods:[],relationships:[],genealogy:{parents:[],children:[],generation:1,lineage:[],partnerLinks:[]},personality:'',stats:{},powers:[],weapons:[],weakness:'',blessings:[],curses:[],clothingStyle:'',appearance:{},transformation:null,awakening:null,chi:null,martial:null,prodigeMods:[],logs:[]};queue=[];index=0;rotation=0;spinNumber=0;buildInitial();render();drawWheel([W('?')])}
+function reset(){
+  state=createBlankCharacterState({
+    id:currentCharacterId(),
+    instanceId:newCharacterInstanceId()
+  });
+
+  queue=[];
+  index=0;
+  rotation=0;
+  spinNumber=0;
+
+  buildInitial();
+  render();
+  drawWheel([W('?')]);
+}
 
 
 
