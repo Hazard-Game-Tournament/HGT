@@ -1,4 +1,9 @@
 import {
+  simulateTournamentMatch,
+  simulateTournamentMatches
+} from "./services/tournament-simulation.js";
+
+import {
   resolveBirthEventsInStores
 } from "./services/birth-resolution.js";
 
@@ -5038,24 +5043,68 @@ function resolveTournamentBattleInto(
   });
 }
 function simulateTournamentBattle(ri,mi){
-  const t=loadTournament(),roster=loadRoster();if(!t)return;const key=`${ri}-${mi}`;
-  if(t.winners?.[key])return;
-  if(!resolveTournamentBattleInto(t,ri,mi,roster))return;advanceTournamentIfRoundComplete(t,ri);saveTournament(t);renderTournament();
+  const t=loadTournament();
+  const roster=loadRoster();
+
+  if(!t)return;
+
+  const result=
+    simulateTournamentMatch({
+      tournament:t,
+      roster,
+      roundIndex:ri,
+      matchIndex:mi,
+      resolveBattle:
+        resolveTournamentBattleInto,
+      advanceRound:
+        advanceTournamentIfRoundComplete
+    });
+
+  if(!result.simulated)
+    return;
+
+  saveTournament(t);
+  renderTournament();
 }
 function currentIncompleteTournamentRound(t){
   return currentIncompleteTournamentRoundFor(t);
 }
 function simulateTournamentBatch(mode='round'){
-  const t=loadTournament(),roster=loadRoster();if(!t){alert('Crée d’abord le tirage du tournoi.');return}
-  let simulated=0,safety=0;
-  while(safety++<12){const ri=currentIncompleteTournamentRound(t);if(ri<0)break;const round=t.rounds[ri]||[],matches=Math.floor(round.length/2);for(let mi=0;mi<matches;mi++){const key=`${ri}-${mi}`;if(t.winners?.[key])continue;if(resolveTournamentBattleInto(t,ri,mi,roster))simulated++}advanceTournamentIfRoundComplete(t,ri);if(mode==='round')break}
-  if(!simulated){alert('Aucun combat non résolu à simuler.');return}saveTournament(t);renderTournament();
+  const t=loadTournament();
+  const roster=loadRoster();
+
+  if(!t){
+    alert(
+      'Crée d’abord le tirage du tournoi.'
+    );
+    return;
+  }
+
+  const result=
+    simulateTournamentMatches({
+      tournament:t,
+      roster,
+      mode,
+      resolveBattle:
+        resolveTournamentBattleInto,
+      currentRound:
+        currentIncompleteTournamentRoundFor,
+      advanceRound:
+        advanceTournamentIfRoundComplete
+    });
+
+  if(!result.simulated){
+    alert(
+      'Aucun combat non résolu à simuler.'
+    );
+    return;
+  }
+
+  saveTournament(t);
+  renderTournament();
 }
-function advanceTournamentIfRoundComplete(
-  t,
-  roundIndex
-){
-  return advanceTournamentRoundIfComplete(
+function advanceTournamentIfRoundComplete(t,roundIndex){
+  advanceTournamentRoundIfComplete(
     t,
     roundIndex
   );
