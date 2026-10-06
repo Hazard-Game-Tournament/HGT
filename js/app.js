@@ -1,4 +1,10 @@
 import {
+  createExternalNpc,
+  createDescendantBase,
+  applyGeneratedDescendantData
+} from "./services/descendant-creation.js";
+
+import {
   inheritMutationsForChild,
   inheritPowersForChild,
   inheritedAppearanceForChild,
@@ -2229,11 +2235,21 @@ function inheritPowers(pa,pb){
   });
 }
 function makeNpc(parent,meta,npcStore){
-  let id=`PNJ-${String(meta.nextNpc++).padStart(3,'0')}`;
-  let pg=normalizeGenderValue(parent.gender); let gender=pg==='Mâle'?'Femelle':pg==='Femelle'?'Mâle':'Autre / indéterminé';
-  let race=rpick([...ORDINARY_COMPONENTS,'Demi-dieu','Divinité','Titan','Titan primordial','Cyborg','N.E.X.U.S.']);
-  let npc={id,name:childName(),gender,race,raceParts:[race],job:rpick(NPC_JOBS),appearance:{age:rpick(['Jeune adulte','Adulte','Mature','Âgé']),body:rpick(bodies),c1:rpick(colors.filter(x=>x!=='Couleur unique')),c2:rpick(colors.filter(x=>x!=='Couleur unique')),sign:rpick(signs.filter(x=>x!=='Signe unique'))},racialTraits:raceTraitsFor(race,[race]),npcPower:rpick(powers.filter(x=>x!=='Pouvoir unique')),genealogy:{parents:[],children:[],siblings:[],generation:1,lineage:[],partnerLinks:[]},status:'PNJ extérieur'};
-  npcStore[id]=npc;return npc;
+  return createExternalNpc({
+    parent,
+    meta,
+    npcStore,
+    ordinaryComponents:ORDINARY_COMPONENTS,
+    jobs:NPC_JOBS,
+    bodies,
+    colors,
+    signs,
+    powers,
+    randomPick:rpick,
+    childName,
+    normalizeGenderValue,
+    raceTraitsFor
+  });
 }
 function inheritedAppearance(
   pa,
@@ -2321,24 +2337,50 @@ function generateCompleteDescendantData(child){
   }
 }
 
-function createChild(pa,pb,origin,event,meta,descStore){
-  let raceInfo=pb?combineComponents(transmittedComponent(pa),transmittedComponent(pb)):singleParentRace(pa);
-  let mutation=mutationForChild(raceInfo);
-  let inheritedMut=inheritMutations(pa,pb);
-  if(mutation&&mutation.type!=='Ascension raciale')inheritedMut.push(mutation);
-  let id=`DESC-${String(meta.nextDesc++).padStart(4,'0')}`;
-  let generation=Math.max(pa.genealogy?.generation||1,pb?.genealogy?.generation||1)+1;
-  let child={id,name:childName(),status:`Descendant complet — en attente de sélection S${event.eligibleSeason}`,birthSeason:event.birthSeason,eligibleSeason:event.eligibleSeason,selectedForSeason:null,origin,parentIds:[pa.id,...(pb?[pb.id]:[])],gender:rpick(['Mâle','Femelle','Autre / indéterminé']),race:raceInfo.race,raceParts:raceInfo.parts,racialTraits:raceTraitsFor(raceInfo.race,raceInfo.parts),inheritedPowers:inheritPowers(pa,pb),mutations:inheritedMut,appearance:inheritedAppearance(pa,pb,raceInfo.race),genealogy:{parents:[pa.id,...(pb?[pb.id]:[])],children:[],siblings:[],generation,lineage:mergedLineage(pa,pb),partnerLinks:[]},fighterDataGenerated:true,legacy:false};
-  child.fullFighterData=generateCompleteDescendantData(child);
-  // La fiche complète devient la source de vérité du descendant dès sa naissance.
-  if(child.fullFighterData){
-    child.name=child.fullFighterData.name||child.name;
-    child.race=child.fullFighterData.race||child.race;
-    child.raceParts=JSON.parse(JSON.stringify(child.fullFighterData.raceParts||child.raceParts));
-    child.gender=child.fullFighterData.gender||child.gender;
-    child.appearance=JSON.parse(JSON.stringify(child.fullFighterData.appearance||child.appearance));
-  }
-  descStore[id]=child;return child;
+function createChild(
+  pa,
+  pb,
+  origin,
+  event,
+  meta,
+  descStore
+){
+  const child=
+    createDescendantBase({
+      parentA:pa,
+      parentB:pb,
+      origin,
+      event,
+      meta,
+
+      randomPick:rpick,
+      childName,
+
+      transmittedComponent,
+      singleParentRace,
+      combineComponents,
+
+      mutationForChild,
+      inheritMutations,
+      inheritPowers,
+      inheritedAppearance,
+      raceTraitsFor,
+      mergedLineage
+    });
+
+  child.fullFighterData=
+    generateCompleteDescendantData(
+      child
+    );
+
+  applyGeneratedDescendantData(
+    child,
+    child.fullFighterData
+  );
+
+  descStore[child.id]=child;
+
+  return child;
 }
 function cleanupPrematureBirths(){
   const roster=loadRoster();
