@@ -1,4 +1,16 @@
 import {
+  loadTournamentArchiveFromStorage,
+  saveTournamentArchiveToStorage,
+  archiveTournamentInStorage,
+  tournamentForSeasonFromStorage,
+  normalizeTournamentRoster,
+  tournamentSeasonFromRoster,
+  loadTournamentFromStorage,
+  shuffleTournamentEntries,
+  tournamentRoundNameFor
+} from "./services/tournament-core.js";
+
+import {
   seasonCompletedFor,
   descendantsAwaitingSelectionForSeasonFor,
   normalizeSeasonTransitionMeta,
@@ -4570,18 +4582,35 @@ spinBtn.onclick=()=>{
 };autoBtn.onclick=()=>{auto=!auto;autoBtn.textContent=`Auto : ${auto?'ON':'OFF'}`;if(auto&&!spinning)next()};resetBtn.onclick=()=>{auto=false;autoBtn.textContent='Auto : OFF';spinBtn.disabled=false;spinBtn.textContent='Commencer';resetBtn.textContent='Réinitialiser';taskTitle.textContent='Prêt';count.textContent='0 roue';result.innerHTML='Clique sur « Commencer »<small>Les sous-roues seront ajoutées automatiquement selon les résultats.</small>';reset()};exportBtn.onclick=()=>{saveCurrentCharacter();let a=document.createElement('a'),blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});a.href=URL.createObjectURL(blob);a.download=`${state.id}_V18.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};const TOURNAMENT_KEY='roue_tournament_v18';
 const TOURNAMENT_ARCHIVE_KEY='roue_tournament_archive_v18';
 const TOURNAMENT_KEEP_SEASONS=5;
-function loadTournamentArchive(){try{const x=JSON.parse(localStorage.getItem(TOURNAMENT_ARCHIVE_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch(e){return {}}}
-function saveTournamentArchive(a){localStorage.setItem(TOURNAMENT_ARCHIVE_KEY,JSON.stringify(a||{}))}
+function loadTournamentArchive(){
+  return loadTournamentArchiveFromStorage(
+    localStorage,
+    TOURNAMENT_ARCHIVE_KEY
+  );
+}
+function saveTournamentArchive(a){
+  return saveTournamentArchiveToStorage(
+    localStorage,
+    TOURNAMENT_ARCHIVE_KEY,
+    a
+  );
+}
 function archiveTournament(t){
-  if(!t?.season)return;
-  const a=loadTournamentArchive();a[String(t.season)]=JSON.parse(JSON.stringify(t));
-  const maxSeason=Math.max(Number(seasonNumber)||1,...Object.keys(a).map(Number).filter(Number.isFinite));
-  Object.keys(a).forEach(k=>{if(Number(k)<maxSeason-(TOURNAMENT_KEEP_SEASONS-1))delete a[k]});
-  saveTournamentArchive(a);
+  return archiveTournamentInStorage({
+    storage:localStorage,
+    archiveKey:TOURNAMENT_ARCHIVE_KEY,
+    tournament:t,
+    currentSeason:Number(seasonNumber)||1,
+    keepSeasons:TOURNAMENT_KEEP_SEASONS
+  });
 }
 function tournamentForSeason(season){
-  const active=loadTournament();if(Number(active?.season)===Number(season))return active;
-  return loadTournamentArchive()[String(season)]||null;
+  return tournamentForSeasonFromStorage({
+    storage:localStorage,
+    tournamentKey:TOURNAMENT_KEY,
+    archiveKey:TOURNAMENT_ARCHIVE_KEY,
+    season
+  });
 }
 function ensureAutomaticTournament(){
   const season=tournamentSeason(),roster=tournamentRoster();
@@ -4607,22 +4636,20 @@ const COMBAT_REGIONS=[
 function randomCombatRegion(){return COMBAT_REGIONS[Math.floor(Math.random()*COMBAT_REGIONS.length)]}
 
 function tournamentRoster(){
-  const raw=loadRoster()||{}, out={};
-  Object.entries(raw).forEach(([key,c])=>{
-    if(!c||typeof c!=='object')return;
-    const candidates=[key,c.id,c.character_code,c.characterCode].filter(Boolean).map(String);
-    const id=candidates.find(x=>/^S\d+-\d+$/.test(x));
-    if(id)out[id]={...c,id};
-  });
-  return out;
+  return normalizeTournamentRoster(loadRoster());
 }
 function tournamentSeason(){
-  const roster=tournamentRoster(), seasons={};
-  Object.keys(roster).forEach(id=>{const m=id.match(/^S(\d+)-(\d+)$/);if(m)(seasons[+m[1]]??=[]).push(id)});
-  const complete=Object.keys(seasons).map(Number).filter(n=>seasons[n].length>=64).sort((a,b)=>b-a);
-  return complete[0]||1;
+  return tournamentSeasonFromRoster(
+    tournamentRoster(),
+    64
+  );
 }
-function loadTournament(){try{return JSON.parse(localStorage.getItem(TOURNAMENT_KEY)||'null')}catch(e){return null}}
+function loadTournament(){
+  return loadTournamentFromStorage(
+    localStorage,
+    TOURNAMENT_KEY
+  );
+}
 function ensureTournamentChampion(t){
   if(!t)return null;
   const roster=loadRoster();
@@ -4654,7 +4681,9 @@ function saveTournament(t){
   if(typeof queueCloudTournamentSave==='function') queueCloudTournamentSave(t);
   ensureTournamentChampion(t);
 }
-function shuffleTournament(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function shuffleTournament(a){
+  return shuffleTournamentEntries(a);
+}
 function createTournament(){
   const season=tournamentSeason(), roster=tournamentRoster();
   const ids=Object.keys(roster).filter(id=>id.startsWith(`S${season}-`)).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).slice(0,64);
@@ -4664,7 +4693,9 @@ function createTournament(){
   const t={version:'V18.26',season,createdAt:new Date().toISOString(),rounds:[shuffleTournament(ids)],winners:{},battles:{},deaths:[]};
   saveTournament(t);renderTournament();
 }
-function tournamentRoundName(i){return ['32es de finale','16es de finale','8es de finale','Quarts de finale','Demi-finales','Finale'][i]||`Tour ${i+1}`}
+function tournamentRoundName(i){
+  return tournamentRoundNameFor(i);
+}
 
 /* ========================= HGT COMBAT ENGINE V1 =========================
    The character sheet remains the canonical source. Combat profiles are
