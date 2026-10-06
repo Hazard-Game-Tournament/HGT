@@ -1,4 +1,9 @@
 import {
+  beastSpeciesOptionsFor,
+  spiritElementOptionsFor
+} from "./rules/races/regional-options.js";
+
+import {
   martialInheritedClanFor
 } from "./rules/martial/inheritance.js";
 
@@ -416,7 +421,19 @@ const POWER_STAGE=[W('1–49 %',60),W('50–90 %',30),W('91–100 %',10)];
 
 
 
-function beastSpeciesOptions(kind){let arr=kind==='Animal réel'?BEAST_REAL:BEAST_FANTASY,row=((kind==='Animal réel'?BEAST_REAL_AFF:BEAST_FANTASY_AFF)[state.birthRegion]||'').split(' ');return arr.map((x,i)=>W(x,AFF[row[i]||'N']))}
+function beastSpeciesOptions(kind){
+  return beastSpeciesOptionsFor(
+    kind,
+    state.birthRegion,
+    {
+      realSpecies:BEAST_REAL,
+      fantasySpecies:BEAST_FANTASY,
+      realAffinity:BEAST_REAL_AFF,
+      fantasyAffinity:BEAST_FANTASY_AFF,
+      affinityWeights:AFF
+    }
+  );
+}
 
 
 
@@ -427,7 +444,17 @@ const SPIRIT_REGION_AFF={
 'Aetherys':'N N F N D N N F D F N','Thoryndra':'F F F N D F F N N F F','Liorael':'F N F D F D D F D N N','Caelorn':'N F F N N N N N N N F',
 'Iskarya':'N N N D N F N F D N N','Kharadryn':'N F F D D F N N N F N','Sylvaeryn':'F N N D F D N F N D F','Avelorn':'F N N N F D N F D N N','Drakhenor':'D F N F D D F D F F N','Maelora':'F N N N F D N F N D F','Nexara':'N N N N D D F N N F N','Kaelora':'F N F D F D F F D D F','Vaerunn':'N F F F D N F D F F N',
 'Lumerys':'N N N D F D N F N F N','Kythera':'N F D N D F N F N F F',"Mor'Khal":'N N D N D N N D F N F','Varkhoryn':'D F N F D N F D F F N','Naeroth':'F N N D N D F F N N F'};
-function spiritElementOptions(){let row=(SPIRIT_REGION_AFF[state.birthRegion]||'').split(' ');return SPIRIT_ELEMENTS.map((x,i)=>W(x,SPIRIT_BASE[x]*AFF[row[i]||'N']))}
+function spiritElementOptions(){
+  return spiritElementOptionsFor(
+    state.birthRegion,
+    {
+      elements:SPIRIT_ELEMENTS,
+      baseWeights:SPIRIT_BASE,
+      regionAffinity:SPIRIT_REGION_AFF,
+      affinityWeights:AFF
+    }
+  );
+}
 
  
 
