@@ -1,4 +1,8 @@
 import {
+  syncCloudGenealogy as syncCloudGenealogyStorage
+} from "./services/cloud-genealogy-storage.js";
+
+import {
   saveCloudCharacter,
   deleteCloudCharacter,
   saveCloudGameState
@@ -6346,24 +6350,18 @@ async function cloudSaveGameState(){
 }
 function queueCloudUniverseSync(){if(!cloudReady())return;clearTimeout(__cloudUniverseTimer);__cloudUniverseTimer=setTimeout(()=>cloudSyncGenealogy().catch(cloudSyncError),1400)}
 async function cloudSyncGenealogy(){
-  if(!cloudReady())return;
-  const gid=cloudCurrentGame.id,d=descendants(),n=npcs();
-  // Ne jamais faire DELETE ALL puis INSERT : un rechargement entre les deux pouvait
-  // laisser la partie cloud sans descendants. On écrit d'abord, puis on supprime les entrées obsolètes.
-  const drows=Object.values(d).filter(Boolean).map(x=>({game_id:gid,descendant_code:x.id||null,season:x.eligibleSeason||x.birthSeason||null,data:x}));
-  if(drows.length){const q=await cloudClient.from('descendants').upsert(drows,{onConflict:'game_id,descendant_code'});if(q.error)throw q.error}
-  const remoteD=await cloudClient.from('descendants').select('descendant_code').eq('game_id',gid);if(remoteD.error)throw remoteD.error;
-  const keepD=new Set(drows.map(r=>r.descendant_code).filter(Boolean));
-  const staleD=(remoteD.data||[]).map(r=>r.descendant_code).filter(code=>code&&!keepD.has(code));
-  for(const code of staleD){const q=await cloudClient.from('descendants').delete().eq('game_id',gid).eq('descendant_code',code);if(q.error)throw q.error}
+  if(!cloudReady())
+    return;
 
-  const nrows=Object.values(n).filter(Boolean).map(x=>({game_id:gid,npc_code:x.id||null,data:x}));
-  if(nrows.length){const q=await cloudClient.from('npcs').upsert(nrows,{onConflict:'game_id,npc_code'});if(q.error)throw q.error}
-  const remoteN=await cloudClient.from('npcs').select('npc_code').eq('game_id',gid);if(remoteN.error)throw remoteN.error;
-  const keepN=new Set(nrows.map(r=>r.npc_code).filter(Boolean));
-  const staleN=(remoteN.data||[]).map(r=>r.npc_code).filter(code=>code&&!keepN.has(code));
-  for(const code of staleN){const q=await cloudClient.from('npcs').delete().eq('game_id',gid).eq('npc_code',code);if(q.error)throw q.error}
-  await cloudSaveGameState();cloudUpdateTopStatus();
+  await syncCloudGenealogyStorage({
+    client:cloudClient,
+    gameId:cloudCurrentGame.id,
+    descendants:descendants(),
+    npcs:npcs()
+  });
+
+  await cloudSaveGameState();
+  cloudUpdateTopStatus();
 }
 function queueCloudTournamentSave(t){if(!cloudReady()||!t)return;const copy=JSON.parse(JSON.stringify(t));clearTimeout(__cloudTournamentTimer);__cloudTournamentTimer=setTimeout(()=>cloudSaveTournament(copy).catch(cloudSyncError),900)}
 async function cloudSaveTournament(t){if(!cloudReady()||!t)return;const {error}=await cloudClient.from('tournaments').upsert({game_id:cloudCurrentGame.id,season:t.season||1,data:t},{onConflict:'game_id,season'});if(error)throw error;const cutoff=Number(t.season||1)-TOURNAMENT_KEEP_SEASONS;if(cutoff>=1){const {error:pruneError}=await cloudClient.from('tournaments').delete().eq('game_id',cloudCurrentGame.id).lte('season',cutoff);if(pruneError)console.warn('Nettoyage anciens tournois',pruneError)}cloudUpdateTopStatus()}
