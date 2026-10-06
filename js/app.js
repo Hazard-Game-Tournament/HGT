@@ -1,4 +1,9 @@
 import {
+  saveCloudTournament as saveCloudTournamentStorage,
+  deleteCloudTournament as deleteCloudTournamentStorage
+} from "./services/cloud-tournament-storage.js";
+
+import {
   syncCloudGenealogy as syncCloudGenealogyStorage
 } from "./services/cloud-genealogy-storage.js";
 
@@ -6364,8 +6369,42 @@ async function cloudSyncGenealogy(){
   cloudUpdateTopStatus();
 }
 function queueCloudTournamentSave(t){if(!cloudReady()||!t)return;const copy=JSON.parse(JSON.stringify(t));clearTimeout(__cloudTournamentTimer);__cloudTournamentTimer=setTimeout(()=>cloudSaveTournament(copy).catch(cloudSyncError),900)}
-async function cloudSaveTournament(t){if(!cloudReady()||!t)return;const {error}=await cloudClient.from('tournaments').upsert({game_id:cloudCurrentGame.id,season:t.season||1,data:t},{onConflict:'game_id,season'});if(error)throw error;const cutoff=Number(t.season||1)-TOURNAMENT_KEEP_SEASONS;if(cutoff>=1){const {error:pruneError}=await cloudClient.from('tournaments').delete().eq('game_id',cloudCurrentGame.id).lte('season',cutoff);if(pruneError)console.warn('Nettoyage anciens tournois',pruneError)}cloudUpdateTopStatus()}
-async function cloudDeleteTournament(season){if(!cloudReady()||!season)return;const {error}=await cloudClient.from('tournaments').delete().eq('game_id',cloudCurrentGame.id).eq('season',season);if(error)cloudSyncError(error)}
+async function cloudSaveTournament(t){
+  if(!cloudReady()||!t)
+    return;
+
+  const result=
+    await saveCloudTournamentStorage({
+      client:cloudClient,
+      gameId:cloudCurrentGame.id,
+      tournament:t,
+      keepSeasons:
+        TOURNAMENT_KEEP_SEASONS
+    });
+
+  if(result.pruneError){
+    console.warn(
+      'Nettoyage anciens tournois',
+      result.pruneError
+    );
+  }
+
+  cloudUpdateTopStatus();
+}
+async function cloudDeleteTournament(season){
+  if(!cloudReady()||!season)
+    return;
+
+  try{
+    await deleteCloudTournamentStorage({
+      client:cloudClient,
+      gameId:cloudCurrentGame.id,
+      season
+    });
+  }catch(error){
+    cloudSyncError(error);
+  }
+}
 async function cloudSyncAllData(){
   if(!cloudReady()||__cloudSyncBusy)return;__cloudSyncBusy=true;cloudStatus(`☁️ ${cloudCurrentGame.name} • synchronisation…`,'syncing');
   try{
