@@ -1,4 +1,12 @@
 import {
+  seasonTournamentIds,
+  createTournamentState,
+  automaticTournamentDecision,
+  tournamentChampionId as tournamentChampionIdFromLifecycle,
+  championRecord
+} from "./services/tournament-lifecycle.js";
+
+import {
   migrateLegacyDescendants
 } from "./services/descendant-legacy-migration.js";
 
@@ -4921,17 +4929,54 @@ function tournamentForSeason(season){
   });
 }
 function ensureAutomaticTournament(){
-  const season=tournamentSeason(),roster=tournamentRoster();
-  const ids=Object.keys(roster).filter(id=>id.startsWith(`S${season}-`));
-  if(ids.length<64)return null;
-  let active=loadTournament();
-  if(Number(active?.season)===Number(season))return active;
-  if(active?.season){archiveTournament(active)}
-  const archived=loadTournamentArchive()[String(season)];
-  if(archived){localStorage.setItem(TOURNAMENT_KEY,JSON.stringify(archived));return archived}
-  const ordered=ids.sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).slice(0,64);
-  const t={version:'V18.26',season,createdAt:new Date().toISOString(),rounds:[shuffleTournament(ordered)],winners:{},battles:{},deaths:[]};
-  saveTournament(t);return t;
+  const season=tournamentSeason();
+  const roster=tournamentRoster();
+  const active=loadTournament();
+
+  const archived=
+    loadTournamentArchive()[
+      String(season)
+    ]||null;
+
+  const decision=
+    automaticTournamentDecision({
+      season,
+      roster,
+      active,
+      archived,
+      shuffle:shuffleTournament
+    });
+
+  if(
+    decision.action==='insufficient'
+  ){
+    return null;
+  }
+
+  if(decision.action==='active'){
+    return active;
+  }
+
+  if(active?.season){
+    archiveTournament(active);
+  }
+
+  if(decision.action==='archived'){
+    localStorage.setItem(
+      TOURNAMENT_KEY,
+      JSON.stringify(
+        decision.tournament
+      )
+    );
+
+    return decision.tournament;
+  }
+
+  saveTournament(
+    decision.tournament
+  );
+
+  return decision.tournament;
 }
 const TOURNAMENT_TERRAINS=['Plaine ouverte','Forêt dense','Ruines','Ville','Montagne','Marais','Désert','Caverne','Arène fermée','Zone aquatique'];
 const TOURNAMENT_DISTANCES=[['Corps à corps',2],['Courte distance',8],['Distance moyenne',25],['Longue distance',60]];
@@ -4959,28 +5004,41 @@ function loadTournament(){
   );
 }
 function ensureTournamentChampion(t){
-  if(!t)return null;
+  if(!t) return null;
+
   const roster=loadRoster();
-  let championId=null;
-  // Source la plus fiable : le combat de finale (tour à 2 combattants).
-  // On ne dépend donc plus de la création éventuelle du tour singleton [champion].
-  let finalRi=-1;
-  for(let ri=(t.rounds?.length||0)-1;ri>=0;ri--){
-    if(Array.isArray(t.rounds[ri])&&t.rounds[ri].length===2){finalRi=ri;break}
-  }
-  if(finalRi>=0)championId=t.winners?.[`${finalRi}-0`]||t.battles?.[`${finalRi}-0`]?.winner||null;
-  if(!championId){
-    const last=t?.rounds?.[t.rounds.length-1];
-    if(last?.length===1)championId=last[0];
-  }
-  if(!championId)return null;
-  const meta=universeMeta();meta.champions??={};
-  const old=meta.champions[String(t.season)];
-  if(!old||old.id!==championId){
-    meta.champions[String(t.season)]={id:championId,name:roster[championId]?.name||old?.name||'Sans nom',season:Number(t.season),wonAt:old?.wonAt||new Date().toISOString()};
+
+  const championId=
+    tournamentChampionIdFromLifecycle(t);
+
+  if(!championId)
+    return null;
+
+  const meta=universeMeta();
+
+  meta.champions??={};
+
+  const old=
+    meta.champions[
+      String(t.season)
+    ];
+
+  if(
+    !old ||
+    old.id!==championId
+  ){
+    meta.champions[
+      String(t.season)
+    ]=championRecord({
+      tournament:t,
+      championId,
+      roster,
+      previous:old
+    });
+
     saveUniverseMeta(meta);
-    if(typeof queueCloudGameStateSave==='function')queueCloudGameStateSave();
   }
+
   return championId;
 }
 function saveTournament(t){
@@ -4993,13 +5051,41 @@ function shuffleTournament(a){
   return shuffleTournamentEntries(a);
 }
 function createTournament(){
-  const season=tournamentSeason(), roster=tournamentRoster();
-  const ids=Object.keys(roster).filter(id=>id.startsWith(`S${season}-`)).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).slice(0,64);
-  if(ids.length<64){alert(`La saison S${season} ne contient que ${ids.length}/64 personnages.`);return}
-  const old=tournamentForSeason(season);
-  if(old&&!confirm(`Le tournoi S${season} existe déjà. Refaire le tirage effacera sa progression, mais pas les Champions déjà archivés. Continuer ?`))return;
-  const t={version:'V18.26',season,createdAt:new Date().toISOString(),rounds:[shuffleTournament(ids)],winners:{},battles:{},deaths:[]};
-  saveTournament(t);renderTournament();
+  const season=tournamentSeason();
+  const roster=tournamentRoster();
+
+  const ids=seasonTournamentIds({
+    roster,
+    season
+  });
+
+  if(ids.length<64){
+    alert(
+      `La saison S${season} ne contient que ${ids.length}/64 personnages.`
+    );
+    return;
+  }
+
+  const old=
+    tournamentForSeason(season);
+
+  if(
+    old &&
+    !confirm(
+      `Le tournoi S${season} existe déjà. Refaire le tirage effacera sa progression, mais pas les Champions déjà archivés. Continuer ?`
+    )
+  ){
+    return;
+  }
+
+  const t=createTournamentState({
+    season,
+    ids,
+    shuffle:shuffleTournament
+  });
+
+  saveTournament(t);
+  renderTournament();
 }
 function tournamentRoundName(i){
   return tournamentRoundNameFor(i);
