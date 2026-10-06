@@ -1,4 +1,17 @@
 import {
+  summonerMasteryFor
+} from "./rules/summoning/mastery.js";
+
+import {
+  armorStatBonus,
+  armorStatModifier
+} from "./rules/armor/index.js";
+
+import {
+  finalDragonComponentFor
+} from "./rules/dragons/final.js";
+
+import {
   activeArchsFor,
   modSumFor,
   masteryModFor,
@@ -566,7 +579,6 @@ const elementalCreatures=elementalCreatureSpecies;
 
 
 
-function finalDragonComponent(c=state){if(hasFinalRaceAlteration(c))return null;const L=c?.lineage||{};const all=[L.primaryComponent,L.hybridCompA,L.hybridCompB,L.originComponent].filter(Boolean);return all.find(x=>x?.race==='Dragon humanoïde'&&Number(x?.power)>90)||null}
 
 function weaponOptionsForCurrent(forceRanged=false){return finalDragonComponent()?EQ(DRAGON_TAIL_WEAPONS):weaponOptions(forceRanged)}
 function attachWeaponTraits(w,system='classic'){w.weaponSystem=system;w.mandatoryWeaponTraits=weaponTraitsFor(w.name,system);return w}
@@ -3101,10 +3113,17 @@ function finishSummonRace(){
     }
   })));
 }
-function summonerMastery(s=state){
-  if(!s?.powers?.length)return 0;
-  return Number(s.powers[0]?.mastery)||0;
+function finalDragonComponent(c=state){
+  return finalDragonComponentFor(
+    c,
+    hasFinalRaceAlteration(c)
+  );
 }
+
+function summonerMastery(s=state){
+  return summonerMasteryFor(s);
+}
+
 function summonerSummaryHtml(s=state){
   if(!s?.summon)return '';
   const q=s.summon,m=summonerMastery(s),n=summonCountFromMastery(m);
@@ -3157,7 +3176,15 @@ function replaceUniquePower(idx,label){insert([task(`${label} — Manifestation 
 function replaceUniqueWeapon(idx,label){insert([task(`${label} — Manifestation unique`,EQ(uniqueWeapons),u=>state.weapons[idx].name=u)])}
 function enchantTasks(w,label,n){let ts=[];for(let j=1;j<=n;j++)ts.push(task(`${label} — Enchantement ${j}`,vaeloriaEnchantOptions,e=>{if(e==='Enchantement unique')insert([task(`${label} — Enchantement unique ${j}`,EQ(uniqueEnchants),u=>w.ench.push(u))]);else w.ench.push(e)}));return ts}
 
-function registerArmorStatBonus(a){if(!a||!a.power)return;let map={'Force augmentée':'Force','Mobilité augmentée':'Vitesse','Résistance physique accrue':'Résilience'};let stat=map[a.effect];if(!stat)return;state.extraStatMods=state.extraStatMods||[];state.extraStatMods.push({stat,value:armorStatBonus(a.power),source:`Armure spéciale — ${a.effect}`})}
+function registerArmorStatBonus(a){
+  const mod=armorStatModifier(a);
+  if(!mod)return;
+
+  state.extraStatMods=
+    state.extraStatMods||[];
+
+  state.extraStatMods.push(mod);
+}
 function addSlayerTarget(label='Slayer'){insert([task(`${label} — Race cible`,()=>raceOptions().filter(o=>o.label!=='Hybride'),r=>state.slayerTarget=r)])}
 function addProdigeBonuses(){
   insert([
