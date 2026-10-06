@@ -1,4 +1,8 @@
 import {
+  weaponOptionsFor,
+  martialWeaponOptionsFor
+} from "./rules/weapons/options.js";
+import {
   weaponContextMultiplierFor
 } from "./rules/weapons/context.js";
 import {
@@ -538,19 +542,21 @@ function weaponContextMultiplier(name){
   );
 }
 function weaponOptions(forceRanged=false){
- // « Aucune arme » reste exactement à 25 % ; les 75 % restants sont répartis contextuellement.
- const pool=(forceRanged?ranged:weapons).filter(w=>w!=='Aucune arme');
- const raw=pool.map(w=>[w,weaponContextMultiplier(w)]);
- const total=raw.reduce((a,x)=>a+x[1],0)||1;
- return [W('Aucune arme',25),...raw.map(([w,m])=>W(w,75*m/total))];
+  return weaponOptionsFor({
+    weapons,
+    ranged,
+    forceRanged,
+    multiplierFor:weaponContextMultiplier
+  });
 }
 
 // Artiste martial : 50 % mains nues, sinon uniquement armes martiales/non modernes.
 const martialWeapons=['Épée','Épée à deux mains','Katana','Dagues doubles','Hache','Hache à deux mains','Marteau de guerre','Rope Dart / Corde-dard','Lance','Hallebarde','Faux','Bâton','Nunchaku','Chaîne / Kusarigama','Fouet','Gantelets de combat','Bouclier offensif','Arc','Arbalète','Arme improvisée','Arme unique'];
 function martialWeaponOptions(){
- const raw=martialWeapons.map(w=>[w,weaponContextMultiplier(w)]);
- const total=raw.reduce((a,x)=>a+x[1],0)||1;
- return [W('Aucune arme',50),...raw.map(([w,m])=>W(w,50*m/total))];
+  return martialWeaponOptionsFor({
+    martialWeapons,
+    multiplierFor:weaponContextMultiplier
+  });
 }
 
 // === HGT MARTIAL CLANS V1 — système validé Oct. 2026 ===
