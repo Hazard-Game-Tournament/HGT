@@ -1,4 +1,10 @@
 import {
+  eligibleDescendantsForSeason,
+  freeFighterNumbersForSeason,
+  selectDescendantsForSeason
+} from "./rules/genealogy/descendant-selection.js";
+
+import {
   recoverDescendantsFromBackup,
   repairBirthEvents,
   cleanupPrematureDescendants
@@ -2442,49 +2448,173 @@ async function resolveBirthEvents(){
 }
 function selectDescendantsForNextSeason(){
   migrateExistingDescendantsToLegacy();
+
   const completedSeason=seasonNumber;
-  if(!seasonCompleted(completedSeason)){alert(`La sélection des descendants de S${completedSeason+1} ne s'ouvre qu'une fois S${completedSeason}-064 terminé.`);return}
-  if(!tournamentChampionForSeason(completedSeason)){alert(`Termine d'abord le tournoi de S${completedSeason} et obtiens son champion.`);showTab('tournament');renderTournament();return}
-  if(!birthsResolvedForSeason(completedSeason)){alert(`Résous d'abord les naissances de S${completedSeason}.`);return}
-  const d=descendants(), meta=universeMeta(), roster=loadRoster();
-  const target=completedSeason+1;
-  let eligible=Object.values(d).filter(x=>!x.legacy&&Number(x.eligibleSeason)===target&&x.selectedForSeason==null&&x.fullFighterData);
+
+  if(!seasonCompleted(completedSeason)){
+    alert(
+      `La sélection des descendants de S${completedSeason+1} ne s'ouvre qu'une fois S${completedSeason}-064 terminé.`
+    );
+    return;
+  }
+
+  if(
+    !tournamentChampionForSeason(
+      completedSeason
+    )
+  ){
+    alert(
+      `Termine d'abord le tournoi de S${completedSeason} et obtiens son champion.`
+    );
+
+    showTab('tournament');
+    renderTournament();
+    return;
+  }
+
+  if(
+    !birthsResolvedForSeason(
+      completedSeason
+    )
+  ){
+    alert(
+      `Résous d'abord les naissances de S${completedSeason}.`
+    );
+    return;
+  }
+
+  const d=descendants();
+  const meta=universeMeta();
+  const roster=loadRoster();
+
+  const target=
+    completedSeason+1;
+
+  const eligible=
+    eligibleDescendantsForSeason(
+      d,
+      target
+    );
+
   if(!eligible.length){
-    meta.selectedBySeason[target]=[];saveStore(STORAGE_META,meta);markDescendantSelectionComplete(completedSeason);
-    alert(`Aucun descendant éligible pour S${target}. La transition est validée et la roue de S${target} est débloquée.`);
-    activateNextSeasonAfterTransition(completedSeason);return;
+    meta.selectedBySeason??={};
+    meta.selectedBySeason[target]=[];
+
+    saveStore(
+      STORAGE_META,
+      meta
+    );
+
+    markDescendantSelectionComplete(
+      completedSeason
+    );
+
+    alert(
+      `Aucun descendant éligible pour S${target}. La transition est validée et la roue de S${target} est débloquée.`
+    );
+
+    activateNextSeasonAfterTransition(
+      completedSeason
+    );
+
+    return;
   }
-  for(let i=eligible.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[eligible[i],eligible[j]]=[eligible[j],eligible[i]]}
-  const selected=eligible.slice(0,20), chosen=new Set(selected.map(x=>x.id));
-  const occupied=new Set(Object.keys(roster).filter(id=>id.startsWith(`S${target}-`)).map(id=>Number(id.split('-')[1])));
-  const free=[];for(let n=1;n<=CHARACTERS_PER_SEASON;n++)if(!occupied.has(n))free.push(n);
-  if(free.length<selected.length){alert(`Impossible d'intégrer ${selected.length} descendants : seulement ${free.length} emplacement(s) libre(s) en S${target}.`);return}
-  const portraits=[];
-  for(const x of eligible){
-    if(chosen.has(x.id)){
-      const n=free.shift(), fid=`S${target}-${String(n).padStart(3,'0')}`;
-      const fighter=JSON.parse(JSON.stringify(x.fullFighterData));
-      fighter.id=fid;fighter.instanceId=newCharacterInstanceId();fighter.isDescendant=true;fighter.descendantSourceId=x.id;
-      fighter._generationComplete=true;fighter._autoSavedAtFinish=true;fighter._portraitGenerated=false;
-      ensureGenealogyShape(fighter);fighter.genealogy.parents=[...(x.parentIds||[])];
-      roster[fid]=fighter;
-      x.selectedForSeason=target;x.fighterId=fid;x.status=`Combattant S${target} — ${fid}`;x.fighterDataGenerated=true;
-      portraits.push(fid);
-    }else{
-      x.selectedForSeason=false;x.status='PNJ descendant — non sélectionné';x.fighterId=null;
-    }
-    d[x.id]=x;
+
+  const free=
+    freeFighterNumbersForSeason({
+      roster,
+      season:target,
+      charactersPerSeason:
+        CHARACTERS_PER_SEASON
+    });
+
+  const wanted=
+    Math.min(
+      20,
+      eligible.length
+    );
+
+  if(free.length<wanted){
+    alert(
+      `Impossible d'intégrer ${wanted} descendants : seulement ${free.length} emplacement(s) libre(s) en S${target}.`
+    );
+    return;
   }
-  meta.selectedBySeason[target]=selected.map(x=>x.id);
-  saveRoster(roster);saveStore(STORAGE_DESC,d);saveStore(STORAGE_META,meta);
-  // Les IDs S+1 n'existent qu'après la sélection. Une fois attribués aux descendants,
-  // le curseur normal est placé sur le premier ID libre (ex. 4 descendants => S+1-005).
-  markDescendantSelectionComplete(completedSeason);
-  renderRoster();renderGenealogy();
-  activateNextSeasonAfterTransition(completedSeason);
-  // L'image n'est demandée qu'une fois le descendant devenu combattant.
-  for(const fid of portraits)setTimeout(()=>invokeCharacterImageGeneration(fid).catch(console.error),200);
-  alert(`${selected.length} descendant${selected.length>1?'s':''} intégré${selected.length>1?'s':''} comme combattant${selected.length>1?'s':''} de S${target}${eligible.length>20?` sur ${eligible.length} éligibles`:''}. Les autres deviennent PNJ.`);
+
+  const selection=
+    selectDescendantsForSeason({
+      descendants:d,
+      roster,
+      season:target,
+      charactersPerSeason:
+        CHARACTERS_PER_SEASON,
+      maxSelected:20,
+      newInstanceId:
+        newCharacterInstanceId,
+      ensureGenealogyShape
+    });
+
+  meta.selectedBySeason??={};
+
+  meta.selectedBySeason[target]=
+    selection.selectedIds;
+
+  saveRoster(roster);
+
+  saveStore(
+    STORAGE_DESC,
+    d
+  );
+
+  saveStore(
+    STORAGE_META,
+    meta
+  );
+
+  markDescendantSelectionComplete(
+    completedSeason
+  );
+
+  if(
+    typeof saveEmergencyLocalBackup===
+    'function'
+  ){
+    saveEmergencyLocalBackup();
+  }
+
+  if(
+    typeof cloudSyncAllData===
+    'function'
+  ){
+    cloudSyncAllData()
+      .catch(
+        e=>
+          console.warn(
+            'Sync descendants',
+            e
+          )
+      );
+  }
+
+  for(
+    const fighterId of
+    selection.portraitIds
+  ){
+    scheduleAutomaticCharacterImageGeneration(
+      fighterId
+    );
+  }
+
+  renderRoster();
+  renderGenealogy();
+
+  alert(
+    `${selection.selectedIds.length} descendant${selection.selectedIds.length>1?'s':''} sélectionné${selection.selectedIds.length>1?'s':''} pour S${target}. Les autres deviennent des PNJ descendants.`
+  );
+
+  activateNextSeasonAfterTransition(
+    completedSeason
+  );
 }
 function alienBiologyHtml(s){
   if(s?.race!=='Extraterrestre' || !s.alienBiology) return '';
