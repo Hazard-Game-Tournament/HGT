@@ -1,4 +1,11 @@
 import {
+  activeArchsFor,
+  modSumFor,
+  masteryModFor,
+  statBreakdownFor
+} from "./rules/stats/index.js";
+
+import {
   vaeloriaPowerOptionsFor,
   vaeloriaEnchantOptionsFor
 } from "./rules/vaeloria/power-enchantment.js";
@@ -3105,10 +3112,47 @@ function summonerSummaryHtml(s=state){
   return `<div class="box summoner-box"><b>🜲 Invocation</b><br>Race : <b>${q.race||'En attente'}</b><br>Nombre simultané : <b>${n}</b> <span class="muted">(maîtrise ${m})</span>${stats?`<br>Stats : ${stats}`:''}<br>Capacités raciales : ${(q.traits||[]).join(', ')||'—'}</div>`;
 }
 
-function activeArchs(){return state.archParts&&state.archParts.length?state.archParts:(state.arch?[state.arch]:[])}
-function modSum(){let rp=racialProfile7(),s=rp.slice(0,5);for(const a of activeArchs()){let m=amods[a];if(m)s=s.map((x,i)=>x+(m?.[i]||0))}for(const pm of state.prodigeMods||[]){let i=statNames.indexOf(pm.stat);if(i>=0)s[i]+=pm.value}for(const em of state.extraStatMods||[]){let i=statNames.indexOf(em.stat);if(i>=0)s[i]+=em.value}return s}
-function masteryMod(kind){let rp=racialProfile7(),s=kind==='power'?rp[5]:rp[6];for(const a of activeArchs())s+=(kind==='power'?pma[a]:wma[a])||0;return s}
-function statBreakdown(si){let arr=[],rp=racialProfile7();if(rp[si])arr.push({source:'Race / lignée',value:rp[si]});for(const a of activeArchs()){let m=amods[a];if(m&&m[si])arr.push({source:`Archétype ${a}`,value:m[si]})}for(const pm of state.prodigeMods||[]){if(statNames.indexOf(pm.stat)===si)arr.push({source:'Prodige',value:pm.value})}for(const em of state.extraStatMods||[]){if(statNames.indexOf(em.stat)===si)arr.push({source:em.source||'Extra',value:em.value})}return arr}
+function activeArchs(){
+  return activeArchsFor(state);
+}
+
+function modSum(){
+  return modSumFor({
+    racialProfile:racialProfile7(),
+    activeArchs:activeArchs(),
+    archetypeMods:amods,
+    prodigeMods:state.prodigeMods||[],
+    extraStatMods:state.extraStatMods||[],
+    statNames
+  });
+}
+
+function masteryMod(kind){
+  return masteryModFor(
+    kind,
+    {
+      racialProfile:racialProfile7(),
+      activeArchs:activeArchs(),
+      powerMasteryMods:pma,
+      weaponMasteryMods:wma
+    }
+  );
+}
+
+function statBreakdown(si){
+  return statBreakdownFor(
+    si,
+    {
+      racialProfile:racialProfile7(),
+      activeArchs:activeArchs(),
+      archetypeMods:amods,
+      prodigeMods:state.prodigeMods||[],
+      extraStatMods:state.extraStatMods||[],
+      statNames
+    }
+  );
+}
+
 function replaceUniquePower(idx,label){insert([task(`${label} — Manifestation unique`,EQ(uniquePowers),u=>state.powers[idx].name=u)])}
 function replaceUniqueWeapon(idx,label){insert([task(`${label} — Manifestation unique`,EQ(uniqueWeapons),u=>state.weapons[idx].name=u)])}
 function enchantTasks(w,label,n){let ts=[];for(let j=1;j<=n;j++)ts.push(task(`${label} — Enchantement ${j}`,vaeloriaEnchantOptions,e=>{if(e==='Enchantement unique')insert([task(`${label} — Enchantement unique ${j}`,EQ(uniqueEnchants),u=>w.ench.push(u))]);else w.ench.push(e)}));return ts}
