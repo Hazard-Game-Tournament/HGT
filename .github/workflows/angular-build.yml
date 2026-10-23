@@ -1,0 +1,44 @@
+name: Angular build
+
+on:
+  push:
+    branches: [refactor/angular]
+  pull_request:
+    branches: [refactor/angular]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Récupérer CSS, assets et manifest depuis main
+        run: |
+          git fetch origin main
+          mkdir -p hgt-angular/legacy hgt-angular/public
+          git --work-tree=hgt-angular/legacy checkout origin/main -- css assets
+          git show origin/main:manifest.webmanifest > hgt-angular/public/manifest.webmanifest
+          git reset -q
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: hgt-angular/package-lock.json
+
+      - name: Installer les dépendances
+        working-directory: hgt-angular
+        run: npm ci
+
+      - name: Build
+        working-directory: hgt-angular
+        run: npx ng build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hgt-angular-dist
+          path: hgt-angular/dist
+          if-no-files-found: error
