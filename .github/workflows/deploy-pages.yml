@@ -23,11 +23,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Récupérer CSS, assets et manifest depuis main
+      - name: Récupérer CSS, JS legacy, assets et manifest depuis main
         run: |
           git fetch origin main
           mkdir -p hgt-angular/legacy hgt-angular/public
           git --work-tree=hgt-angular/legacy checkout origin/main -- css assets
+          git --work-tree=hgt-angular/public checkout origin/main -- js assets
           git show origin/main:manifest.webmanifest > hgt-angular/public/manifest.webmanifest
           git show origin/main:CNAME > hgt-angular/public/CNAME 2>/dev/null || rm -f hgt-angular/public/CNAME
           git reset -q
