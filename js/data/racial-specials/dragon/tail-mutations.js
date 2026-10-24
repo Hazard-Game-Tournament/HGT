@@ -1,0 +1,1 @@
+export const DRAGON_TAIL_UNIQUE_MUTATIONS=['Queue à segments extensibles','Queue préhensile renforcée','Queue à lames rétractables','Queue à crochet','Queue à membrane tranchante','Queue mitraillette','Queue à ventouses prédatrices','Queue à bélier','Queue bifide','Queue vibratoire'];

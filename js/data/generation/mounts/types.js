@@ -1,0 +1,1 @@
+export const mountTypes=['Cheval','Loup géant','Félin géant','Ours','Cerf','Éléphant','Rhinocéros','Oiseau géant','Reptile géant','Créature aquatique','Monture mécanique','Créature extraterrestre','Créature élémentaire','Créature fantastique','Monture unique'];

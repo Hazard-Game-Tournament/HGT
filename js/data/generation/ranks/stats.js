@@ -1,0 +1,1 @@
+export const statRanks=['Inapte','Catastrophique','Très faible','Faible','Médiocre','Moyen','Bon','Excellent','Exceptionnel','Légendaire','Monstrueux','Surhumain','Mythique','Cataclysmique','Transcendant','Divin','Cosmique','Incommensurable','Inconcevable','Absolu','Ultime'];

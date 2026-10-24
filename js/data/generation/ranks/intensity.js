@@ -1,0 +1,1 @@
+export const intensityRanks=['Nulle','Infime','Très faible','Faible','Modérée','Notable','Forte','Majeure','Extrême','Dévastatrice','Phénoménale','Colossale','Mythique','Cataclysmique','Transcendante','Divine','Cosmique','Incommensurable','Inconcevable','Apocalyptique','Ultime'];

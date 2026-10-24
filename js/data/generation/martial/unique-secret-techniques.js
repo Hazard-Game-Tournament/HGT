@@ -1,0 +1,1 @@
+export const uniqueSecretTechniques=['Paume du Néant Retourné','Septième Pas sans Ombre','Coupure de l’Instant','Poing de la Dernière Étoile','Cercle des Mille Contres','Souffle du Fil Invisible','Frappe du Cœur Silencieux','Verrou du Destin','Danse de l’Arme Absente','Impact à Retardement'];

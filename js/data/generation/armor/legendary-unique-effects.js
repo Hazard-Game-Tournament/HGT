@@ -1,0 +1,1 @@
+export const uniqueLegendaryArmorEffects=['Mémoire des impacts','Armure hors phase','Cœur de forteresse','Redistribution des dégâts','Blindage sacrificiel','Prison d’énergie','Armure réactive','Sceau d’immobilité','Peau de frontière','Refus de rupture','Échange de résistance','Armure miroir','Zone de sauvegarde','Verrou adaptatif','Dernier rempart'];

@@ -1,0 +1,1 @@
+export const RACE_BASE_WEIGHTS={'Humain':15,'Elfe':9,'Nain':8,'Orc':8,'Gobelin':7,'Fée':6,'Géant':4,'Vampire':4,'Loup-garou':4,'Esprit':4,'Homme-bête':7,'Hybride':6,'Squelette':3,'Golem / Artificiel':2,'Extraterrestre':1.5,'Ange':1.5,'Démon':1.5,'Dragon humanoïde':1,'Titan':.75,'Demi-dieu':.75,'Cyborg':.5};

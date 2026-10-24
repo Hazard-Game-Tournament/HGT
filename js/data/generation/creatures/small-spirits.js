@@ -1,0 +1,1 @@
+export const smallSpirits=['Esprit du feu follet','Esprit des rivières','Esprit des pierres','Esprit des vents','Esprit des ombres','Esprit des souvenirs','Esprit des fleurs','Esprit de la pluie','Esprit des ruines','Esprit des lanternes','Esprit animal mineur','Esprit domestique'];

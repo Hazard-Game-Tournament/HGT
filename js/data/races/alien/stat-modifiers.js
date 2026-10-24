@@ -1,0 +1,1 @@
+export const ALIEN7={'Humanoïde':[0,0,0,0,0,0,0],'Insectoïde':[1,1,0,1,1,-1,0],'Reptilien':[1,1,0,1,0,0,0],'Cristallin':[0,0,1,2,-1,1,-1],'Énergétique':[0,-2,1,1,2,3,-2],'Amorphe':[-1,0,0,2,-1,1,-1],'Végétaloïde':[0,1,0,2,-1,1,0],'Aquatique':[0,0,0,1,1,0,0],'Aviaire':[1,-1,0,-1,2,0,0],'Unique':[0,0,0,0,0,0,0]};

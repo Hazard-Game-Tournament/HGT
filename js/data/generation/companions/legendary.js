@@ -1,0 +1,1 @@
+export const legendaryCompanions=['Chevalier spectral ancestral','Androïde de guerre antique','Golem royal','Esprit gardien supérieur','Dragon mécanique','Automate céleste','Chimère protectrice','Machine extraterrestre souveraine','Sentinelle dimensionnelle','Gardien runique ancestral'];

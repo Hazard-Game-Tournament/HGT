@@ -1,0 +1,1 @@
+export const legendaryDormantPowers=['Cœur de Phénix','Œil du Néant','Sang du Titan','Couronne des Tempêtes','Mémoire du Monde','Flamme primordiale','Ombre souveraine','Écho d’une divinité','Graine cosmique','Pouvoir dormant unique'];

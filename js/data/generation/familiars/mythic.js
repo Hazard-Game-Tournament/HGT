@@ -1,0 +1,1 @@
+export const mythicFamiliars=['Phénix primordial','Léviathan céleste','Dragon cosmique','Bête du Chaos','Gardien du temps','Hydre astrale','Kirin divin','Cerbère des mondes','Roc stellaire','Esprit primordial incarné'];

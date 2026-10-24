@@ -1,0 +1,1 @@
+export const animals=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheval','Cerf','Chèvre','Gorille','Singe','Éléphant','Rhinocéros','Crocodile','Serpent','Lézard','Tortue','Aigle','Hibou','Chauve-souris','Requin','Baleine','Poulpe','Scorpion','Araignée','Scarabée','Fourmi','Guépard','Papillon','Animal fantastique'];

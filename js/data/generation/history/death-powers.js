@@ -1,0 +1,1 @@
+export const deathPowers=['Nécromancie','Drain de vie','Manipulation des âmes','Communication avec les morts','Putréfaction','Énergie nécrotique','Résurrection','Vol de vitalité','Invocation des morts','Passage spectral','Pouvoir unique lié à la mort'];

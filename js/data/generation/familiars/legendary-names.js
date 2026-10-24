@@ -1,0 +1,1 @@
+export const legendaryFamiliarNames=['Griffon royal','Phénix ancien','Hydre juvénile','Basilic couronné','Kirin d’orage','Manticore blanche','Cerbère astral','Dragon lunaire','Léviathan miniature','Esprit-roi des forêts','Bête solaire','Gardien démoniaque écarlate','Prédateur du Chaos','Chimère cosmique','Créature légendaire sans nom'];

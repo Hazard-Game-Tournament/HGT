@@ -1,0 +1,1 @@
+export const DIVINE_DOMAINS=['Guerre','Protection','Nature','Vie','Mort','Savoir','Magie','Justice','Liberté','Destin','Rêves','Océans','Terre','Ciel','Tempêtes','Feu','Lumière','Ténèbres','Temps','Espace'];

@@ -1,0 +1,1 @@
+export const mutations=['Bras supplémentaire','Œil supplémentaire','Peau écailleuse','Cornes fonctionnelles','Queue préhensile','Os renforcés','Sang luminescent','Branchies','Membrane de vol','Griffes rétractiles','Carapace partielle','Membres extensibles','Organes sensoriels supplémentaires','Peau chromatophore','Structure corporelle asymétrique'];

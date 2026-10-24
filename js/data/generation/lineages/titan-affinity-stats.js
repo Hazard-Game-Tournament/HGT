@@ -1,0 +1,1 @@
+export const TITAN_AFFINITY_STAT={'Montagne':'Résilience','Océan':'Pouvoir','Forêt ancestrale':'Résilience','Désert':'Vitesse','Glace':'Combat','Tempête':'Vitesse','Magma':'Force','Cristal':'Résilience','Profondeurs':'Combat','Terre':'Force'};

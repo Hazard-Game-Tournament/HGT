@@ -1,0 +1,1 @@
+export const artifactCopyNatures=['Pouvoir','Technique','Capacité raciale','Capacité physique','Capacité surnaturelle','Propriété d’arme','Enchantement d’arme','Propriété d’armure','Capacité de transformation','Copie universelle'];

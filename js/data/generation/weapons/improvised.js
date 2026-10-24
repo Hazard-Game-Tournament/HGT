@@ -1,0 +1,1 @@
+export const improvisedWeapons=['Barre métallique','Chaîne lourde','Bouteille brisée','Marteau d’atelier','Clé anglaise','Pied-de-biche','Pelle','Pioche','Hachette d’outil','Morceau de mobilier','Chaise','Panneau métallique','Tuyau','Câble lesté','Brique','Pierre massive','Débris de béton','Planche cloutée','Morceau de statue','Objet du décor inhabituel'];

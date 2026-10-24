@@ -1,0 +1,20 @@
+export const REGION_VISUAL_IDENTITIES={
+  Aetherys:['Gigantesques plateaux célestes séparés par des précipices noyés de nuages','Architecture monumentale ancienne en pierre ivoire ou gris clair et or vieilli','Grandes étendues d’altitude sobres et ouvertes'],
+  Thoryndra:['Immense chaîne montagneuse sombre sous un ciel de tempête','Vastes landes et plateaux battus par les vents','Grand lac froid avec architecture fortifiée rare'],
+  Liorael:['Grande forêt ancienne verdoyante aux arbres géants espacés','Prairies et clairières fertiles','Grand fleuve avec quelques cascades tombant vers Yndara'],
+  Caelorn:['Longues routes traversant des plateaux célestes venteux','Arches et ponts naturels monumentaux','Rares relais, caravanes et bannières évoquant le voyage'],
+  Sylvaeryn:['Immense océan de canopée sur des collines','Grand fleuve sinueux','Quelques arbres titanesques avec le colossal Vaelyr dominant le paysage'],
+  Kharadryn:['Massifs montagneux fracturés','Gigantesques falaises et fractures rocheuses','Vallées encaissées dominées par la pierre'],
+  Avelorn:['Grandes plaines fertiles ouvertes','Terres agricoles et cours d’eau','Villes et cités intégrées dans un paysage largement cultivé'],
+  Drakhenor:['Steppes sauvages immenses','Hauts plateaux rocheux et escarpements','Horizon très ouvert et territoire rude exposé aux éléments'],
+  Maelora:['Jungle tropicale dense et humide','Grands marais et eaux stagnantes ou lentes','Végétation envahissante dans une atmosphère chaude et brumeuse'],
+  Iskarya:['Toundra et grandes étendues enneigées','Reliefs et glaces boréales','Côtes froides prises par la glace'],
+  Nexara:['Immense territoire marqué par un cratère','Structures et matières techno-organiques Neoxus intégrées au paysage','Noir et graphite traversés d’éléments énergétiques dorés'],
+  Kaelora:['Paysage maritime insulaire','Mer dominante et côtes découpées','Îles habitées liées à la navigation'],
+  Vaerunn:['Archipel fortement exposé aux tempêtes','Falaises et îles battues par une mer violente','Vents, embruns et ciel très mouvementé'],
+  Varkhoryn:['Gigantesques cavernes volcaniques','Magma et lave visibles','Forges et constructions massives intégrées à la roche'],
+  Kythera:['Immenses formations cristallines et minérales','Cavernes rocheuses scintillantes','Eaux souterraines pâles contrastant avec les cristaux'],
+  Lumerys:['Forêt cavernicole bioluminescente','Végétation et champignons lumineux','Vastes voûtes souterraines baignées d’une lumière naturelle colorée'],
+  Naeroth:['Mer souterraine gigantesque','Côtes et falaises abyssales','Obscurité profonde ponctuée par les reflets de l’eau'],
+  "Mor'Khal":['Cavernes extrêmement profondes','Ruines anciennes monumentales','Immensité rocheuse obscure évoquant une civilisation engloutie']
+};

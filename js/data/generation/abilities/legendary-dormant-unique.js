@@ -1,0 +1,1 @@
+export const uniqueLegendaryDormantPowers=['Cœur de singularité','Sang des dimensions','Corps de l’orage primordial','Œil des fractures','Souffle de l’astre mourant','Chair du monde','Cœur du vide silencieux','Couronne des âmes','Mue de l’impossible','Résonance absolue','Flamme de l’âme','Avatar du seuil','Écho du commencement','Volonté incarnée','Rupture des lois'];

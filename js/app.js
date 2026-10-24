@@ -1,4 +1,565 @@
+import {
+  saveCloudTournament as saveCloudTournamentStorage,
+  deleteCloudTournament as deleteCloudTournamentStorage
+} from "./services/cloud-tournament-storage.js";
+
+import {
+  syncCloudGenealogy as syncCloudGenealogyStorage
+} from "./services/cloud-genealogy-storage.js";
+
+import {
+  saveCloudCharacter,
+  deleteCloudCharacter,
+  saveCloudGameState
+} from "./services/cloud-character-storage.js";
+
+import {
+  seasonTournamentIds,
+  createTournamentState,
+  automaticTournamentDecision,
+  tournamentChampionId as tournamentChampionIdFromLifecycle,
+  championRecord
+} from "./services/tournament-lifecycle.js";
+
+import {
+  migrateLegacyDescendants
+} from "./services/descendant-legacy-migration.js";
+
+import {
+  createBlankCharacterState
+} from "./services/character-state.js";
+
+import {
+  simulateTournamentMatch,
+  simulateTournamentMatches
+} from "./services/tournament-simulation.js";
+
+import {
+  resolveBirthEventsInStores
+} from "./services/birth-resolution.js";
+
+import {
+  createExternalNpc,
+  createDescendantBase,
+  applyGeneratedDescendantData
+} from "./services/descendant-creation.js";
+
+import {
+  inheritMutationsForChild,
+  inheritPowersForChild,
+  inheritedAppearanceForChild,
+  mutationForChildRace,
+  childCountRollFor
+} from "./rules/genealogy/birth-inheritance.js";
+
+import {
+  eligibleDescendantsForSeason,
+  freeFighterNumbersForSeason,
+  selectDescendantsForSeason
+} from "./rules/genealogy/descendant-selection.js";
+
+import {
+  recoverDescendantsFromBackup,
+  repairBirthEvents,
+  cleanupPrematureDescendants
+} from "./services/genealogy-maintenance.js";
+
+import {
+  birthEventChildIdsFor,
+  characterSeasonFromIdFor,
+  characterHasChildExtra,
+  pendingBirthEventsForSeasonFromRoster,
+  pendingBirthEventsDueFromRoster
+} from "./rules/genealogy/birth-events.js";
+
+import {
+  tournamentFighterValue,
+  resolveTournamentBattle
+} from "./rules/tournament/battle-resolution.js";
+
+import {
+  tournamentMatchCount,
+  tournamentResolvedMatchCount,
+  tournamentRoundComplete,
+  currentIncompleteTournamentRoundFor,
+  advanceTournamentRoundIfComplete,
+  tournamentChampionId
+} from "./rules/tournament/progression.js";
+
+import {
+  loadTournamentArchiveFromStorage,
+  saveTournamentArchiveToStorage,
+  archiveTournamentInStorage,
+  tournamentForSeasonFromStorage,
+  normalizeTournamentRoster,
+  tournamentSeasonFromRoster,
+  loadTournamentFromStorage,
+  shuffleTournamentEntries,
+  tournamentRoundNameFor
+} from "./services/tournament-core.js";
+
+import {
+  seasonCompletedFor,
+  descendantsAwaitingSelectionForSeasonFor,
+  normalizeSeasonTransitionMeta,
+  markBirthResolutionCompleteFor,
+  markDescendantSelectionCompleteFor,
+  birthsResolvedForSeasonFor,
+  descendantSelectionCompleteForSeasonFor
+} from "./rules/seasons/transition.js";
+import {
+  loadJsonStore,
+  saveJsonStore,
+  loadUniverseMetaFromStorage
+} from "./services/universe-storage.js";
+import {
+  characterIdFor,
+  firstEmptyCharacterNumberFor,
+  normalizeSeasonCursor,
+  canonicalSeasonCursorFor,
+  isCursorAheadOf
+} from "./rules/seasons/cursor.js";
+import {
+  loadRosterFromStorage,
+  saveRosterToStorage
+} from "./services/roster-storage.js";
+import {
+  martialChiStateFor,
+  martialAscensionFor
+} from "./rules/martial/chi.js";
+import {
+  martialClanChoicesFor,
+  martialClanIdFromChoice,
+  martialIdentityFor,
+  applyMartialDomains
+} from "./rules/martial/identity.js";
+import {
+  applyMartialTechniqueMastery,
+  martialWeaponMasteriesFor,
+  martialDomainSelectionFor,
+  martialEnchantmentCountFor
+} from "./rules/martial/loadout.js";
+import {
+  martialTechniqueFor,
+  martialPatrimonyPoolFor,
+  ensureMartialPatrimonyDomain,
+  addMartialPatrimonyTechnique
+} from "./rules/martial/techniques.js";
+import {
+  martialStateFor,
+  syncMartialStateWithClan
+} from "./rules/martial/state.js";
+import {
+  createMartialClanRecord,
+  createEmptyFounderClanRecord,
+  addMartialClanMember,
+  updateMartialClan
+} from "./services/martial-clans.js";
+import {
+  loadMartialClansFromStorage,
+  saveMartialClansToStorage
+} from "./services/martial-clans-storage.js";
+import {
+  weaponOptionsFor,
+  martialWeaponOptionsFor
+} from "./rules/weapons/options.js";
+import {
+  weaponContextMultiplierFor
+} from "./rules/weapons/context.js";
+import {
+  wheelMetalGradientFor
+} from "./rules/wheel/metal-gradient.js";
+import {
+  wheelFitTextFor
+} from "./rules/wheel/text-fit.js";
+import {
+  wheelPaletteFor
+} from "./rules/wheel/palette.js";
+import {
+  wheelDarkFantasyColorFor,
+  wheelHexRgbFor,
+  wheelRgbaFor
+} from "./rules/wheel/colors.js";
+import {
+  wheelDisplayLabelFor
+} from "./rules/wheel/display-label.js";
+
+import {
+  wheelRankTypeFor
+} from "./rules/wheel/rank-type.js";
+
+import {
+  weaknessTypeOptionsFor
+} from "./rules/weakness/index.js";
+
+import {
+  morphologyRaceNamesFor,
+  sizeOptionsFor
+} from "./rules/races/morphology.js";
+
+import {
+  raceOptionsFor,
+  vampireWerewolfOriginOptionsFor,
+  spiritOriginRaceOptionsFor,
+  undeadOriginRaceOptionsFor
+} from "./rules/races/origin-options.js";
+
+import {
+  beastSpeciesOptionsFor,
+  spiritElementOptionsFor
+} from "./rules/races/regional-options.js";
+
+import {
+  martialInheritedClanFor
+} from "./rules/martial/inheritance.js";
+
+import {
+  martialMasteryRollFor,
+  martialClanDomainCountFor
+} from "./rules/martial/rolls.js";
+
+import {
+  martialWeightedIndex,
+  martialPickN
+} from "./rules/martial/random.js";
+
+import {
+  appearanceContextFor,
+  appearanceWeightContextFor,
+  colorContextFor,
+  jobContextFor,
+  historyContextFor,
+  extraContextFor
+} from "./rules/context/index.js";
+
+import {
+  powerExact,
+  weightedPick,
+  readableText
+} from "./rules/utils/index.js";
+
+import {
+  summonerMasteryFor
+} from "./rules/summoning/mastery.js";
+
+import {
+  armorStatBonus,
+  armorStatModifier
+} from "./rules/armor/index.js";
+
+import {
+  finalDragonComponentFor
+} from "./rules/dragons/final.js";
+
+import {
+  activeArchsFor,
+  modSumFor,
+  masteryModFor,
+  statBreakdownFor
+} from "./rules/stats/index.js";
+
+import {
+  vaeloriaPowerOptionsFor,
+  vaeloriaEnchantOptionsFor
+} from "./rules/vaeloria/power-enchantment.js";
+
+import {
+  vaeloriaJobOptionsFor,
+  vaeloriaHistoryOptionsFor,
+  vaeloriaExtraOptionsFor
+} from "./rules/vaeloria/weighted-options.js";
+
+import {
+  clothingStyleOptionsFor,
+  vaeloriaColorOptionsFor
+} from "./rules/appearance/weights.js";
+
+import {
+  contextualOutfitLabelFor,
+  resolveClothingStyleFor
+} from "./rules/appearance/clothing.js";
+
+import {
+  baseComponentList as baseComponentListPure,
+  singleParentRaceFromComponent,
+  mergedLineage,
+  compatiblePartnerCandidates
+} from "./rules/genealogy/descendants.js";
+
+import {
+  ORDINARY_COMPONENTS,
+  LOW_CHAIN,
+  HIGH_CHAIN,
+  REINFORCED,
+  HIGH_TO_LOW,
+  REINFORCED_TO_HIGH,
+  CHAIN,
+  CHAIN_FAMILY,
+  SPECIAL_CROSS,
+  SPECIAL_PARTS,
+  combineComponents,
+  parentMutationTraits,
+  personalPowers,
+  normalizeGenderValue,
+  compatibleGender,
+  incompatibleReinforcedRace
+} from "./rules/genealogy/index.js";
+
+import { namingStyleFor } from "./rules/naming/index.js";
+
+import { namingSets, namePools } from "./data/naming/index.js";
+
+import {
+  vaeloriaBirthStrataOptions,
+  vaeloriaRegionOptionsFor,
+  vaeloriaCultureOptionsFor,
+  martialArchetypeCultureMultiplierFor
+} from "./rules/vaeloria/index.js";
+import { RACIAL_TRAITS } from "./data/races/traits.js";
+import {
+  summonRaceMods,
+  summonTraits,
+  summonVisualConstraint
+} from "./rules/summoning/index.js";
+import {
+  AFF,
+  RACE_ORDER,
+  affinityWeightsFor,
+  alienTypeOptions
+} from "./rules/affinities/index.js";
+import { frenchPowerComplement } from "./rules/text/french.js";
+import { armorStatBonus, metricSizeOptions } from "./rules/generation/helpers.js";
+import { componentProfile } from "./rules/races/profile.js";
 /* HGT application logic — extracted from index.html. */
+
+import {
+  weaponTraitsFor,
+  weaponVisualTraitsFromCharacter,
+  weaponValidationRulesFromCharacter,
+  weaponHandlingRulesFromCharacter
+} from "./rules/weapons/index.js";
+
+import {
+  dragonComponentsFromCharacter,
+  dragonVisualTraitsFromCharacter,
+  dragonValidationRulesFromCharacter
+} from "./rules/dragons/index.js";
+
+import {
+  beastMandatoryTraits,
+  beastForbiddenVisualConfusion,
+  hasFinalRaceAlteration,
+  beastAnimal,
+  activeRaceComponentsFromCharacter,
+  nonBeastRacialVisualTraitsFromCharacter,
+  hybridScaleVisualRules,
+  beastComponentsFromCharacter
+} from "./rules/races/index.js";
+
+import {
+  regionVisualIdentityFor
+} from "./rules/visuals/index.js";
+
+import {
+  rankLabel,
+  levelColor
+} from "./rules/ranks/index.js";
+
+import {
+  martialFounderChance,
+  martialTechniqueBonus,
+  martialChiMultiplier,
+  martialCombatData
+} from "./rules/martial/index.js";
+
+import {
+  raceKey,
+  summonCountFromMastery
+} from "./rules/summoning/index.js";
+
+import {
+  add7,
+  ceilAvg7,
+  superiorProfile,
+  specialSuperiorCross,
+  transformationBonus,
+  abilityCount,
+  awakeningBonus,
+  superiorStage,
+  noWeakChance
+} from "./rules/core/index.js";
+
+import {
+  chiRanks,
+  statRanks,
+  masteryRanks,
+  intensityRanks,
+  weaknessRanks,
+  levelColors,
+  races,
+  animals,
+  mountTypes,
+  mountAbilities,
+  uniqueMounts,
+  artificialCompanionTypes,
+  artificialAbilities,
+  uniqueArtificialCompanions,
+  improvisedWeapons,
+  uniqueSecretTechniques,
+  ranged,
+  ench,
+  classicalWeak,
+  METAMORPHOSIS_FORMS,
+  MARTIAL_ARCHETYPE_CULTURE_MULTIPLIERS,
+  statNames
+} from "./data/generation/index.js";
+
+import {
+  familiarTypes,
+  familiarAbilities,
+  uniqueFamiliars,
+  uniqueFamiliarAbilities,
+  fantasyCreatures,
+  aquaticCreatures,
+  elementalAffinities,
+  elementalCreatureSpecies,
+  alienCreatures,
+  smallSpirits,
+  wildFelines,
+  reptiles,
+  insects,
+  giantFelines,
+  giantBirds,
+  giantReptiles,
+  mechanicalMounts,
+  relicForms,
+  strangeObjects,
+  rareConsumables,
+  extraordinarySenses,
+  dominantAuras,
+  mutations,
+  doubles,
+  doubleUnique,
+  uniquePowers,
+  uniqueWeapons,
+  uniqueEnchants,
+  uniqueBlessings,
+  uniqueCurses,
+  uniqueArtifactEffects,
+  uniqueArtifactForms,
+  uniquePersonalities,
+  uniqueTransformations,
+  awakeningEvolutions,
+  transformationTypes,
+  transformationTraits,
+  blessings,
+  curses
+} from "./data/generation/index.js";
+
+import {
+  legendaryJobs,
+  legendaryJobAbilities,
+  uniqueLegendaryJobAbilities,
+  legendaryHistories,
+  uniqueLegendaryHistories,
+  legendaryArmorTypes,
+  legendaryArmorEffects,
+  uniqueLegendaryArmorEffects,
+  legendaryTechniques,
+  uniqueLegendaryTechniques,
+  legendaryDormantPowers,
+  uniqueLegendaryDormantPowers,
+  legendaryRelics,
+  legendaryCompanions,
+  legendaryFamiliarTypes,
+  legendaryFamiliarNames,
+  legendaryAbilities,
+  mythicFamiliars,
+  historyArtifactNatures,
+  deathPowers,
+  possessionEntities,
+  supernaturalTraits,
+  timeTravelMethods,
+  TITAN_AFFINITIES,
+  TITAN_AFFINITY_STAT
+} from "./data/generation/index.js";
+
+import {
+  archs,
+  jobs,
+  histories,
+  extras,
+  powers,
+  chaos,
+  weapons,
+  personalities,
+  improbableWeak,
+  improbableJobs,
+  improbableHistories,
+  improbableExtras,
+  improbableTransformations,
+  secretTechniques,
+  armorTypes,
+  armorEffects,
+  armorUniqueEffects,
+  artifactForms,
+  artifactEffects,
+  artifactCopyNatures,
+  artifactTransformations,
+  artifactPhenomena,
+  improbableShoeTerrains,
+  DIVINE_DOMAINS,
+  DIVINE_DOMAIN_STAT
+} from "./data/generation/index.js";
+
+import {
+  RACE_CODEX_LORE,
+  RACE_CODEX_FILES,
+  DRAGON_CODEX_CROSSES,
+  DRAGON_CROSS_CODEX_LORE
+} from "./data/codex/races/index.js";
+
+import {
+  DRAGON_TAIL_WEAPONS,
+  DRAGON_TAIL_UNIQUE_MUTATIONS,
+  DRAGON_TAIL_UNIQUE_TRAITS,
+  DRAGON_TAIL_WEAPON_TRAITS,
+  DRAGON_AFFINITIES,
+  DRAGON_ANCESTRAL_STAT,
+  DRAGON_ORIGINEL_STAT,
+  NEXUS_WEAPON_TRAITS,
+  NEXUS_WEAPONS,
+  NEXUS_STRUCTS,
+  CYBORG_WEAPON_TRAITS,
+  CYBORG_AUGS
+} from "./data/racial-specials/index.js";
+
+import {
+  RACE_BASE_WEIGHTS,
+  RACIAL7,
+  ART_ORIGIN7,
+  ART_BODY7,
+  ALIEN7,
+  ALIEN_ENV_AFF,
+  ALIEN_TYPES,
+  BEAST_REAL,
+  BEAST_FANTASY,
+  BEAST_MANDATORY_TRAITS,
+  BEAST_FORBIDDEN_VISUAL_CONFUSIONS,
+  BEAST_REAL_AFF,
+  BEAST_FANTASY_AFF,
+  RACE_MANDATORY_VISUAL_TRAITS
+} from "./data/races/index.js";
+
+import {
+  REGION_RACE_AFF,
+  REGION_VISUAL_IDENTITIES,
+  VAELORIA_BIRTH_WEIGHTS,
+  VAELORIA_REGIONS,
+  VAELORIA_CULTURES,
+  VAELORIA_CRADLES,
+  VAELORIA_CLOTHING_STYLES
+} from "./data/vaeloria/index.js";
 
 const spinBtn=document.getElementById('spinBtn');
 const autoBtn=document.getElementById('autoBtn');
@@ -36,245 +597,82 @@ const listTab=document.getElementById('listTab');
 const W=(label,weight=1)=>({label,weight}); const EQ=a=>a.map(x=>W(x));
 
 // V9 — système racial régionalisé Vaeloria.
-const RACE_BASE_WEIGHTS={'Humain':15,'Elfe':9,'Nain':8,'Orc':8,'Gobelin':7,'Fée':6,'Géant':4,'Vampire':4,'Loup-garou':4,'Esprit':4,'Homme-bête':7,'Hybride':6,'Squelette':3,'Golem / Artificiel':2,'Extraterrestre':1.5,'Ange':1.5,'Démon':1.5,'Dragon humanoïde':1,'Titan':.75,'Demi-dieu':.75,'Cyborg':.5};
-const AFF={F:2,N:1,D:.4};
-const REGION_RACE_AFF={
-'Aetherys':'N N D D D N D N D F N N D F N F D N D F N','Thoryndra':'N D N F N D N N D F F N D N F N D F N N N','Liorael':'N F D D N F N N F F F N D N D F D N N N D','Caelorn':'F N F N F N N N N N N F D N N N D N D N N',
-'Iskarya':'F F N N N N D N N N N F D N D N D N D N N','Kharadryn':'N D F D N D F N N F N N D F D D D F F N N','Sylvaeryn':'N F D N N F N N F F F N D D D N D N N N D','Avelorn':'F N N N N N D N N N N F D N D F D N D F N','Drakhenor':'N D N F F D N N N N F N N N D D F F F N N','Maelora':'N N D N F F N N F F F F D D D N N N N N D','Nexara':'F N N N F N D N D N N F N F F N N N D N F','Kaelora':'F N N N N N N N N F F F D N N N D F N N N','Vaerunn':'N N N N N N F N N F F N F N N N F F F N N',
-'Lumerys':'N N N N F F D N N F F F D N D N D F D N D','Kythera':'N N F N N N N N D F N N N F N N N F F N F',"Mor'Khal":'D D N N N D N F N F N F F N N D F F N F N','Varkhoryn':'N D F F F D F N N F N N F F D D F F F N N','Naeroth':'F N N N F N D N D F F F N N N D N F N N N'};
-const RACE_ORDER=Object.keys(RACE_BASE_WEIGHTS);
-function affinityWeightsFor(region, labels, baseMap=RACE_BASE_WEIGHTS){const row=(REGION_RACE_AFF[region]||'').split(' ');const amap=Object.fromEntries(RACE_ORDER.map((r,i)=>[r,row[i]||'N']));return labels.map(r=>W(r,(baseMap[r]||1)*(AFF[amap[r]]||1)));}
-function raceOptions(excluded=[]){const labels=races.filter(r=>!excluded.includes(r));const region=(typeof state!=='undefined'&&state?.birthRegion)||'';return affinityWeightsFor(region,labels);}
+
+
+
+
+
+function raceOptions(excluded=[]){
+  return raceOptionsFor(
+    races,
+    excluded,
+    state?.birthRegion||'',
+    affinityWeightsFor
+  );
+}
 const POWER_STAGE=[W('1–49 %',60),W('50–90 %',30),W('91–100 %',10)];
-function powerExact(stage){if(stage.startsWith('1'))return 1+Math.floor(Math.random()*49);if(stage.startsWith('50'))return 50+Math.floor(Math.random()*41);return 91+Math.floor(Math.random()*10)}
-const RACIAL7={
-'Humain':[0,0,0,0,0,0,0],'Elfe':[0,-1,1,-1,1,1,1],'Nain':[1,1,0,2,-1,-1,1],'Orc':[1,2,-1,1,0,-1,1],'Gobelin':[0,-1,2,-1,1,0,1],'Fée':[-1,-2,1,-2,2,2,-1],'Géant':[1,3,-1,2,-2,-1,-1],
-'Vampire':[2,1,1,1,2,1,0],'Loup-garou':[2,2,-1,2,1,-1,-1],'Esprit':[-1,-2,1,2,1,3,-2],'Golem / Artificiel':[0,2,0,3,-2,-1,1],'Extraterrestre':[0,0,0,0,0,0,0],
-'Squelette':[0,-1,0,1,0,1,0],'Liche bonus':[1,0,2,1,0,3,0],'Ange':[1,0,1,1,1,2,0],'Archange bonus':[2,1,1,2,1,3,1],'Démon':[1,1,0,1,0,2,0],'Archdémon bonus':[2,2,1,2,1,3,0],
-'Demi-dieu':[1,1,1,1,1,2,0],'Divinité bonus':[1,1,1,1,1,2,0],'Dieu céleste bonus':[2,1,1,2,1,3,1],
-'Cyborg':[1,1,1,1,1,0,1],'N.E.X.U.S. bonus':[1,1,2,1,1,2,1],'Neoxus bonus':[2,1,2,2,2,2,1],
-'Titan':[1,3,-1,3,-2,0,-1],'Titan primordial bonus':[1,2,0,2,-1,2,0],'Titan fondateur bonus':[1,3,1,3,-1,3,0],
-'Dragon humanoïde':[2,2,0,2,1,2,0],'Dragon éveillé bonus':[1,1,0,1,1,2,0],'Dragon ancestral final bonus':[2,2,1,2,1,3,0],'Dragon originel final bonus':[1,2,2,2,1,3,0],
-'Deus Machina':[5,3,6,5,4,7,3],'Titan céleste':[5,8,3,8,-2,7,0],'Colosse Nexus':[5,8,5,8,0,6,3],'Drakéon ancestral':[6,5,3,5,4,8,1],'Drakéon originel':[5,5,4,5,4,8,1],'Nexaryx ancestral':[6,5,5,5,5,7,3],'Nexaryx originel':[5,5,6,5,5,7,3],'Tyrakhan ancestral':[6,8,1,8,-1,7,0],'Tyrakhan originel':[5,8,2,8,-1,7,0]};
-const ART_ORIGIN7={'Arcane':[0,0,1,0,0,2,0],'Mécanique':[1,1,0,1,0,-1,1],'Nexus':[1,0,2,0,1,1,1]};
-const ART_BODY7={'Pierre':[0,1,0,1,-1,0,0],'Métal enchanté':[0,1,0,1,0,1,0],'Bois vivant':[0,0,0,0,1,1,0],'Cristal':[0,-1,1,0,0,1,0],'Glace':[0,0,0,0,1,1,0],'Matière organique artificielle':[1,0,0,0,1,0,0],'Métal':[0,1,0,1,-1,0,0],'Alliage léger':[0,-1,0,-1,1,0,1],'Céramique':[0,0,0,1,0,0,0],'Assemblage alchimique':[0,0,1,0,0,1,0],'Mécanisme composite':[1,0,1,0,0,0,1],'Matériau atypique':[0,0,0,0,0,1,0],'Alliage Nexus':[1,1,0,1,0,0,0],'Matière synthétique':[0,0,0,0,1,0,0],'Cristal technologique':[0,0,1,0,0,1,0],'Structure énergétique':[0,-1,0,-1,1,1,0],'Biomatière artificielle':[1,0,0,1,1,0,0],'Nanostructure':[1,0,1,0,1,0,1]};
-const ALIEN7={'Humanoïde':[0,0,0,0,0,0,0],'Insectoïde':[1,1,0,1,1,-1,0],'Reptilien':[1,1,0,1,0,0,0],'Cristallin':[0,0,1,2,-1,1,-1],'Énergétique':[0,-2,1,1,2,3,-2],'Amorphe':[-1,0,0,2,-1,1,-1],'Végétaloïde':[0,1,0,2,-1,1,0],'Aquatique':[0,0,0,1,1,0,0],'Aviaire':[1,-1,0,-1,2,0,0],'Unique':[0,0,0,0,0,0,0]};
-const BEAST_REAL=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheval','Cerf','Chèvre','Gorille','Singe','Éléphant','Rhinocéros','Crocodile','Serpent','Lézard','Tortue','Aigle','Hibou','Chauve-souris','Requin','Baleine','Poulpe','Scorpion','Araignée','Scarabée','Fourmi','Guépard','Papillon'];
-const BEAST_FANTASY=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix','Fenrir','Cerbère','Hydre','Manticore','Chimère','Minotaure','Kelpie','Kraken','Serpent de mer','Léviathan','Loup spectral','Kitsune','Tengu','Naga'];
+
+
+
+
+
+
+
 // Traits anatomiques/visuels obligatoires des lignées Homme-bête.
 // Ils sont conservés dans le JSON du personnage et transmis au prompt d'image.
-const BEAST_MANDATORY_TRAITS={
-'Lion':['tête et museau de lion immédiatement identifiables, jamais visage humain simplement maquillé','oreilles félines rondes placées sur le crâne','pelage fauve court et uniforme, sans rayures ni taches','mâchoire léonine robuste avec canines','mains/pattes humanoïdes terminées par griffes félines','longue queue de lion non annelée terminée par un pinceau sombre'],
-'Tigre':['tête et museau de tigre immédiatement identifiables','oreilles félines rondes','pelage orange/fauve obligatoirement couvert de rayures noires nettes jusque sur le visage et les membres','griffes félines','longue queue rayée','canines développées'],
-'Loup':['tête lupine avec museau long et truffe canine','oreilles triangulaires dressées au sommet du crâne','fourrure dense clairement visible','crocs canins et griffes','longue queue touffue de loup','jambes humanoïdes ou digitigrades cohérentes, jamais sabots'],
-'Renard':['tête vulpine fine avec museau étroit et truffe canine','très grandes oreilles triangulaires dressées','fourrure rousse/fauve avec zones claires cohérentes','griffes','une longue queue de renard extrêmement touffue','silhouette plus fine que celle d’un loup'],
-'Ours':['tête ursine large avec museau d’ours','petites oreilles rondes','fourrure épaisse','corps naturellement massif et lourd','longues griffes d’ours','queue extrêmement courte, jamais longue'],
-'Sanglier':['tête de sanglier avec groin large et mobile','petites oreilles porcines','pilosité rêche et épaisse','deux défenses recourbées sortant de la mâchoire','pieds terminés par sabots fendus','petite queue porcine'],
-'Taureau':['tête bovine avec mufle large','oreilles bovines latérales','exactement deux grandes cornes bovines symétriques','pieds terminés par sabots fendus','queue bovine longue avec touffe terminale','cou et carrure naturellement massifs'],
-'Cheval':['tête équine allongée immédiatement identifiable','grandes oreilles équines dressées','crinière visible le long du cou','pieds terminés par sabots','longue queue chevaline faite de crins','membres longs adaptés à la course'],
-'Cerf':['tête cervidé fine avec museau allongé','grandes oreilles cervidées','pieds terminés par sabots fendus','queue courte','silhouette élancée de cervidé'],
-'Chèvre':['tête caprine avec museau de chèvre','oreilles caprines','exactement deux cornes caprines','pupilles horizontales clairement lisibles','pieds terminés par sabots fendus','petite queue caprine'],
-'Gorille':['tête de gorille avec arcade sourcilière et museau court','nez large et aplati','pilosité dense','bras proportionnellement très longs','grandes mains puissantes à cinq doigts','torse très large et carrure massive','aucune queue'],
-'Singe':['faciès simiesque immédiatement identifiable','oreilles arrondies apparentes','pilosité corporelle','mains et pieds préhensiles','longue queue préhensile','membres fins et très agiles'],
-'Éléphant':['tête d’éléphant immédiatement identifiable','longue trompe fonctionnelle partant du visage','très grandes oreilles latérales','deux défenses d’ivoire','peau grise épaisse et plissée','pieds larges de pachyderme'],
-'Rhinocéros':['tête de rhinocéros large','grande corne nasale centrale clairement attachée au museau','peau très épaisse et plissée','petites oreilles','pieds larges à plusieurs doigts','carrure extrêmement massive'],
-'Crocodile':['tête crocodilienne avec museau très allongé et large','rangées de dents coniques visibles','peau écailleuse épaisse','plaques dorsales/ostéodermes','mains et pieds griffus','longue queue crocodilienne massive et comprimée latéralement'],
-'Serpent':['tête ophidienne sans oreilles externes','peau entièrement écailleuse','yeux de serpent et langue bifide','crocs visibles','torse humanoïde prolongé sous la taille par UNE longue queue serpentine continue','aucune jambe ni pied'],
-'Lézard':['tête de lézard avec museau reptilien','peau couverte d’écailles','yeux reptiliens','doigts séparés terminés par griffes','longue queue reptilienne','deux jambes distinctes, jamais corps serpentin'],
-'Tortue':['tête reptilienne de tortue avec bec corné','grande carapace rigide attachée au dos','plastron ventral visible','peau écailleuse','membres robustes terminés par griffes','cou épais de tortue'],
-'Aigle':['tête d’aigle avec bec crochu','yeux de rapace','plumage couvrant clairement la tête/le cou et des zones du corps','deux grandes ailes emplumées anatomiquement attachées au dos','pieds/serres d’aigle avec griffes recourbées','queue de plumes'],
-'Hibou':['tête de hibou ronde avec disque facial net','grand yeux frontaux','petit bec crochu','plumage dense','deux grandes ailes emplumées anatomiquement attachées au dos','serres de rapace','queue de plumes courte'],
-'Chauve-souris':['tête de chauve-souris avec grandes oreilles','museau mammalien de chiroptère','fourrure sur le torse/tête','exactement deux grandes ailes membraneuses de chauve-souris anatomiquement attachées aux bras ou au dos','membrane alaire tendue sur des doigts allongés','pieds griffus'],
-'Requin':['tête de requin avec museau hydrodynamique','rangées de dents triangulaires','peau grisâtre lisse sans écailles reptiliennes','fentes branchiales visibles sur les côtés du cou','nageoire dorsale clairement visible','queue caudale verticale de requin','mains humanoïdes cohérentes, jamais tentacules'],
-'Baleine':['tête de cétacé massive sans museau terrestre','peau lisse de cétacé','évent clairement visible au sommet du crâne','nageoires pectorales intégrées aux avant-bras ou aux côtés','large queue caudale HORIZONTALE de cétacé','aucune branchie de poisson'],
-'Poulpe':['tête/corps céphalopode avec peau souple','yeux de céphalopode','exactement huit appendices de poulpe au total, clairement lisibles et munis de ventouses','tentacules souples sans os ni griffes','aucune queue de poisson ni jambes humaines supplémentaires'],
-'Scorpion':['carapace chitineuse segmentée','deux grandes pinces de scorpion clairement distinctes','queue de scorpion segmentée arquée au-dessus/derrière le corps','un seul aiguillon terminal','plusieurs membres arthropodes cohérents','aucune aile'],
-'Araignée':['anatomie arachnéenne avec exosquelette/chitine','exactement huit membres locomoteurs arachnéens au total, clairement distinguables','plusieurs yeux arachnéens','chélicères/crochets près de la bouche','abdomen arachnéen clairement lisible','aucune antenne ni aile'],
-'Scarabée':['carapace chitineuse dure','tête d’insecte avec deux antennes','exactement six membres d’insecte au total','élytres rigides formant une coque sur le dos','ailes membraneuses éventuelles sous les élytres mais jamais à la place de ceux-ci','mandibules d’insecte'],
-'Fourmi':['tête de fourmi avec deux antennes coudées','mandibules de fourmi','exactement six membres d’insecte au total','corps en trois sections lisibles : tête, thorax, abdomen','taille/pétiole très resserré entre thorax et abdomen','exosquelette chitineux'],
-'Guépard':['tête féline fine de guépard','petites oreilles félines rondes','pelage fauve couvert de PETITES TACHES NOIRES PLEINES, jamais rayures ni rosettes','deux lignes lacrymales noires du coin des yeux vers le museau','longue queue tachetée avec anneaux vers son extrémité','silhouette très élancée de sprinteur'],
-'Papillon':['tête d’insecte avec deux antennes','exactement six membres d’insecte au total','deux paires de grandes ailes de papillon, soit QUATRE ailes, symétriques et attachées au thorax/dos','ailes larges couvertes de motifs/écailles colorées, jamais ailes de fée transparentes génériques','corps fin segmenté d’insecte','petite trompe/proboscis visible ou suggérée'],
-'Licorne':['tête équine allongée','UNE seule longue corne droite centrée sur le front','oreilles équines','crinière','sabots','longue queue chevaline'],
-'Pégase':['tête et anatomie équines','oreilles équines, crinière et sabots','exactement deux grandes ailes emplumées anatomiquement attachées au dos','longue queue chevaline','aucune corne frontale'],
-'Griffon':['tête d’aigle avec bec crochu','deux grandes ailes d’aigle emplumées','avant du corps aviaire avec serres','arrière-train félin/léonin avec pattes griffues','queue de lion','fusion aigle-lion anatomiquement continue'],
-'Phénix':['tête d’oiseau avec bec','corps couvert de plumes','exactement deux grandes ailes emplumées','serres aviaires','longue queue de plumes spectaculaire','plumage incandescent/embrasé mais anatomie d’oiseau toujours lisible sous le feu'],
-'Basilic':['tête reptilienne menaçante','corps couvert d’écailles','crocs','longue queue reptilienne','regard surnaturel clairement marqué','anatomie de grand reptile monstrueux, jamais coq dominant'],
-'Cocatrix':['tête de coq/oiseau avec bec et crête','plumage sur le haut du corps','exactement deux ailes','pattes/serres aviaires','longue queue reptilienne écailleuse','fusion oiseau-reptile clairement lisible, jamais dragon générique'],
-'Fenrir':['tête de loup gigantesque avec museau et truffe canine','oreilles triangulaires dressées','fourrure dense','crocs démesurés','griffes puissantes','longue queue lupine touffue','aspect de loup mythique colossal, jamais simple chien'],
-'Cerbère':['EXACTEMENT TROIS têtes canines/lupines distinctes reliées au même torse','six oreilles canines au total, deux par tête','trois museaux avec crocs','fourrure','griffes','une queue clairement définie','aucune tête supplémentaire'],
-'Hydre':['PLUSIEURS longs cous reptiliens partant d’un même torse','au moins trois têtes reptiliennes distinctes et clairement séparées','écailles','crocs','un corps commun unique','longue queue reptilienne','aucune tête fusionnée ou flottante'],
-'Manticore':['tête et corps léonins','crinière','griffes félines','exactement deux ailes membraneuses de type chauve-souris attachées au dos','longue queue de scorpion segmentée','un seul aiguillon terminal','fusion lion-ailes-scorpion clairement lisible'],
-'Chimère':['UNE tête principale de lion clairement identifiable','UNE tête de chèvre distincte intégrée au même corps','UNE tête de serpent distincte portée par la queue ou son extrémité','corps composite léonin/caprin','les trois animaux restent visuellement séparables','aucune tête supplémentaire'],
-'Minotaure':['tête complète de taureau avec mufle bovin','exactement deux cornes bovines','oreilles bovines','torse et bras humanoïdes très puissants','jambes humanoïdes ou bovines cohérentes terminées par sabots','queue bovine avec touffe'],
-'Kelpie':['tête et morphologie équines','crinière humide','sabots','longue queue chevaline','peau/pelage sombre et constamment humide avec végétation aquatique possible','caractère surnaturel aquatique sans devenir poisson ou hippocampe'],
-'Kraken':['tête/corps de céphalopode monstrueux','yeux de céphalopode','au moins huit très grands tentacules distincts munis de ventouses','tentacules souples continus depuis le corps','aucune jambe humanoïde supplémentaire','échelle gigantesque clairement lisible'],
-'Serpent de mer':['tête de serpent/reptile marin','corps extrêmement long entièrement serpentin et écailleux','nageoires ou crête aquatique cohérentes','longue queue continue','aucune jambe humanoïde','aucune paire d’ailes'],
-'Léviathan':['corps de monstre marin colossal','tête marine monstrueuse avec mâchoire massive','peau/écailles adaptées au milieu marin','nageoires puissantes','queue aquatique gigantesque','échelle titanesque immédiatement lisible par l’environnement'],
-'Loup spectral':['tête et silhouette lupines clairement identifiables','oreilles triangulaires','crocs et griffes','longue queue de loup','fourrure partiellement translucide/spectrale','effet spectral intégré au corps sans effacer l’anatomie de loup'],
-'Kitsune':['tête/faciès de renard clairement identifiable','grandes oreilles vulpines','fourrure','griffes','EXACTEMENT NEUF longues queues de renard distinctes, toutes anatomiquement attachées au bassin','les neuf queues doivent rester séparables et comptables'],
-'Tengu':['tête/faciès aviaire avec bec net','plumage','exactement deux grandes ailes emplumées attachées au dos','serres aviaires','silhouette humanoïde conservée','aucune aile membraneuse'],
-'Naga':['torse humanoïde avec traits reptiliens','écailles clairement visibles','yeux reptiliens, langue bifide et crocs','sous la taille, UNE longue partie inférieure serpentine continue','aucune jambe ni pied','bras humanoïdes conservés'],
-};
-const BEAST_FORBIDDEN_VISUAL_CONFUSIONS={
-'Lion':'INTERDIT : rayures de tigre, rosettes de léopard, queue annelée, museau canin.',
-'Tigre':'INTERDIT : pelage uni de lion, crinière de lion, taches de guépard.',
-'Loup':'INTERDIT : faciès de renard, chat ou chien domestique; sabots.',
-'Renard':'INTERDIT : museau massif de loup, plusieurs queues sauf pouvoir explicitement distinct.',
-'Ours':'INTERDIT : longue queue, museau félin ou canin fin.',
-'Guépard':'INTERDIT : rayures de tigre, rosettes de léopard, crinière de lion.',
-'Serpent':'INTERDIT : jambes humaines, pieds, corps de lézard.',
-'Lézard':'INTERDIT : remplacer les jambes par une queue de serpent.',
-'Aigle':'INTERDIT : ailes membraneuses, visage humain sans bec.',
-'Hibou':'INTERDIT : bec d’aigle allongé, ailes membraneuses.',
-'Chauve-souris':'INTERDIT : ailes à plumes, ailes de fée/insecte.',
-'Requin':'INTERDIT : queue horizontale de baleine, tentacules, écailles reptiliennes.',
-'Baleine':'INTERDIT : queue verticale de poisson/requin, branchies externes.',
-'Poulpe':'INTERDIT : tentacules supplémentaires illisibles; jambes humaines ajoutées en plus des huit bras.',
-'Scorpion':'INTERDIT : plusieurs aiguillons, ailes, queue non segmentée.',
-'Araignée':'INTERDIT : six pattes d’insecte, antennes, ailes.',
-'Scarabée':'INTERDIT : huit pattes d’araignée, absence d’élytres.',
-'Fourmi':'INTERDIT : huit pattes, ailes obligatoires sur un individu non ailé.',
-'Papillon':'INTERDIT : seulement deux ailes, ailes de chauve-souris ou plumes.',
-'Licorne':'INTERDIT : deux cornes, ailes de Pégase sauf autre composante raciale explicite.',
-'Pégase':'INTERDIT : corne de licorne sauf autre composante explicite.',
-'Griffon':'INTERDIT : tête humaine, ailes membraneuses, arrière-train reptilien.',
-'Phénix':'INTERDIT : silhouette humanoïde générique entourée de flammes à la place d’un véritable hybride aviaire.',
-'Basilic':'INTERDIT : le transformer en Cocatrix dominé par une anatomie de coq.',
-'Cocatrix':'INTERDIT : dragon/quadrupède générique sans tête de coq.',
-'Cerbère':'INTERDIT : une, deux ou plus de trois têtes.',
-'Hydre':'INTERDIT : une seule tête, têtes fusionnées ou indépendantes du corps.',
-'Manticore':'INTERDIT : queue féline ordinaire, absence d’aiguillon, ailes à plumes.',
-'Chimère':'INTERDIT : fusionner les trois têtes en une seule; remplacer la tête de serpent terminale par une simple queue.',
-'Minotaure':'INTERDIT : simple humain avec cornes; tête humaine.',
-'Kraken':'INTERDIT : simple poulpe de taille humaine; tentacules sans ventouses.',
-'Serpent de mer':'INTERDIT : jambes, ailes, torse humanoïde dominant.',
-'Léviathan':'INTERDIT : échelle humaine ou petit monstre marin.',
-'Loup spectral':'INTERDIT : spectre humanoïde générique; anatomie lupine illisible.',
-'Kitsune':'INTERDIT : moins ou plus de neuf queues; queues fusionnées en éventail indistinct.',
-'Tengu':'INTERDIT : ailes membraneuses ou absence de bec.',
-'Naga':'INTERDIT : jambes humaines sous le torse; corps de lézard bipède.',
-};
-function beastMandatoryTraits(species,gender=''){
-  const out=[...(BEAST_MANDATORY_TRAITS[species]||[])],g=String(gender||'').toLowerCase();
-  const male=g.includes('mâle')||g.includes('male')||g.includes('homme');
-  if(species==='Lion'&&male)out.push('crinière léonine développée');
-  if(species==='Cerf'&&male)out.push('grands bois de cerf');
-  if(species==='Paon'&&male)out.push('grande traîne ocellée');
-  return out;
-}
-function beastForbiddenVisualConfusion(species){return BEAST_FORBIDDEN_VISUAL_CONFUSIONS[species]||'';}
-function hasFinalRaceAlteration(c){
-  const logs=Array.isArray(c?.logs)?c.logs:[];
-  return logs.some(x=>String(x?.cat||'')==='Résurrection — Race ajoutée') ||
-    (Array.isArray(c?.extraDetail)&&c.extraDetail.some(x=>x?.kind==='Conséquence de résurrection'&&x?.result==='Race altérée'));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function beastSpeciesOptions(kind){
+  return beastSpeciesOptionsFor(
+    kind,
+    state.birthRegion,
+    {
+      realSpecies:BEAST_REAL,
+      fantasySpecies:BEAST_FANTASY,
+      realAffinity:BEAST_REAL_AFF,
+      fantasyAffinity:BEAST_FANTASY_AFF,
+      affinityWeights:AFF
+    }
+  );
 }
 
-const RACE_MANDATORY_VISUAL_TRAITS={
-  'Humain':['anatomie humaine naturelle clairement conservée'],
-  'Elfe':['oreilles longues et nettement pointues','traits fins et élégants','silhouette élancée'],
-  'Nain':['petite stature nettement visible','proportions naines compactes : torse relativement large et membres plus courts','carrure dense et robuste','centre de gravité bas'],
-  'Orc':['mâchoire robuste','défenses inférieures visibles','carrure puissante et musculature dense'],
-  'Gobelin':['petite stature','grandes oreilles pointues','traits faciaux gobelins marqués'],
-  'Fée':['UNE PAIRE DE DEUX AILES FÉERIQUES clairement visibles, symétriques et anatomiquement attachées au haut du dos','traits féeriques clairement visibles; une simple aura, poussière lumineuse ou tatouage ne remplace jamais les ailes'],
-  'Géant':['stature gigantesque immédiatement lisible par comparaison avec l’environnement','proportions humanoïdes massives'],
-  'Vampire':['morphologie humanoïde','crocs vampiriques clairement visibles','teint surnaturel ou signes vampiriques discrets mais lisibles'],
-  'Loup-garou':['faciès lupin avec museau de loup clairement identifiable','oreilles lupines','fourrure visible','crocs et griffes','morphologie humanoïde bestiale'],
-  'Démon':['cornes démoniaques anatomiquement intégrées au crâne','traits surnaturels démoniaques clairement visibles','anatomie humanoïde non humaine sans remplacer les autres composantes raciales'],
-  'Ange':['UNE PAIRE DE DEUX GRANDES AILES EMPLUMÉES clairement visibles et anatomiquement attachées au dos','traits célestes clairement visibles; une aura ou un halo ne remplace jamais les ailes'],
-  'Esprit':['corps humanoïde partiellement spectral ou translucide','contours ou matière corporelle surnaturels clairement visibles'],
-  'Dragon humanoïde':['écailles draconiques clairement visibles','traits crâniens draconiques ou cornes','queue draconique anatomiquement reliée au corps'],
-  'Golem / Artificiel':['corps manifestement artificiel ou façonné','articulations et matière non organiques clairement visibles'],
-  'Extraterrestre':['biologie visiblement non humaine et extraterrestre','anatomie cohérente et non réduite à un humain avec maquillage'],
-  'Demi-dieu':['anatomie humanoïde','marques physiques surnaturelles traduisant une ascendance divine sans effacer les autres composantes'],
-  'Divinité':['présence divine physiquement lisible','marques corporelles surnaturelles cohérentes avec son domaine'],
-  'Dieu céleste':['présence divine céleste physiquement lisible','marques corporelles surnaturelles cohérentes avec son domaine'],
-  'Titan':['gigantisme immédiatement lisible','carrure titanesque et proportions monumentales'],
-  'Titan primordial':['gigantisme primordial immédiatement lisible','anatomie titanesque monumentale et ancienne'],
-  'Titan fondateur':['gigantisme fondateur immédiatement lisible','anatomie titanesque monumentale'],
-  'Squelette':['corps squelettique réellement constitué d’os visibles','crâne osseux clairement identifiable','aucune chair humaine normale recouvrant l’ensemble du corps'],
-  'Liche':['nature morte-vivante immédiatement lisible','anatomie desséchée, cadavérique ou squelettique','magie innée visible comme manifestation secondaire sans remplacer le corps de mort-vivant'],
-  'Cyborg':['fusion anatomique claire de chair et de composants cybernétiques','implants mécaniques réellement intégrés au corps'],
-  'N.E.X.U.S.':['corps techno-organique clairement visible','structures biologiques et technologiques fusionnées en une seule anatomie cohérente'],
-  'Neoxus':['peau noire, graphite ou bleu-noir techno-organique','réseau énergétique doré sous-cutané visible','yeux noirs cosmiques étoilés','exactement quatre doigts aux mains','structures crâniennes organiques'],
-  'Deus Machina':['fusion corporelle visible du divin et du techno-organique; aucun des deux aspects ne doit disparaître'],
-  'Titan céleste':['gigantisme primordial immédiatement lisible','manifestations divines célestes intégrées à l’anatomie titanesque'],
-  'Colosse Nexus':['gigantisme primordial immédiatement lisible','corps techno-organique intégré à l’anatomie titanesque'],
-  'Drakéon':['fusion visible d’une lignée draconique pure et d’une lignée de Dieu céleste','manifestations divines intégrées à l’anatomie draconique sans l’effacer'],
-  'Nexaryx':['fusion visible d’une lignée draconique pure et de caractères techno-organiques Neoxus','aucune des deux lignées ne doit être réduite à une simple aura'],
-  'Tyrakhan':['fusion visible d’une lignée draconique pure et d’une anatomie de Titan fondateur','gigantisme et caractères draconiques doivent rester simultanément lisibles']
-};
-function activeRaceComponentsFromCharacter(c){
-  if(hasFinalRaceAlteration(c)){
-    const finalRace=String(c?.race||'');
-    return finalRace&&finalRace!=='Hybride'?[{race:finalRace,component:{race:finalRace},role:'final'}]:[];
-  }
-  const L=c?.lineage||{},out=[],seen=new Set();
-  const add=(x,role='component')=>{if(!x)return;const o=typeof x==='string'?{race:x}:x;const race=String(o?.race||'').trim();if(!race||seen.has(race))return;seen.add(race);out.push({race,component:o,role})};
-  if(c?.race==='Hybride'){
-    add(L.hybridCompA,'hybrid-A'); add(L.hybridCompB,'hybrid-B');
-  }else{
-    add(L.primaryComponent,'primary');
-    // Certaines races transformées (ex. Loup-garou) n'ont pas de primaryComponent :
-    // la race actuelle reste obligatoire ET la race d'origine conserve ses marqueurs physiques.
-    if(!L.primaryComponent)add(c?.race,'current');
-    add(L.originComponent||L.originRace,'origin');
-  }
-  if(!out.length)add(c?.race,'current');
-  return out;
-}
-function nonBeastRacialVisualTraitsFromCharacter(c){
-  const out=[];
-  for(const {race,role} of activeRaceComponentsFromCharacter(c)){
-    if(race==='Homme-bête')continue;
-    for(const trait of (RACE_MANDATORY_VISUAL_TRAITS[race]||[]))out.push(`${race}${role==='origin'?' (race d’origine, héritage physique obligatoire)':''}: ${trait}`);
-  }
-  return [...new Set(out)];
-}
-function hybridScaleVisualRules(c){
-  const comps=activeRaceComponentsFromCharacter(c).map(x=>x.race);
-  const h=Number.parseFloat(String(c?.size||'').replace(',','.'));
-  const rules=[];
-  if(comps.length>1)rules.push(`HYBRID / RACIAL FUSION — the final body must visibly and anatomically combine ALL racial components (${comps.join(' + ')}). Each component must retain its mandatory physical markers; no component may be reduced to lore, clothing, aura, tattoos, color, magic particles or background effects.`);
-  if(Number.isFinite(h)&&h<=1.5)rules.push(`MANDATORY SCALE — the character is only ${String(c.size)} tall. Make this unmistakable with nearby standard-size architecture, furniture, equipment or a secondary humanoid scale reference; do not frame them so they read as average human height.`);
-  return rules;
-}
-function beastComponentsFromCharacter(c){
-  // Une résurrection « Race altérée » remplace la morphologie raciale précédente.
-  // L'ancienne lignée reste historique, mais ne doit plus alimenter le prompt/QA visuel.
-  if(hasFinalRaceAlteration(c))return [];
-  const out=[],seen=new Set();
-  const walk=x=>{if(!x||typeof x!=='object')return;if(x.race==='Homme-bête'&&x.species&&!seen.has(x.species)){seen.add(x.species);out.push({species:x.species,traits:beastMandatoryTraits(x.species,c?.gender)})}walk(x.compA);walk(x.compB);walk(x.originComponent)};
-  const L=c?.lineage||{};walk(L.primaryComponent);walk(L.hybridCompA);walk(L.hybridCompB);walk(L.originComponent);
-  if(L.beastSpecies&&!seen.has(L.beastSpecies))out.push({species:L.beastSpecies,traits:beastMandatoryTraits(L.beastSpecies,c?.gender)});
-  return out;
-}
 
-const BEAST_REAL_AFF={
-'Aetherys':'N N N N D D N N N N D D D D D N N N F F N D D D N N N N N N','Thoryndra':'D D F F F D N N D F D D D D D D D D F N D D D D D N D D D D','Liorael':'N F F F F F N F F N F F N N N F F N F F N D D D D F F F N F','Caelorn':'N N F F N N F F F F D D D D D N N N F F N D D D N N N N F N',
-'Iskarya':'N D F F F N N N F N D D D D D D D D F F D D D D D N N N D N','Kharadryn':'D D F F F N N N N F D D D D D D D D F N N D D D D N D D D D','Sylvaeryn':'N F F F F F N N F N F F N D N F N N N F F D D D D F F F D F','Avelorn':'F N N F N F F F F N D N F F N N N N N F N D D D D N N F F F','Drakhenor':'F N N N D N F F D F D D N F D F F D F N N D D D F F F F F D','Maelora':'N F N N N F N N N N F F F F F F F F N F F N N F F F F F N F','Nexara':'N N N N D N N N D N D N D D D N N N N N N D D D N N N N N N','Kaelora':'N N D N D N N N N N D N N N F F F F F N N F F F D N N N N N','Vaerunn':'F N F F F N F F N F D D N N D N N D F N F D D D F N N N F D',
-'Lumerys':'D F N F N F D D F N F F N N N F F N D F F D D D N F F F D F','Kythera':'D D N N F N N N D F D D D D D N F N N N F D D D F F F F D N',"Mor'Khal":'N N F F N N N N N N D D D D N F N N D F F D D D F F N N D N','Varkhoryn':'N D F N F N F N D F D D D N N F F D N N F D D D F F F F N D','Naeroth':'D D D D D D D D D D D D D D F N N F D D N F F F D N N N D N'};
-const BEAST_FANTASY_AFF={
-'Aetherys':'F F F F D D D D D D N D D D D D F F F D','Thoryndra':'D F F N D N F D F N N N N D D D F N F D','Liorael':'F F N N N N N D N D N D F D D D F F F F','Caelorn':'N F F N D N N D D F F N N D D D N N F N',
-'Iskarya':'F F F N D N F D D D N N F D D D F F F D','Kharadryn':'D F F D D D F D D D D F D D D D F D F D','Sylvaeryn':'F N N N N N F D F D N D F D D D F F F F','Avelorn':'F F N F D N D D N N N F F D D D N F N N','Drakhenor':'D N F F F F N F F F F F D D D D F D F F','Maelora':'F N N F F F D D F F F N F N N D N F N F','Nexara':'D N N N N N D N D N F N D D D D N N N N','Kaelora':'N F F N N N D D F N N N F F F F D N F F','Vaerunn':'D F F F F N F F N F F F D D D D F N F N',
-'Lumerys':'F N N N N N D D N N F D F D D D F F F F','Kythera':'N F F F F N N N N N F F N D D D F N F N',"Mor'Khal":'D D N N F F F F F F F N F N N N F F F F','Varkhoryn':'D N F F F F F F F F F F D D D D F N F F','Naeroth':'D D D D N D D D F D N D F F F F N N N F'};
-function beastSpeciesOptions(kind){let arr=kind==='Animal réel'?BEAST_REAL:BEAST_FANTASY,row=((kind==='Animal réel'?BEAST_REAL_AFF:BEAST_FANTASY_AFF)[state.birthRegion]||'').split(' ');return arr.map((x,i)=>W(x,AFF[row[i]||'N']))}
 
-const ALIEN_ENV_AFF={
-'Tempéré':'F N N N N N F N F N','Désertique':'N F F F N N D D N N','Glaciaire':'N D D F N N D N D N','Océanique':'D D F N D F N F D N','Jungle':'N F F D D F F F F N','Volcanique':'D N F F F F D D D N','Atmosphérique':'N N D N F N N D F N','Souterrain':'N F N F N F D D D N','Monde artificiel':'F N N F F N D D N N','Extrême':'N F F F F F D N N N'};
-const ALIEN_TYPES=['Humanoïde','Insectoïde','Reptilien','Cristallin','Énergétique','Amorphe','Végétaloïde','Aquatique','Aviaire','Unique'];
-function alienTypeOptions(env){let row=(ALIEN_ENV_AFF[env]||'').split(' ');return ALIEN_TYPES.map((x,i)=>W(x,AFF[row[i]||'N']))}
+
 const SPIRIT_ELEMENTS=['Eau','Terre','Air','Feu','Végétation','Glace','Foudre','Lumière','Ténèbres','Cristal / Minéral','Son'];
 const SPIRIT_BASE={'Eau':15,'Terre':15,'Air':13,'Feu':12,'Végétation':10,'Glace':8,'Foudre':7,'Lumière':6,'Ténèbres':6,'Cristal / Minéral':5,'Son':3};
 const SPIRIT_REGION_AFF={
 'Aetherys':'N N F N D N N F D F N','Thoryndra':'F F F N D F F N N F F','Liorael':'F N F D F D D F D N N','Caelorn':'N F F N N N N N N N F',
 'Iskarya':'N N N D N F N F D N N','Kharadryn':'N F F D D F N N N F N','Sylvaeryn':'F N N D F D N F N D F','Avelorn':'F N N N F D N F D N N','Drakhenor':'D F N F D D F D F F N','Maelora':'F N N N F D N F N D F','Nexara':'N N N N D D F N N F N','Kaelora':'F N F D F D F F D D F','Vaerunn':'N F F F D N F D F F N',
 'Lumerys':'N N N D F D N F N F N','Kythera':'N F D N D F N F N F F',"Mor'Khal":'N N D N D N N D F N F','Varkhoryn':'D F N F D N F D F F N','Naeroth':'F N N D N D F F N N F'};
-function spiritElementOptions(){let row=(SPIRIT_REGION_AFF[state.birthRegion]||'').split(' ');return SPIRIT_ELEMENTS.map((x,i)=>W(x,SPIRIT_BASE[x]*AFF[row[i]||'N']))}
+function spiritElementOptions(){
+  return spiritElementOptionsFor(
+    state.birthRegion,
+    {
+      elements:SPIRIT_ELEMENTS,
+      baseWeights:SPIRIT_BASE,
+      regionAffinity:SPIRIT_REGION_AFF,
+      affinityWeights:AFF
+    }
+  );
+}
 
-function add7(a,b){return a.map((x,i)=>x+(b?.[i]||0))} function ceilAvg7(a,b){return a.map((x,i)=>Math.ceil((x+(b?.[i]||0))/2))}
-function superiorProfile(base,pct,lineage){let v=[...RACIAL7[base]];if(pct>=50){if(base==='Demi-dieu')v=add7(v,RACIAL7['Divinité bonus']);if(base==='Cyborg')v=add7(v,RACIAL7['N.E.X.U.S. bonus']);if(base==='Titan')v=add7(v,RACIAL7['Titan primordial bonus']);if(base==='Dragon humanoïde')v=add7(v,RACIAL7['Dragon éveillé bonus']);}if(pct>90){if(base==='Demi-dieu')v=add7(v,RACIAL7['Dieu céleste bonus']);if(base==='Cyborg')v=add7(v,RACIAL7['Neoxus bonus']);if(base==='Titan')v=add7(v,RACIAL7['Titan fondateur bonus']);if(base==='Dragon humanoïde')v=add7(v,RACIAL7[lineage==='Originel'?'Dragon originel final bonus':'Dragon ancestral final bonus']);}return v}
-function componentProfile(c){if(!c)return [0,0,0,0,0,0,0];let r=c.race||c;if(typeof c==='string')return RACIAL7[c]||[0,0,0,0,0,0,0];if(r==='Hybride'&&c.compA&&c.compB){let cross=specialSuperiorCross(c.compA,c.compB);return cross?RACIAL7[cross]:ceilAvg7(componentProfile(c.compA),componentProfile(c.compB));}if(['Demi-dieu','Cyborg','Titan','Dragon humanoïde'].includes(r))return add7(superiorProfile(r,c.power||1,c.dragonBlood),c.special7||[0,0,0,0,0,0,0]);let v=[...(RACIAL7[r]||[0,0,0,0,0,0,0])];if(r==='Homme-bête'&&c.species){let b=beastMods[c.species]||[0,0,0,0,0];v=add7(v,[...b,beastPmr[c.species]||0,beastWmr[c.species]||0])}if(r==='Golem / Artificiel'){v=add7(v,ART_ORIGIN7[c.artificialOrigin]);v=add7(v,ART_BODY7[c.artificialBody])}if(r==='Extraterrestre')v=add7(v,ALIEN7[c.alienType]);if(r==='Ange'&&c.evolved)v=add7(v,RACIAL7['Archange bonus']);if(r==='Démon'&&c.evolved)v=add7(v,RACIAL7['Archdémon bonus']);return v}
-function specialSuperiorCross(a,b){if(!a||!b||!(a.power>90&&b.power>90))return null;let A=a.race,B=b.race,key=[A,B].sort().join('|'),dragon=[a,b].find(x=>x.race==='Dragon humanoïde');if(key==='Cyborg|Demi-dieu')return'Deus Machina';if(key==='Demi-dieu|Titan')return'Titan céleste';if(key==='Cyborg|Titan')return'Colosse Nexus';if(dragon){let other=a===dragon?b:a,suf=dragon.dragonBlood==='Originel'?'originel':'ancestral';if(other.race==='Demi-dieu')return`Drakéon ${suf}`;if(other.race==='Cyborg')return`Nexaryx ${suf}`;if(other.race==='Titan')return`Tyrakhan ${suf}`;}return null}
+ 
+
+
+
 function racialProfile7(){
  let L=state.lineage||{}, parts=state.raceParts||[];
  if(state.race==='Hybride'&&L.hybridCompA&&L.hybridCompB){let cross=specialSuperiorCross(L.hybridCompA,L.hybridCompB);return cross?RACIAL7[cross]:ceilAvg7(componentProfile(L.hybridCompA),componentProfile(L.hybridCompB));}
@@ -295,40 +693,31 @@ function racialProfile7(){
 }
 
 function weaponContextMultiplier(name){
- let m=1, arch=(state.archParts||[]).join(' / '), culture=state.culture||'', region=state.birthRegion||'';
- const melee=['Épée','Épée à deux mains','Katana','Dagues doubles','Hache','Hache à deux mains','Marteau de guerre','Rope Dart / Corde-dard','Lance','Hallebarde','Faux','Bâton','Nunchaku','Chaîne / Kusarigama','Fouet','Gantelets de combat','Bouclier offensif'];
- const rangedSet=['Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique'];
- const heavy=['Épée à deux mains','Hache à deux mains','Marteau de guerre','Hallebarde','Bouclier offensif'];
- const subtle=['Dagues doubles','Fouet','Chaîne / Kusarigama','Rope Dart / Corde-dard'];
- const mystic=['Grimoire / catalyseur','Arme énergétique'];
- // Archétype = influence principale.
- if(/Tireur/i.test(arch)&&rangedSet.includes(name))m*=3;
- if(/Guerrier|Berserker|Tank|Paladin|Slayer/i.test(arch)&&melee.includes(name))m*=2;
- if(/Berserker|Tank/i.test(arch)&&heavy.includes(name))m*=1.5;
- if(/Assassin|Voleur/i.test(arch)&&subtle.includes(name))m*=2;
- if(/Mage|Sorcier|Invocateur/i.test(arch)&&mystic.includes(name))m*=2;
- // Culture/région = influence secondaire.
- if((region==='Nexara'||/Nexus|Technopolit|techno/i.test(culture))&&['Pistolet','Fusil','Fusil de précision','Arme énergétique'].includes(name))m*=2;
- if(/Forteresses|Hautes-cimes|Forgienne|Martiale/i.test(culture)&&heavy.includes(name))m*=1.5;
- if(/Nomade|Itinérante|Navigatrice|Frontière/i.test(culture)&&['Arc','Lance','Dagues doubles','Bâton'].includes(name))m*=1.5;
- if(/Sylvaine|Clairières|Forestière|Jungle/i.test(culture)&&['Arc','Lance','Dagues doubles'].includes(name))m*=1.5;
- if(/Haute-céleste|Savante|Spirituelle|Cristalline/i.test(culture)&&['Grimoire / catalyseur','Arme énergétique','Bâton'].includes(name))m*=1.5;
- return m;
+  return weaponContextMultiplierFor(
+    name,
+    {
+      archParts:state.archParts||[],
+      culture:state.culture||'',
+      birthRegion:state.birthRegion||''
+    }
+  );
 }
 function weaponOptions(forceRanged=false){
- // « Aucune arme » reste exactement à 25 % ; les 75 % restants sont répartis contextuellement.
- const pool=(forceRanged?ranged:weapons).filter(w=>w!=='Aucune arme');
- const raw=pool.map(w=>[w,weaponContextMultiplier(w)]);
- const total=raw.reduce((a,x)=>a+x[1],0)||1;
- return [W('Aucune arme',25),...raw.map(([w,m])=>W(w,75*m/total))];
+  return weaponOptionsFor({
+    weapons,
+    ranged,
+    forceRanged,
+    multiplierFor:weaponContextMultiplier
+  });
 }
 
 // Artiste martial : 50 % mains nues, sinon uniquement armes martiales/non modernes.
 const martialWeapons=['Épée','Épée à deux mains','Katana','Dagues doubles','Hache','Hache à deux mains','Marteau de guerre','Rope Dart / Corde-dard','Lance','Hallebarde','Faux','Bâton','Nunchaku','Chaîne / Kusarigama','Fouet','Gantelets de combat','Bouclier offensif','Arc','Arbalète','Arme improvisée','Arme unique'];
 function martialWeaponOptions(){
- const raw=martialWeapons.map(w=>[w,weaponContextMultiplier(w)]);
- const total=raw.reduce((a,x)=>a+x[1],0)||1;
- return [W('Aucune arme',50),...raw.map(([w,m])=>W(w,50*m/total))];
+  return martialWeaponOptionsFor({
+    martialWeapons,
+    multiplierFor:weaponContextMultiplier
+  });
 }
 
 // === HGT MARTIAL CLANS V1 — système validé Oct. 2026 ===
@@ -341,355 +730,501 @@ const MARTIAL_MASTERY_WEIGHTS=[13,13,11,11,10,10,9,9,7,7];
 const MARTIAL_CHI_WEIGHTS=[13,13,11,11,10,10,9,9,7,7];
 const MARTIAL_DOMAIN_COUNT_WEIGHTS=[50,35,15];
 const MARTIAL_TECHNIQUES={"Mains nues":{"secret":["Paume qui Traverse les Trois Gardes","Poing du Tonnerre à un Pouce","Doigts qui Scellent les Méridiens","Coude du Tigre dans la Gorge","Genou qui Fait Plier le Pin","Balayage des Racines du Vieux Pin","Main qui Fait Remonter le Fleuve","Serpent aux Sept Nœuds","Prison des Quatre Portes","Pas du Roseau sur l’Eau","Pas qui Contourne la Lune","Garde des Deux Portes de Jade","Main Nue qui Écarte la Lance","Frappe entre Deux Battements","Souffle du Corps de Fer","Posture du Mont Tai","Pas qui Déracine le Saule","Poing Sans Ombre","Art des Huit Membres du Dragon","Tigre qui Bondit après l’Esquive"],"legendary":["Art des Cent Huit Frappes Célestes","Paume qui Renverse Montagnes et Mers","Corps des Mille Portes Impénétrables","Poing du Cœur Vide sous les Neuf Cieux","Voie Suprême des Dix Mille Mains Vides"]},"Épée":{"secret":["Pointe de l’Hirondelle sous la Pluie","Croissant sur le Lac d’Argent","Lame qui Revient avec l’Automne","Hirondelle Franchissant le Ruisseau","Aiguille sous la Porte de Jade","Épée entre Deux Gouttes de Pluie","Deux Horizons, Une Seule Lame","Pas Croisé des Fleurs Tombantes","Cercle du Pavillon sous la Pluie","Fil Incliné de la Lune","Lame qui Détourne le Fleuve","Croix des Deux Destins","Garde de l’Aiguille de Jade","Épée du Reflet sur l’Eau","Serpent d’Argent autour de la Lame","Épée qui Ouvre les Trois Portes","Hirondelle qui Effleure le Poignet","Pas de l’Immortel sous la Lune","Épée des Trois Portes d’Automne","Dernier Trait avant la Chute des Fleurs"],"legendary":["Épée des Mille Lignes sous un Seul Ciel","Ronde de l’Épée Souveraine des Neuf Provinces","Lame qui Frappe entre Deux Instants","Épée qui Sépare les Deux Horizons","Voie de l’Immortel Sans Ouverture"]},"Épée à deux mains":{"secret":["Arc du Géant des Montagnes","Chute du Roc de Fer","Lame qui Soulève le Pic","Grande Pointe du Gardien des Portes","Retour du Pendule de Bronze","Colosse qui Tourne face au Vent","Pas du Porteur de l’Épée-Montagne","Recul du Grand Fer","Muraille de la Lame Dressée","Traverse du Bastion de Pierre","Crochet des Portes de Fer","Main sur le Dos du Grand Dragon","Coup du Pommeau du Roi Guerrier","Étau des Deux Piliers","Épée qui Ébranle le Rempart","Fausse Chute du Bourreau des Montagnes","Garde des Quatre Sommets","Cercle où Nul ne Pose le Pied","Marche du Briseur de Batailles","Ancrage du Dernier Rempart"],"legendary":["Chute de la Montagne Céleste","Grande Roue des Cent Batailles","Frontière du Roi de Fer sous les Neuf Cieux","Épée qui Arrête le Titan","Sentence du Dernier Rempart du Monde"]},"Katana":{"secret":["Lune Jaillissant du Fourreau","Lune Basse sur la Plaine","Premier Croissant de l’Aube","Lune Rouge Descendant du Ciel","Hirondelle Perçant la Brume","Retour de la Lame Silencieuse","Pas entre Deux Souffles","Feuille Coupante dans le Vent","Traversée de la Brume Matinale","Distance de la Lune Immobile","Lame sur l’Eau Tranquille","Feuille Glissant sur le Fer","Rencontre sous la Lune Rouge","Fourreau du Serpent Blanc","Lame Sans Intention","Fausse Lune sur l’Eau","Deux Tonnerres dans un Souffle","Coupe du Fil de Soie","Silence avant la Première Neige","Dernière Feuille d’Automne"],"legendary":["Dégainé qui Devance la Foudre","Lame qui Coupe l’Horizon","Instant entre Deux Mondes","Danse des Mille Lunes","Sabre du Vide Parfait"]},"Dagues doubles":{"secret":["Crocs des Deux Serpents","Morsures Jumelles du Tigre","Croix des Lames Noires","Croc sous la Porte","Serpent à Deux Têtes","Aile du Corbeau Nocturne","Pas entre les Deux Crocs","Ombre qui Glisse sur le Flanc","Retour des Deux Hirondelles","Cercle des Serpents d’Argent","Mains qui Emprisonnent le Fer","Ciseaux des Crocs du Tigre","Deux Rivières Contournant la Pierre","Garde des Crocs Fermés","Main Dormante du Serpent","Échange des Deux Ombres","Pluie des Lames sous la Lune","Crocs qui Cherchent les Jointures","Danse au Cœur de la Garde","Dernier Croc sous la Manche"],"legendary":["Danse des Mille Crocs Nocturnes","Prison des Deux Lunes Jumelles","Crocs qui Dévorent Cent Pas","Cent Ombres, Deux Lames","Mort entre Deux Battements"]},"Hache":{"secret":["Croc du Tigre des Montagnes","Hache qui Abat le Vieux Pin","Lune Fendue du Bûcheron","Croc Remontant du Tigre","Retour du Tigre Rouge","Bec sous la Porte de Fer","Crochet du Tigre Agrippé","Traction qui Déracine le Pin","Hache qui Ouvre la Porte","Coin du Montagnard","Serpent du Manche Court","Garde du Croc Renversé","Torrent Dévié par le Croc","Charge du Sanglier de Fer","Racine qui Tourne sous le Vent","Fausse Chute du Bûcheron","Deux Morsures d’un Même Tigre","Hache qui Brise les Racines","Marche du Fer Affamé","Croc du Tigre Acculé"],"legendary":["Croc qui Déracine la Montagne","Hache des Neuf Tonnerres","Crochet qui Ouvre les Cent Portes","Roue du Tigre Déchaîné","Sentence qui Fend le Pic Céleste"]},"Hache à deux mains":{"secret":["Chute du Grand Pic","Croissant du Colosse","Ours qui Soulève la Montagne","Balancier du Géant de Fer","Demi-Lune Retournant le Pic","Croc de la Grande Hache","Traction du Titan Enchaîné","Arrachement des Portes de Fer","Levier qui Soulève le Pilier","Traverse du Géant Bûcheron","Bélier du Long Manche","Pivot de la Grande Roue","Pas derrière l’Orage","Croissant du Géant en Retraite","Racines du Mont Immobile","Fausse Chute du Géant","Ébranlement des Portes de Pierre","Marche du Briseur de Montagnes","Cercle où Tremblent les Braves","Dernier Balancier du Colosse"],"legendary":["Hache qui Sépare Ciel et Terre","Roue des Neuf Montagnes","Croc qui Arrache les Portes du Ciel","Marche du Roi des Montagnes","Effondrement des Dix Mille Pics"]},"Marteau de guerre":{"secret":["Chute du Premier Tonnerre","Bélier du Temple de Fer","Croissant du Marteau de Bronze","Pilier qui Remonte vers le Ciel","Retour du Tonnerre","Onde sous la Cloche de Fer","Résonance de la Grande Cloche","Marteau qui Frappe les Fondations","Tonnerre à un Pouce","Deuxième Écho du Temple","Manche du Gardien de Bronze","Traverse du Pilier Sacré","Cloche qui Dévie le Tonnerre","Racines des Cent Pierres","Pas du Bélier du Temple","Faux Tonnerre derrière la Cloche","Échos du Fer dans la Vallée","Marteau qui Ébranle le Pilier","Marche des Tambours du Tonnerre","Dernier Coup de la Grande Cloche"],"legendary":["Marteau qui Ébranle les Neuf Cieux","Cent Échos du Tonnerre","Cloche qui Fait Trembler le Dragon","Corps du Pilier Céleste","Chute qui Effondre la Montagne"]},"Rope Dart / Corde-dard":{"secret":["Serpent Jaillissant de la Manche","Serpent qui Regagne sa Tanière","Croc de l’Hirondelle Filante","Lune Enroulée autour du Corps","Roue des Épaules Célestes","Dragon Ceinturant la Montagne","Serpent Glissant sous le Genou","Croissant qui Change de Ciel","Étoile Suspendue au Fil","Pas au Cœur de la Spirale","Croc derrière la Porte de Jade","Serpent Enlaçant le Fer","Dragon qui Tire sur ses Chaînes","Nœud du Tigre Captif","Fil qui Barre le Sentier","Fausse Étoile dans la Nuit","Second Croc du Serpent","Spirale des Cent Angles","Danse du Fil Vivant","Croc au Bout d’un Souffle"],"legendary":["Dragon des Cent Li","Danse des Dix Mille Étoiles","Serpent qui Lie le Dragon","Fil qui Traverse les Neuf Cieux","Domaine du Dragon Enroulé"]},"Lance":{"secret":["Pointe du Dragon de Jade","Éclair au Bout de la Lance","Croc sous la Mer de Nuages","Hirondelle aux Deux Pointes","Trois Étoiles sur la Ligne Céleste","Lance du Dragon Coulissant","Dragon qui Rentre ses Griffes","Dragon qui Déploie son Corps","Pas derrière la Pointe de Jade","Dragon Reculant face au Tigre","Cercle de la Hampe d’Argent","Porte Gardée par le Dragon","Queue du Dragon de Fer","Deux Crocs d’une Même Lance","Serpent autour du Fer","Fausse Étoile du Lancier","Pointe qui Suit l’Ombre","Lance qui Chasse la Ligne Centrale","Marche du Dragon de Jade","Pointe au Battement Unique"],"legendary":["Lance qui Traverse les Neuf Cieux","Cent Étoiles du Dragon Céleste","Dragon qui Danse entre Ciel et Terre","Pointe qui Cherche le Cœur du Monde","Dragon qui Ferme les Huit Portes"]},"Hallebarde":{"secret":["Pointe du Général Cornu","Lune sous la Bannière Rouge","Croissant qui Soulève l’Étendard","Chute du Croc du Général","Retour de la Grande Lune de Guerre","Croc derrière le Fer Ennemi","Dragon qui Tire la Porte de Guerre","Fauchage sous la Bannière","Levier des Deux Montagnes","Pointe Cachée derrière la Lune","Lune Cachée derrière la Pointe","Croc Tapi derrière le Croissant","Trois Visages de la Hallebarde","Cercle de la Hampe du Général","Revers de la Bannière de Fer","Pas sous l’Étendard Rouge","Fausse Pointe, Lune Véritable","Fausse Lune, Croc Véritable","Marche des Trois Armes","Sentence du Général des Frontières"],"legendary":["Hallebarde des Trois Dragons","Dragon qui Fauche les Huit Directions","Croc qui Renverse le Général Céleste","Pointe et Lune ne Font qu’Un","Domaine du Général aux Cent Batailles"]},"Faux":{"secret":["Croissant du Moissonneur","Lune Remontant des Herbes","Chute de la Lune Noire","Retour du Croissant d’Automne","Croc derrière la Porte","Moisson du Fer","Croissant qui Tire les Racines","Moisson sous les Pieds","Lune Enroulée autour du Pilier","Serpent du Long Manche","Revers du Croissant","Pas du Moissonneur sous la Lune","Lune qui se Referme derrière le Voyageur","Fausse Moisson des Herbes Hautes","Lame Revenant de l’Ombre","Deux Croissants sous une Lune","Cercle du Moissonneur Silencieux","Porte du Croissant Noir","Danse de la Lune Courbe","Dernière Moisson d’Automne"],"legendary":["Croissant qui Moissonne les Neuf Cieux","Lune qui Revient du Monde des Morts","Croc qui Enchaîne le Dragon","Danse des Mille Lunes Funestes","Moisson à la Frontière du Ciel et de la Terre"]},"Bâton":{"secret":["Bâton du Pilier Simple","Pointe du Vieux Bambou","Croissant du Bâton Long","Bambou qui Plie sous la Pluie","Roseau Remontant le Courant","Deux Extrémités, Un Seul Souffle","Bâton Coulissant entre les Paumes","Dragon qui Raccourcit son Corps","Grande Porte du Bâton","Petite Porte du Bâton","Bambou qui Dévie le Torrent","Pont entre les Deux Rives","Levier du Vieux Maître","Bambou qui Balaye les Racines","Roue du Bambou dans le Vent","Pas derrière le Bâton","Une Extrémité en Cache une Autre","Art des Trois Distances","Bâton du Fleuve Continu","Retour à la Simplicité"],"legendary":["Bâton des Dix Mille Formes","Deux Dragons, Un Seul Corps","Cercle des Cent Défenses","Bâton qui Soutient le Ciel","Voie du Bâton Sans Forme"]},"Nunchaku":{"secret":["Croc du Tonnerre Court","Croissant de la Chaîne Brève","Tonnerre Tombant de l’Épaule","Serpent Remontant du Sol","Éclair qui Revient à la Main","Rebond du Tonnerre","Deuxième Croc après l’Éclair","Serpent autour de l’Épaule","Dragon autour de la Taille","Hirondelle sous le Bras","Passage des Deux Paumes","Serpent qui Rentre ses Anneaux","Porte des Deux Branches","Nœud du Serpent Court","Pas sous l’Orage","Battement Trompeur du Tonnerre","Dragon Changeant de Main","Roue des Quatre Portes","Danse du Tonnerre Court","Battement Caché sous la Manche"],"legendary":["Dragon aux Mille Battements","Tonnerre qui Frappe Deux Fois","Serpent qui Change de Peau","Roue des Neuf Dragons Célestes","Battement qui Brise le Silence du Ciel"]},"Chaîne / Kusarigama":{"secret":["Étoile au Bout de la Chaîne","Lune du Faucheur Enchaîné","Étoile Revenant à son Maître","Roue du Fer Errant","Étoile Changeant de Firmament","Serpent de Fer autour de la Lame","Serpent Enchaînant le Bras","Chaîne qui Mord les Racines","Nœud du Dragon Captif","Traction de la Chaîne Céleste","Étoile qui Ouvre la Porte","Lame Cachée derrière la Chaîne","Chaîne Cachée derrière la Lame","Deux Crocs du Faucheur","Serpent de Fer Déviant la Lance","Pas au Milieu des Chaînes","Faux Nœud du Serpent","Prison entre Deux Horizons","Danse du Faucheur Enchaîné","Chaîne qui Ferme le Sentier du Retour"],"legendary":["Serpent de Fer qui Enchaîne le Dragon","Étoile qui Traverse les Cent Portes","Faucheur des Deux Horizons","Prison des Neuf Dragons","Danse du Dieu Faucheur"]},"Fouet":{"secret":["Croc de la Vipère Blanche","Langue du Dragon de Soie","Croissant du Serpent Long","Serpent Remontant le Fleuve","Dragon qui Descend des Nuages","Seconde Morsure de la Vipère","Serpent derrière le Bouclier","Croc Surgissant derrière l’Épaule","Onde du Serpent de Soie","Deux Ondes sur le Lac","Serpent Enroulé autour du Fer","Étreinte de la Vipère Blanche","Tirage du Serpent Agile","Vipère Balayant les Herbes","Pas hors du Nid des Serpents","Cercle de la Vipère Veilleuse","Claquement du Serpent Trompeur","Morsure à Contretemps","Danse des Ondes de Soie","Croc au Bout de l’Horizon"],"legendary":["Serpent des Mille Morsures","Fouet qui Enlace les Neuf Cieux","Tonnerre au Bout du Dragon","Serpent Sans Ombre","Dragon qui Danse entre les Huit Directions"]},"Gantelets de combat":{"secret":["Poing du Tigre de Fer","Marteau de la Griffe Noire","Croc Ascendant du Tigre","Bélier aux Poings de Fer","Deux Poings, Un Dragon","Avant-Bras du Gardien de Fer","Croix du Tigre Gardien","Patte qui Écarte la Lame","Poing Surgissant derrière le Fer","Main de Fer qui Saisit la Lame","Étau des Deux Tigres","Épaule du Buffle Noir","Coude du Tigre Blindé","Pas qui Franchit le Tranchant","Garde du Tigre de Fer","Poing Vide, Griffe Véritable","Poings qui Ébranlent la Porte","Marche du Tigre de Fer","Pluie des Poings de Bronze","Poing après le Tonnerre"],"legendary":["Poings qui Ébranlent les Neuf Cieux","Corps aux Cent Remparts","Tigre qui Brise les Portes du Ciel","Cent Tonnerres dans un Seul Souffle","Poing qui Renverse la Porte Céleste"]},"Bouclier offensif":{"secret":["Bélier du Rempart de Jade","Croc du Bouclier de Fer","Croissant du Gardien","Porte qui Soulève le Ciel","Chute du Bastion","Muraille qui Marche","Porte qui se Referme sur la Lance","Rempart qui Dévie le Fleuve","Rivière Glissant sur la Muraille","Mur qui Devient Bélier","Étau du Gardien des Portes","Porte de Fer Verrouillée","Crochet du Bord de Jade","Épaule derrière la Muraille","Pas Oblique du Rempart","Forteresse qui Tourne sur ses Fondations","Porte Volontairement Entrouverte","Rempart qui Brise la Ligne","Marche du Bastion de Fer","Contre de la Muraille Immobile"],"legendary":["Rempart qui Soutient les Neuf Cieux","Bélier qui Renverse la Porte Céleste","Forteresse aux Cent Portes","Mur qui Engloutit le Dragon","Marche de la Forteresse Céleste"]},"Arc":{"secret":["Flèche de l’Œil du Faucon","Flèche d’un Seul Souffle","Trait de l’Hirondelle Filante","Flèche entre Deux Battements","Trait qui Devance le Pas","Œil des Trois Horizons","Arc de l’Archer Errant","Pas après la Corde","Hirondelle Tirant en Retraite","Flèche du Genou sous la Lune","Seconde Plume dans le Vent","Trois Traits sous une Même Étoile","Flèche Cachée derrière la Première","Corde du Faucon Trompeur","Décoche sous le Vent Silencieux","Trait par la Porte d’une Aiguille","Flèche qui Cherche la Faille","Flèche qui Ferme le Sentier","Danse de l’Archer Errant","Flèche du Lac sans Ondes"],"legendary":["Flèche qui Traverse les Neuf Cieux","Cent Étoiles dans un Seul Souffle","Flèche qui Poursuit l’Ombre du Dragon","Arc qui Ferme les Huit Horizons","Flèche qui Sépare Ciel et Terre"]},"Arbalète":{"secret":["Carreau de l’Œil du Faucon","Trait du Souffle Suspendu","Croc de l’Arc de Fer","Carreau entre Deux Battements","Trait qui Coupe le Pas","Œil des Trois Distances","Fenêtre du Chasseur Immobile","Carreau par la Porte Étroite","Croc qui Trouve la Fissure","Genou du Chasseur de Fer","Pas après le Carreau","Retraite du Chasseur Patient","Recharge d’un Souffle","Mains du Chasseur Silencieux","Carreau Retenu sous la Lune","Œil du Chasseur Trompeur","Trait après la Porte Ouverte","Premier Carreau, Seconde Fenêtre","Marche du Chasseur de Fer","Carreau de l’Instant Unique"],"legendary":["Carreau qui Transperce les Neuf Cieux","Œil qui Voit entre les Mille Portes","Carreau qui Attend le Destin","Cycle des Cent Chasses","Sentence du Chasseur Céleste"]}};
-function loadMartialClans(){try{const x=JSON.parse(localStorage.getItem(MARTIAL_CLANS_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch(e){return {}}}
-function saveMartialClans(x){localStorage.setItem(MARTIAL_CLANS_KEY,JSON.stringify(x||{}))}
-function martialWeightedIndex(weights){let r=Math.random()*weights.reduce((a,b)=>a+b,0);for(let i=0;i<weights.length;i++){r-=weights[i];if(r<0)return i}return weights.length-1}
-function martialPickN(arr,n){let a=[...arr],out=[];while(a.length&&out.length<n)out.push(a.splice(Math.floor(Math.random()*a.length),1)[0]);return out}
-function martialFounderChance(n){return Math.max(.05,1-.95*Math.min(60,Math.max(0,n))/60)}
-function martialInheritedClan(){const ids=state?.genealogy?.parents||[];if(!ids.length)return null;const roster=loadRoster(), parents=ids.map(id=>roster[id]).filter(Boolean), cs=parents.map(p=>p?.martial?.clanId).filter(Boolean);if(!cs.length)return null;if(cs.length>=2){if(cs[0]===cs[1])return cs[0];return cs[Math.random()<.5?0:1]}return Math.random()<.5?cs[0]:null}
-function martialTechniqueBonus(chi,type){chi=Number(chi)||1;if(type==='secret'){if(chi>=5)return 2;if(chi>=3)return 1;return 0}if(chi>=9)return 2;if(chi>=7)return 1;return 0}
-function martialChiMultiplier(chi){return 1+Math.max(1,Math.min(10,Number(chi)||1))/10}
-function martialMasteryRoll(){return martialWeightedIndex(MARTIAL_MASTERY_WEIGHTS)+1}
-function martialClanDomainCount(){return martialWeightedIndex(MARTIAL_DOMAIN_COUNT_WEIGHTS)+1}
-function createMartialClan(founderId){const clans=loadMartialClans(),id=`CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,domains=martialPickN(MARTIAL_DOMAINS,martialClanDomainCount()),patrimony={};for(const d of domains){const cat=MARTIAL_TECHNIQUES[d];patrimony[d]={secret:martialPickN(cat.secret,5),legendary:martialPickN(cat.legendary,2)}}clans[id]={id,name:`Clan ${founderId}`,founderId,founderName:state.name||'',foundedSeason:seasonNumber,domains,patrimony,members:[founderId]};saveMartialClans(clans);return clans[id]}
-function joinMartialClan(clanId,status){const clans=loadMartialClans(),c=clans[clanId];if(!c)return null;c.members=[...new Set([...(c.members||[]),state.id])];saveMartialClans(clans);return c}
-function martialClanPoolOptions(){const clans=loadMartialClans();return Object.values(clans).map(c=>W(`${c.id} — ${c.name||c.id}`));}
-function martialEnsureState(status,clan){state.powers=[];state._extraPower=false;state.martial={status,clanId:clan?.id||null,clanName:clan?.name||null,domains:[...(clan?.domains||[])],techniques:[],weaponMasteries:{}};}
-function martialCreateEmptyFounderClan(){const clans=loadMartialClans(),id=`CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const clan={id,name:`Clan ${state.name||state.id}`,founderId:state.id,founderName:state.name||'',foundedSeason:seasonNumber,domains:[],patrimony:{},members:[state.id]};clans[id]=clan;saveMartialClans(clans);martialEnsureState('Fondateur',clan);return clan;}
-function martialUpdateClan(mutator){const clans=loadMartialClans(),id=state.martial?.clanId,c=clans[id];if(!c)return null;mutator(c);clans[id]=c;saveMartialClans(clans);state.martial.clanName=c.name;state.martial.domains=[...(c.domains||[])];return c;}
-function martialMasteryTask(tech){return task(`${tech.type==='legendary'?'Technique légendaire':'Technique secrète'} — Maîtrise — ${tech.name}`,()=>MARTIAL_MASTERY_WEIGHTS.map((w,i)=>W(`${i+1} — ${masteryRanks[i]||rankLabel(i+1,'mastery')}`,w)),v=>{const base=valNum(v),bonus=martialTechniqueBonus(Number(state.chi?.rank)||1,tech.type);tech.masteryBase=base;tech.chiBonus=bonus;tech.mastery=Math.min(10,base+bonus);tech.equivalentPower=tech.mastery*(tech.type==='legendary'?1.5:1)*martialChiMultiplier(state.chi?.rank);});}
-function martialPersonalTechniqueTasks(){const m=state.martial,clan=loadMartialClans()[m?.clanId];if(!m||!clan)return[];const out=[],chosenS=new Set(),chosenL=new Set();const secretPool=()=>clan.domains.flatMap(d=>(clan.patrimony[d]?.secret||[]).map(n=>({d,n}))).filter(x=>!chosenS.has(`${x.d}|${x.n}`));const legendaryPool=()=>clan.domains.flatMap(d=>(clan.patrimony[d]?.legendary||[]).map(n=>({d,n}))).filter(x=>!chosenL.has(`${x.d}|${x.n}`));
- const addPick=(type,i,poolFn,chosen)=>task(`${type==='secret'?'Technique secrète':'Technique légendaire'} personnelle ${i}`,()=>poolFn().map(x=>W(`${x.d} — ${x.n}`)),v=>{const cut=v.indexOf(' — '),d=v.slice(0,cut),n=v.slice(cut+3),t={domain:d,name:n,type,masteryBase:null,chiBonus:0,mastery:null,equivalentPower:null};chosen.add(`${d}|${n}`);m.techniques.push(t);insert([martialMasteryTask(t)]);});
+function loadMartialClans(){
+  return loadMartialClansFromStorage(
+    localStorage,
+    MARTIAL_CLANS_KEY
+  );
+}
+function saveMartialClans(x){
+  return saveMartialClansToStorage(
+    localStorage,
+    MARTIAL_CLANS_KEY,
+    x
+  );
+}
+
+
+
+function martialInheritedClan(){
+  return martialInheritedClanFor(
+    state?.genealogy?.parents||[],
+    loadRoster()
+  );
+}
+
+
+function martialMasteryRoll(){
+  return martialMasteryRollFor(
+    MARTIAL_MASTERY_WEIGHTS
+  );
+}
+function martialClanDomainCount(){
+  return martialClanDomainCountFor(
+    MARTIAL_DOMAIN_COUNT_WEIGHTS
+  );
+}
+function createMartialClan(founderId){
+  const clans=loadMartialClans();
+  const id=
+    `CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+
+  const domains=
+    martialPickN(
+      MARTIAL_DOMAINS,
+      martialClanDomainCount()
+    );
+
+  const patrimony={};
+
+  for(const d of domains){
+    const cat=MARTIAL_TECHNIQUES[d];
+
+    patrimony[d]={
+      secret:martialPickN(cat.secret,5),
+      legendary:martialPickN(cat.legendary,2)
+    };
+  }
+
+  const clan=createMartialClanRecord({
+    id,
+    founderId,
+    founderName:state.name||'',
+    foundedSeason:seasonNumber,
+    domains,
+    patrimony
+  });
+
+  clans[id]=clan;
+  saveMartialClans(clans);
+
+  return clan;
+}
+function joinMartialClan(clanId,status){
+  const clans=loadMartialClans();
+  const clan=clans[clanId];
+
+  if(!clan)
+    return null;
+
+  addMartialClanMember(
+    clan,
+    state.id
+  );
+
+  saveMartialClans(clans);
+  return clan;
+}
+function martialClanPoolOptions(){
+  return martialClanChoicesFor(
+    loadMartialClans()
+  ).map(
+    choice=>W(choice.label)
+  );
+}
+function martialEnsureState(status,clan){
+  state.powers=[];
+  state._extraPower=false;
+
+  state.martial=
+    martialStateFor(
+      status,
+      clan
+    );
+}
+function martialCreateEmptyFounderClan(){
+  const clans=loadMartialClans();
+
+  const id=
+    `CLAN-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+
+  const clan=
+    createEmptyFounderClanRecord({
+      id,
+      fighterId:state.id,
+      fighterName:state.name||'',
+      foundedSeason:seasonNumber
+    });
+
+  clans[id]=clan;
+  saveMartialClans(clans);
+
+  martialEnsureState(
+    'Fondateur',
+    clan
+  );
+
+  return clan;
+}
+function martialUpdateClan(mutator){
+  const clans=loadMartialClans();
+  const id=state.martial?.clanId;
+  const clan=clans[id];
+
+  if(!clan)
+    return null;
+
+  updateMartialClan(
+    clan,
+    mutator
+  );
+
+  clans[id]=clan;
+  saveMartialClans(clans);
+
+  syncMartialStateWithClan(
+    state.martial,
+    clan
+  );
+
+  return clan;
+}
+function martialMasteryTask(tech){return task(`${tech.type==='legendary'?'Technique légendaire':'Technique secrète'} — Maîtrise — ${tech.name}`,()=>MARTIAL_MASTERY_WEIGHTS.map((w,i)=>W(`${i+1} — ${masteryRanks[i]||rankLabel(i+1,'mastery')}`,w)),v=>{const base=valNum(v);applyMartialTechniqueMastery(tech,base,state.chi?.rank,martialTechniqueBonus,martialChiMultiplier);});}
+function martialPersonalTechniqueTasks(){const m=state.martial,clan=loadMartialClans()[m?.clanId];if(!m||!clan)return[];const out=[],chosenS=new Set(),chosenL=new Set();const secretPool=()=>martialPatrimonyPoolFor(
+  clan,
+  'secret',
+  chosenS
+);const legendaryPool=()=>martialPatrimonyPoolFor(
+  clan,
+  'legendary',
+  chosenL
+);
+ const addPick=(type,i,poolFn,chosen)=>task(`${type==='secret'?'Technique secrète':'Technique légendaire'} personnelle ${i}`,()=>poolFn().map(x=>W(`${x.d} — ${x.n}`)),v=>{const cut=v.indexOf(' — '),d=v.slice(0,cut),n=v.slice(cut+3),t=martialTechniqueFor(d,n,type);chosen.add(`${d}|${n}`);m.techniques.push(t);insert([martialMasteryTask(t)]);});
  if(m.status==='Fondateur'){
-   for(const d of clan.domains){const local=new Set();for(let i=1;i<=2;i++)out.push(task(`Fondateur — ${d} — Technique secrète ${i}`,()=> (clan.patrimony[d]?.secret||[]).filter(n=>!local.has(n)).map(n=>W(n)),n=>{local.add(n);const t={domain:d,name:n,type:'secret',masteryBase:null,chiBonus:0,mastery:null,equivalentPower:null};m.techniques.push(t);insert([martialMasteryTask(t)])}));}
+   for(const d of clan.domains){const local=new Set();for(let i=1;i<=2;i++)out.push(task(`Fondateur — ${d} — Technique secrète ${i}`,()=> (clan.patrimony[d]?.secret||[]).filter(n=>!local.has(n)).map(n=>W(n)),n=>{local.add(n);const t=martialTechniqueFor(d,n,'secret');m.techniques.push(t);insert([martialMasteryTask(t)])}));}
    for(let i=1;i<=2;i++)out.push(addPick('legendary',i,legendaryPool,chosenL));
  }else{
    out.push(task('Nombre de techniques secrètes personnelles',MARTIAL_SECRET_COUNT_WEIGHTS.map((w,i)=>W(String(i+1),w)),v=>{const n=Math.min(Number(v)||1,secretPool().length);insert(Array.from({length:n},(_,i)=>addPick('secret',i+1,secretPool,chosenS)))}));
    out.push(task('Nombre de techniques légendaires personnelles',MARTIAL_LEGENDARY_COUNT_WEIGHTS.map((w,i)=>W(String(i+1),w)),v=>{const n=Math.min(Number(v)||1,legendaryPool().length);insert(Array.from({length:n},(_,i)=>addPick('legendary',i+1,legendaryPool,chosenL)))}));
  }
  out.push(task('Finalisation martiale',[W('Finaliser les maîtrises et les armes')],()=>finalizeMartialLoadout()));return out;}
-function martialPatrimonyTasks(clan){const out=[];for(const d of clan.domains){clan.patrimony[d]={secret:[],legendary:[]};for(let i=1;i<=5;i++)out.push(task(`Clan — ${d} — Technique secrète ${i}`,()=>MARTIAL_TECHNIQUES[d].secret.filter(n=>!clan.patrimony[d].secret.includes(n)).map(n=>W(n)),n=>{martialUpdateClan(c=>{c.patrimony[d]??={secret:[],legendary:[]};if(!c.patrimony[d].secret.includes(n))c.patrimony[d].secret.push(n)});clan=loadMartialClans()[state.martial.clanId]}));for(let i=1;i<=2;i++)out.push(task(`Clan — ${d} — Technique légendaire ${i}`,()=>MARTIAL_TECHNIQUES[d].legendary.filter(n=>!clan.patrimony[d].legendary.includes(n)).map(n=>W(n)),n=>{martialUpdateClan(c=>{c.patrimony[d]??={secret:[],legendary:[]};if(!c.patrimony[d].legendary.includes(n))c.patrimony[d].legendary.push(n)});clan=loadMartialClans()[state.martial.clanId]}));}out.push(task('Clan — Patrimoine établi',[W('Valider le patrimoine')],()=>insert(martialPersonalTechniqueTasks())));return out;}
-function martialFounderDomainTasks(){let clan=loadMartialClans()[state.martial.clanId];return [task('Nombre de domaines martiaux',[W('1',50),W('2',35),W('3',15)],v=>{const n=Number(v)||1,chosen=[];insert([...Array.from({length:n},(_,i)=>task(`Domaine martial ${i+1}`,()=>MARTIAL_DOMAINS.filter(d=>!chosen.includes(d)).map(d=>W(d)),d=>{chosen.push(d);martialUpdateClan(c=>{c.domains=[...chosen];c.patrimony=c.patrimony||{}});state.martial.domains=[...chosen]})),task('Clan — Création du patrimoine',[W('Créer le patrimoine')],()=>{clan=loadMartialClans()[state.martial.clanId];insert(martialPatrimonyTasks(clan))})])})];}
-function martialIdentityTasks(){const inherited=martialInheritedClan(),clans=loadMartialClans();if(inherited&&clans[inherited]){return [task('Clan martial hérité',[W(`${clans[inherited].name} — Héritier`)],()=>{const c=joinMartialClan(inherited,'Héritier');martialEnsureState('Héritier',c);insert(martialPersonalTechniqueTasks())})];}const ids=Object.keys(clans),founderChance=martialFounderChance(ids.length);if(!ids.length)return [task('Statut martial',[W('Fondateur')],()=>{martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())})];return [task('Statut martial',[W('Fondateur',founderChance),W('Disciple',1-founderChance)],v=>{if(v==='Fondateur'){martialCreateEmptyFounderClan();insert(martialFounderDomainTasks())}else insert([task('Clan martial rejoint',martialClanPoolOptions,v=>{const id=v.split(' — ')[0],c=joinMartialClan(id,'Disciple');martialEnsureState('Disciple',c);insert(martialPersonalTechniqueTasks())})])})];}
-function finalizeMartialLoadout(){const m=state.martial,clan=loadMartialClans()[m?.clanId];if(!m||!clan)return;for(const d of clan.domains){const vals=m.techniques.filter(t=>t.domain===d&&t.type==='secret').map(t=>Number(t.mastery)||0);m.weaponMasteries[d]=vals.length?Math.max(...vals):1}const physical=clan.domains.filter(d=>d!=='Mains nues'),best=Math.max(0,...physical.map(d=>m.weaponMasteries[d]||1)),ties=physical.filter(d=>(m.weaponMasteries[d]||1)===best);m.primaryDomain=ties.length?ties[Math.floor(Math.random()*ties.length)]:'Mains nues';m.secondaryDomains=clan.domains.filter(d=>d!==m.primaryDomain);state.weapons=[];for(const d of physical){const mastery=m.weaponMasteries[d]||1,w=attachWeaponTraits({name:MARTIAL_DOMAIN_WEAPON[d]||d,masteryBase:mastery,mastery,ench:[],martialDomain:d,martialPrimary:d===m.primaryDomain},'classic');w.enchantmentCount=mastery>=8?2:mastery>=5?1:0;state.weapons.push(w);if(w.enchantmentCount)for(let i=0;i<w.enchantmentCount;i++){const opts=vaeloriaEnchantOptions(),idx=weightedPick(opts);w.ench.push(opts[idx].label)}}}
-function martialCombatData(c){if(!c?.martial)return null;return {...c.martial,chiRank:Number(c.chi?.rank)||1,chiMultiplier:martialChiMultiplier(c.chi?.rank),techniques:(c.martial.techniques||[]).map(t=>({...t,equivalentPower:Number(t.mastery||0)*(t.type==='legendary'?1.5:1)*martialChiMultiplier(c.chi?.rank) }))}}
-const chiRanks=['Disciple','Débutant','Avancé','Maître','Expert','Grand Maître','Martial King','Transcendant','Demi-dieu','Martial God'];
-const statRanks=['Inapte','Catastrophique','Très faible','Faible','Médiocre','Moyen','Bon','Excellent','Exceptionnel','Légendaire','Monstrueux','Surhumain','Mythique','Cataclysmique','Transcendant','Divin','Cosmique','Incommensurable','Inconcevable','Absolu','Ultime'];
-const masteryRanks=['Inapte','Inexpérimenté','Novice','Apprenti','Compétent','Confirmé','Avancé','Expert','Maître','Grand Maître','Maître suprême','Prodige','Virtuose','Légendaire','Transcendant','Divin','Cosmique','Incommensurable','Inconcevable','Absolu','Ultime'];
-const intensityRanks=['Nulle','Infime','Très faible','Faible','Modérée','Notable','Forte','Majeure','Extrême','Dévastatrice','Phénoménale','Colossale','Mythique','Cataclysmique','Transcendante','Divine','Cosmique','Incommensurable','Inconcevable','Apocalyptique','Ultime'];
-const weaknessRanks=['','Négligeable','Mineure','Légère','Modérée','Notable','Importante','Sévère','Critique','Extrême','Mortelle'];
-const levelColors=['#2f333a','#6b7280','#64748b','#3b82f6','#22d3ee','#22c55e','#86efac','#facc15','#f97316','#ef4444','#991b1b','#db2777','#7e22ce','#a855f7','#f5b82e','#ec4899','#dbeafe','#ffffff','#fff1b8','#fff8dc'];
-function rankLabel(n,type='stat'){n=Math.max(0,Math.floor(Number(n)||0));if(type==='weakness')return weaknessRanks[Math.min(10,n)]||'';let a=type==='mastery'?masteryRanks:type==='intensity'?intensityRanks:type==='chi'?['',...chiRanks]:statRanks;return a[Math.min(20,n)]||a[20];}
-function levelColor(n){n=Math.max(1,Math.floor(Number(n)||1));return levelColors[Math.min(20,n)-1];}
+function martialPatrimonyTasks(clan){const out=[];for(const d of clan.domains){ensureMartialPatrimonyDomain(clan,d,true);for(let i=1;i<=5;i++)out.push(task(`Clan — ${d} — Technique secrète ${i}`,()=>MARTIAL_TECHNIQUES[d].secret.filter(n=>!clan.patrimony[d].secret.includes(n)).map(n=>W(n)),n=>{martialUpdateClan(c=>{addMartialPatrimonyTechnique(c,d,'secret',n)});clan=loadMartialClans()[state.martial.clanId]}));for(let i=1;i<=2;i++)out.push(task(`Clan — ${d} — Technique légendaire ${i}`,()=>MARTIAL_TECHNIQUES[d].legendary.filter(n=>!clan.patrimony[d].legendary.includes(n)).map(n=>W(n)),n=>{martialUpdateClan(c=>{addMartialPatrimonyTechnique(c,d,'legendary',n)});clan=loadMartialClans()[state.martial.clanId]}));}out.push(task('Clan — Patrimoine établi',[W('Valider le patrimoine')],()=>insert(martialPersonalTechniqueTasks())));return out;}
+function martialFounderDomainTasks(){let clan=loadMartialClans()[state.martial.clanId];return [task('Nombre de domaines martiaux',[W('1',50),W('2',35),W('3',15)],v=>{const n=Number(v)||1,chosen=[];insert([...Array.from({length:n},(_,i)=>task(`Domaine martial ${i+1}`,()=>MARTIAL_DOMAINS.filter(d=>!chosen.includes(d)).map(d=>W(d)),d=>{chosen.push(d);martialUpdateClan(c=>applyMartialDomains(c,state.martial,chosen))})),task('Clan — Création du patrimoine',[W('Créer le patrimoine')],()=>{clan=loadMartialClans()[state.martial.clanId];insert(martialPatrimonyTasks(clan))})])})];}
+function martialIdentityTasks(){
+  const inherited=
+    martialInheritedClan();
+
+  const clans=
+    loadMartialClans();
+
+  const identity=
+    martialIdentityFor({
+      inheritedClanId:inherited,
+      clans,
+      founderChanceFor:
+        martialFounderChance
+    });
+
+  if(identity.mode==='inherited'){
+    const clan=
+      clans[identity.clanId];
+
+    return [
+      task(
+        'Clan martial hérité',
+        [
+          W(
+            `${clan.name} — Héritier`
+          )
+        ],
+        ()=>{
+          const c=
+            joinMartialClan(
+              identity.clanId,
+              'Héritier'
+            );
+
+          martialEnsureState(
+            'Héritier',
+            c
+          );
+
+          insert(
+            martialPersonalTechniqueTasks()
+          );
+        }
+      )
+    ];
+  }
+
+  if(identity.mode==='founder-only'){
+    return [
+      task(
+        'Statut martial',
+        [W('Fondateur')],
+        ()=>{
+          martialCreateEmptyFounderClan();
+          insert(
+            martialFounderDomainTasks()
+          );
+        }
+      )
+    ];
+  }
+
+  return [
+    task(
+      'Statut martial',
+      [
+        W(
+          'Fondateur',
+          identity.founderChance
+        ),
+        W(
+          'Disciple',
+          1-identity.founderChance
+        )
+      ],
+      value=>{
+        if(value==='Fondateur'){
+          martialCreateEmptyFounderClan();
+
+          insert(
+            martialFounderDomainTasks()
+          );
+
+          return;
+        }
+
+        insert([
+          task(
+            'Clan martial rejoint',
+            martialClanPoolOptions,
+            choice=>{
+              const id=
+                martialClanIdFromChoice(
+                  choice
+                );
+
+              const clan=
+                joinMartialClan(
+                  id,
+                  'Disciple'
+                );
+
+              martialEnsureState(
+                'Disciple',
+                clan
+              );
+
+              insert(
+                martialPersonalTechniqueTasks()
+              );
+            }
+          )
+        ]);
+      }
+    )
+  ];
+}
+function finalizeMartialLoadout(){
+  const m=state.martial;
+  const clan=
+    loadMartialClans()[m?.clanId];
+
+  if(!m||!clan)
+    return;
+
+  m.weaponMasteries=
+    martialWeaponMasteriesFor(
+      clan.domains,
+      m.techniques
+    );
+
+  const selection=
+    martialDomainSelectionFor(
+      clan.domains,
+      m.weaponMasteries
+    );
+
+  m.primaryDomain=
+    selection.primaryDomain;
+
+  m.secondaryDomains=
+    selection.secondaryDomains;
+
+  state.weapons=[];
+
+  for(
+    const d of
+    selection.physicalDomains
+  ){
+    const mastery=
+      m.weaponMasteries[d]||1;
+
+    const w=attachWeaponTraits(
+      {
+        name:
+          MARTIAL_DOMAIN_WEAPON[d]||d,
+        masteryBase:mastery,
+        mastery,
+        ench:[],
+        martialDomain:d,
+        martialPrimary:
+          d===m.primaryDomain
+      },
+      'classic'
+    );
+
+    w.enchantmentCount=
+      martialEnchantmentCountFor(
+        mastery
+      );
+
+    state.weapons.push(w);
+
+    if(w.enchantmentCount){
+      for(
+        let i=0;
+        i<w.enchantmentCount;
+        i++
+      ){
+        const opts=
+          vaeloriaEnchantOptions();
+
+        const idx=
+          weightedPick(opts);
+
+        w.ench.push(
+          opts[idx].label
+        );
+      }
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
 const centered=[W('1 — Catastrophique',2),W('2 — Très faible',4),W('3 — Faible',8),W('4 — Médiocre',14),W('5 — Moyen',22),W('6 — Bon',22),W('7 — Excellent',14),W('8 — Exceptionnel',8),W('9 — Légendaire',4),W('10 — Monstrueux',2)];
 const intensity=[W('1 — Infime',2),W('2 — Très faible',4),W('3 — Faible',8),W('4 — Modérée',14),W('5 — Notable',22),W('6 — Forte',22),W('7 — Majeure',14),W('8 — Extrême',8),W('9 — Dévastatrice',4),W('10 — Phénoménale',2)];
-const races=['Humain','Elfe','Nain','Orc','Gobelin','Fée','Géant','Vampire','Loup-garou','Esprit','Homme-bête','Hybride','Squelette','Golem / Artificiel','Extraterrestre','Ange','Démon','Dragon humanoïde','Titan','Demi-dieu','Cyborg'];
-const animals=['Lion','Tigre','Loup','Renard','Ours','Sanglier','Taureau','Cheval','Cerf','Chèvre','Gorille','Singe','Éléphant','Rhinocéros','Crocodile','Serpent','Lézard','Tortue','Aigle','Hibou','Chauve-souris','Requin','Baleine','Poulpe','Scorpion','Araignée','Scarabée','Fourmi','Guépard','Papillon','Animal fantastique'];
-const archs=['Guerrier','Berserker','Gardien','Assassin','Artiste martial','Tireur','Mage','Sorcier','Érudit','Ingénieur','Stratège','Soutien','Chasseur','Éclaireur','Commandant','Trickster','Slayer','Invocateur','Prodige','Inclassable'];
-const jobs=['Soldat','Mercenaire','Garde','Chasseur de primes','Assassin','Espion','Policier / Enquêteur','Forgeron','Ingénieur / Mécanicien','Scientifique','Médecin / Guérisseur','Alchimiste','Marchand','Voleur','Explorateur','Chasseur','Marin / Pirate','Pilote','Mineur','Agriculteur','Métier légendaire','Artiste','Cuisinier','Prêtre / Religieux','Enseignant / Érudit','Noble / Diplomate','Dirigeant','Criminel','Sans métier','Métier improbable'];
-const histories=['Enfance paisible','Orphelin','Exilé','Esclave évadé','Ancien criminel','Vétéran de guerre','Unique survivant','Trahi','Amnésique','Héritier déchu','Élu par une prophétie','Maudit','Béni','Expérience scientifique','Rescapé d’un autre monde','Formé depuis l’enfance','Autodidacte','Disciple d’un maître','Ancien champion','Chasseur de monstres','Revenu d’entre les morts','Pacte mystérieux','Possédé','Artefact découvert','Pouvoir éveillé tardivement','Voyageur temporel','Créé artificiellement','Destin brisé','Histoire légendaire','Histoire improbable'];
-const extras=['Maîtrise du Chi avancée','Familier','Monture','Compagnon artificiel','Armure spéciale','Artefact','Consommable rare','Sens extraordinaire','Régénération','Vol','Camouflage','Deuxième pouvoir','Deuxième arme','Transformation','Résurrection unique','Éveil','Familier légendaire','Objet maudit','Objet béni','Mémoire parfaite','Chance surnaturelle','Aura dominante','Mutation','Lien mystique','Double','Possède un enfant','Bénédiction','Extra improbable','Extra légendaire','Rien'];
 
-const legendaryJobs=['Forgeron des dieux','Chasseur de Léviathans','Cartographe des dimensions','Médecin des immortels','Architecte de forteresses vivantes','Alchimiste royal des âges','Maître-espion des mille visages','Navigateur du vide','Gardien du dernier sanctuaire','Ingénieur des reliques','Dompteur de catastrophes','Archiviste des mondes perdus','Juge des monstres','Cuisinier des souverains','Passeur des morts','Maître des arènes','Explorateur de l’impossible','Diplomate des anciens royaumes','Artisan des âmes','Métier légendaire unique'];
-const legendaryJobAbilities=['Forge temporairement une propriété surnaturelle dans un objet','Identifie instinctivement le point faible d’une créature colossale','Trouve un passage là où aucun chemin ne devrait exister','Stabilise une blessure normalement incurable','Transforme rapidement le terrain en position défensive','Prépare une substance aux effets extraordinaires','Usurpe parfaitement une identité après observation','S’oriente même dans un espace déformé','Crée une zone de protection autour d’un lieu choisi','Répare ou détourne des technologies inconnues','Apaise ou dirige brièvement une créature déchaînée','Accède à des connaissances oubliées liées à une situation','Impose un sceau temporaire à une cible monstrueuse','Prépare un mets donnant un sursaut temporaire','Perçoit les présences entre vie et mort','Lit instantanément la dynamique d’une arène','Détecte les anomalies et passages cachés','Force une trêve surnaturelle très brève','Interagit directement avec les traces laissées dans une âme','Capacité professionnelle unique'];
-const uniqueLegendaryJobAbilities=['Peut achever une œuvre impossible une fois par combat','Transforme un outil banal en chef-d’œuvre temporaire','Lit la fonction d’un objet qu’aucun être ne comprend','Crée un raccourci éphémère entre deux points visibles','Donne momentanément une fonction nouvelle à un objet','Scelle une promesse sous forme de marque mystique','Fait apparaître l’outil exact requis par son métier','Reconstruit brièvement la dernière forme intacte d’un objet détruit','Perçoit la meilleure méthode de travail possible dans une crise','Son savoir-faire produit un effet que la logique ne peut expliquer'];
-const legendaryHistories=['A survécu à la chute d’un royaume entier','A vaincu seul une créature considérée invincible','A fermé une faille qui dévorait une région','A été le dernier défenseur d’une civilisation','A traversé vivant un monde condamné','A brisé une prophétie millénaire','A volé quelque chose à une divinité','A mené une armée à une victoire impossible','A survécu à sa propre exécution','A été emprisonné hors du temps','A détruit un artefact réputé indestructible','A sauvé une ville d’une catastrophe surnaturelle','A été choisi puis rejeté par une puissance cosmique','A parcouru plusieurs dimensions pour rentrer chez lui','A été le champion d’une arène mythique','A survécu à une guerre entre êtres divins','A réveillé accidentellement une puissance ancienne','A scellé un monstre primordial','A disparu pendant un siècle avant de revenir inchangé','Histoire légendaire unique'];
-const uniqueLegendaryHistories=['Son nom a été effacé de l’histoire mais les ruines se souviennent de lui','A gagné une bataille qui n’a officiellement jamais existé','Est revenu d’un futur où son monde avait disparu','A survécu sept jours dans le rêve d’une entité cosmique','A porté pendant une nuit le poids d’une malédiction mondiale','A été déclaré mort dans trois réalités différentes','A négocié avec une catastrophe consciente','A détruit sa propre légende pour empêcher une prophétie','A traversé un lieu dont personne ne peut se souvenir','A été témoin de la naissance d’un dieu'];
-const legendaryArmorTypes=['Armure draconique ancestrale','Armure céleste','Armure démoniaque souveraine','Armure de titan','Armure cosmique','Armure du Chaos','Armure spectrale royale','Exosquelette mythique','Armure vivante antique','Armure du Premier Gardien'];
-const legendaryArmorEffects=['Invulnérabilité brève après un impact majeur','Régénération accélérée de l’armure','Absorption massive d’énergie','Déphasage défensif','Adaptation progressive aux attaques répétées','Barrière autonome','Ancrage absolu contre déplacements forcés','Conversion partielle des dégâts en puissance','Protection contre altérations de réalité','Propriété légendaire unique'];
-const legendaryTechniques=['Frappe des Cent Horizons','Mur du Dernier Gardien','Pas au-delà de la Foudre','Coupe du Roi sans Couronne','Contre des Mille Guerres','Sceau du Dragon Endormi','Poing qui fend la Montagne','Tir de l’Étoile Morte','Danse du Champ de Bataille','Technique légendaire unique'];
-const legendaryDormantPowers=['Cœur de Phénix','Œil du Néant','Sang du Titan','Couronne des Tempêtes','Mémoire du Monde','Flamme primordiale','Ombre souveraine','Écho d’une divinité','Graine cosmique','Pouvoir dormant unique'];
-const legendaryRelics=['Fragment d’une arme divine','Couronne d’un royaume disparu','Cœur cristallisé de dragon','Orbe d’une étoile morte','Chaîne ayant lié un titan','Masque d’un dieu oublié','Clé dimensionnelle antique','Calice du premier vampire','Éclat du Chaos solidifié','Œil fossilisé d’un dieu primordial'];
-const legendaryCompanions=['Chevalier spectral ancestral','Androïde de guerre antique','Golem royal','Esprit gardien supérieur','Dragon mécanique','Automate céleste','Chimère protectrice','Machine extraterrestre souveraine','Sentinelle dimensionnelle','Gardien runique ancestral'];
 
-const familiarTypes=['Chien','Chat','Loup','Renard','Corbeau','Aigle','Hibou','Serpent','Araignée','Singe','Félin sauvage','Ours','Reptile','Créature aquatique','Insecte','Petit esprit','Créature élémentaire','Créature extraterrestre','Créature fantastique','Familier unique'];
-const familiarAbilities=['Sens surdéveloppés','Pistage','Détection surnaturelle','Lien télépathique','Camouflage','Vol','Venin','Soins mineurs','Barrière protectrice','Attaque élémentaire','Entrave','Éclaireur','Partage sensoriel','Absorption d’énergie','Téléportation courte','Illusion','Régénération','Cri intimidant','Protection du maître','Capacité unique'];
-const uniqueFamiliars=['Renard de brume à trois queues','Corbeau de verre vivant','Lézard astral','Félin d’ombre sans yeux','Serpent de lumière liquide','Petit dragon d’horloge','Mante spectrale','Crabe de cristal flottant','Loup miniature de foudre','Méduse aérienne','Chimère de poche','Esprit-masque vivant','Oiseau origami animé','Araignée stellaire','Créature sans espèce connue'];
-const uniqueFamiliarAbilities=['Dévore les malédictions faibles','Traverse brièvement les murs','Mémorise puis rejoue un son surnaturel','Crée un double illusoire du maître','Transforme les ombres proches en cachettes','Stocke une attaque puis la relâche','Repère les failles dimensionnelles','Échange sa position avec son maître','Neutralise brièvement une odeur ou une trace','Produit une zone de silence','Projette une lumière révélant l’invisible','Change temporairement de taille','Absorbe une petite quantité de magie','Marque une cible pour la retrouver','Capacité biologique inconnue'];
-const mountTypes=['Cheval','Loup géant','Félin géant','Ours','Cerf','Éléphant','Rhinocéros','Oiseau géant','Reptile géant','Créature aquatique','Monture mécanique','Créature extraterrestre','Créature élémentaire','Créature fantastique','Monture unique'];
-const mountAbilities=['Charge dévastatrice','Sprint fulgurant','Endurance exceptionnelle','Saut prodigieux','Escalade','Vol','Nage rapide','Blindage naturel','Camouflage','Sens de piste','Passage en terrain difficile','Souffle élémentaire','Barrière de protection','Téléportation courte','Transport silencieux','Piétinement','Cri de guerre','Résistance environnementale','Morsure / griffes puissantes','Capacité unique'];
-const uniqueMounts=['Destrier d’obsidienne','Cerf aux bois stellaires','Raie céleste volante','Félin de brume géant','Varan cuirassé à six pattes','Bélier de cristal','Monture arachnide colossale','Serpent terrestre annelé','Cheval spectral sans tête','Manta mécanique antigravité','Bête de lave quadrupède','Oiseau-tempête','Chimère à sabots','Créature dimensionnelle sans nom','Monture biomécanique inconnue'];
-const artificialCompanionTypes=['Drone','Robot humanoïde','Robot quadrupède','Mécha miniature','Tourelle autonome','Essaim de drones','IA holographique','Automate magique','Golem mécanique','Androïde','Bio-robot','Exosquelette autonome','Machine extraterrestre','Prototype militaire','Compagnon artificiel unique'];
-const artificialAbilities=['Analyse tactique','Système de ciblage','Bouclier énergétique','Réparation de terrain','Camouflage optique','Vol','Arme énergétique','Tourelle intégrée','Brouillage électronique','Détection thermique','Scanner biologique','Interface technologique','Projection holographique','Entrave magnétique','Nanoréparation','Soutien médical','Cartographie instantanée','Interception de projectiles','Surcharge de puissance','Capacité unique'];
-const uniqueArtificialCompanions=['Orbe pensant fractal','Automate à corps liquide','Drone en forme de crâne','Robot-parasite protecteur','Cube mécanique transformable','Marionnette techno-organique','Essaim de micro-lames conscientes','IA incarnée dans un miroir','Araignée mécanique dimensionnelle','Satellite miniature autonome','Golem de câbles vivants','Machine sans architecture identifiable','Duo de drones jumeaux','Sphère antigravité armée','Prototype impossible'];
-const legendaryFamiliarTypes=['Créature fantastique','Esprit supérieur','Créature cosmique','Créature divine','Créature démoniaque','Créature du Chaos','Créature unique'];
-const legendaryFamiliarNames=['Griffon royal','Phénix ancien','Hydre juvénile','Basilic couronné','Kirin d’orage','Manticore blanche','Cerbère astral','Dragon lunaire','Léviathan miniature','Esprit-roi des forêts','Bête solaire','Gardien démoniaque écarlate','Prédateur du Chaos','Chimère cosmique','Créature légendaire sans nom'];
-const legendaryAbilities=['Résurrection flamboyante','Souffle primordial','Aura protectrice','Régénération majeure','Vol dimensionnel','Téléportation','Barrière divine','Dévoreur de magie','Altération locale de la gravité','Cri paralysant','Tempête élémentaire','Forme spectrale','Vision prophétique','Rupture de barrières','Capacité légendaire unique'];
-const mythicFamiliars=['Phénix primordial','Léviathan céleste','Dragon cosmique','Bête du Chaos','Gardien du temps','Hydre astrale','Kirin divin','Cerbère des mondes','Roc stellaire','Esprit primordial incarné'];
-const fantasyCreatures=['Licorne','Pégase','Griffon','Phénix','Basilic','Cocatrix','Fenrir','Cerbère','Hydre','Manticore','Chimère','Minotaure','Kelpie','Kraken','Serpent de mer','Léviathan','Loup spectral','Kitsune','Tengu','Naga'];
-const aquaticCreatures=['Requin','Raie manta','Murène','Espadon','Orque','Dauphin','Pieuvre','Calmar géant','Crabe géant','Homard cuirassé','Anguille électrique','Poisson-lune','Barracuda','Méduse','Tortue marine','Hippocampe géant'];
-const elementalAffinities=['Feu','Glace','Foudre','Terre','Eau','Vent','Lumière','Ténèbres','Magma','Cristal','Tempête','Brume'];
-const elementalCreatureSpecies=['Salamandre','Loup','Aigle','Golem','Serpent','Raie','Cerf','Félin','Bison','Mante','Corbeau','Renard'];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const elementalCreatures=elementalCreatureSpecies;
-const alienCreatures=['Quadrupède bioluminescent','Prédateur chitineux à six pattes','Mollusque télépathique','Oiseau orbital sans plumes','Félin xéno-organique','Serpent antigravité','Crustacé cristallin','Amphibien à peau miroir','Insecte symbiotique','Créature gazeuse consciente','Chasseur aveugle à écholocation','Organisme fractal mobile'];
-const smallSpirits=['Esprit du feu follet','Esprit des rivières','Esprit des pierres','Esprit des vents','Esprit des ombres','Esprit des souvenirs','Esprit des fleurs','Esprit de la pluie','Esprit des ruines','Esprit des lanternes','Esprit animal mineur','Esprit domestique'];
-const wildFelines=['Lynx','Puma','Jaguar','Léopard','Caracal','Serval','Panthère noire'];
-const reptiles=['Varan','Iguane','Gecko géant','Cobra','Python','Caméléon','Crocodilien miniature','Tortue terrestre'];
-const insects=['Scarabée','Mante religieuse','Libellule','Papillon','Frelon','Fourmi soldat','Lucane','Phasme','Cigale','Sauterelle'];
-const giantFelines=['Lion géant','Tigre géant','Panthère géante','Jaguar géant','Lynx géant','Smilodon'];
-const giantBirds=['Aigle géant','Roc mineur','Condor géant','Hibou géant','Corbeau géant','Casoar géant','Faucon géant'];
-const giantReptiles=['Varan géant','Crocodile géant','Python géant','Cobra géant','Iguane cuirassé','Tortue géante'];
-const mechanicalMounts=['Moto de guerre','Araignée mécanique','Cheval cybernétique','Hoverbike','Quadrupède robotique','Mécha bipède léger','Drone-porteur antigravité'];
-const relicForms=['Dent de dragon fossilisée','Fragment de statue divine','Médaille d’un empire disparu','Os gravé ancestral','Éclat de lame antique','Cendre enfermée dans un reliquaire','Œil pétrifié','Cloche rituelle miniature','Fragment de trône','Sceau royal brisé'];
-const strangeObjects=['Dé noir impossible','Boussole qui pointe vers les êtres vivants','Montre sans aiguilles','Miroir qui ne reflète pas son porteur','Pièce chaude en permanence','Clé sans serrure connue','Boîte qui murmure','Ruban qui flotte sans vent','Sablier dont le sable remonte','Pierre qui pulse comme un cœur','Livre aux pages blanches mouvantes','Masque qui change légèrement de visage'];
-const rareConsumables=['Potion de régénération majeure','Élixir de célérité','Fiole de résistance élémentaire','Capsule de surcharge énergétique','Baume anti-malédiction','Sérum de concentration','Grenade de fumée spectrale','Poudre d’invisibilité','Cristal de recharge magique','Injection de force temporaire','Talisman consommable de barrière','Antidote universel rare'];
-const extraordinarySenses=['Vision thermique','Écholocalisation','Vision nocturne parfaite','Perception des vibrations','Détection des champs magiques','Odorat surnaturel','Audition à très longue portée','Perception des âmes','Détection des mensonges physiologiques','Vision à travers la fumée et l’obscurité','Sens du danger','Perception des flux d’énergie'];
-const dominantAuras=['Aura de terreur','Aura royale','Aura apaisante','Aura prédatrice','Aura sacrée','Aura écrasante','Aura glaciale','Aura brûlante','Aura de silence','Aura de commandement','Aura chaotique','Aura lumineuse'];
-const mutations=['Bras supplémentaire','Œil supplémentaire','Peau écailleuse','Cornes fonctionnelles','Queue préhensile','Os renforcés','Sang luminescent','Branchies','Membrane de vol','Griffes rétractiles','Carapace partielle','Membres extensibles','Organes sensoriels supplémentaires','Peau chromatophore','Structure corporelle asymétrique'];
-const doubles=['Clone physique','Clone énergétique','Ombre vivante','Alter ego','Projection astrale','Double mécanique','Double temporel','Double dimensionnel','Double inversé','Double unique'];
-const doubleUnique=['Reflet sorti d’un miroir','Version issue d’un futur détruit','Silhouette faite de fumée solide','Copie constituée de souvenirs','Double parasite vivant','Écho de réalité alternative','Corps de papier animé','Réplique cristalline','Avatar miniature agrandi au combat','Double sans visage'];
 
 
-const powers=['Feu','Eau','Glace','Foudre','Air','Terre','Nature','Lumière','Ténèbres','Poison','Sang','Magnétisme','Son','Explosion','Télékinésie','Télépathie','Illusion','Invisibilité','Téléportation','Métamorphose','Clonage','Régénération','Barrières','Gravité','Temps','Espace','Absorption','Copie','Annulation','Pouvoir unique'];
-const chaos=['Réalité instable','Manipulation de probabilité','Réflexion','Inversion','Mutation chaotique','Distorsion sensorielle','Faille dimensionnelle','Malédiction','Échange','Vol de pouvoir','Surcharge','Sacrifice','Paradoxe','Fragmentation','Causalité','Adaptation','Mimétisme chaotique','Dernier recours','Anomalie','Chaos absolu'];
-const weapons=['Épée','Épée à deux mains','Katana','Dagues doubles','Hache','Hache à deux mains','Marteau de guerre','Rope Dart / Corde-dard','Lance','Hallebarde','Faux','Bâton','Nunchaku','Chaîne / Kusarigama','Fouet','Gantelets de combat','Bouclier offensif','Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique','Grimoire / catalyseur','Arme improvisée','Aucune arme','Arme unique'];
-const DRAGON_TAIL_WEAPONS=['Lame caudale','Masse caudale','Pointe perforante','Faux caudale','Massue épineuse','Queue barbelée','Pince caudale','Dard caudal','Foreuse caudale','Arme caudale unique'];
-const DRAGON_TAIL_UNIQUE_MUTATIONS=['Queue à segments extensibles','Queue préhensile renforcée','Queue à lames rétractables','Queue à crochet','Queue à membrane tranchante','Queue mitraillette','Queue à ventouses prédatrices','Queue à bélier','Queue bifide','Queue vibratoire'];
-const DRAGON_TAIL_UNIQUE_TRAITS={
-'Queue à segments extensibles':['segments organiques télescopiques capables d’allonger fortement la queue','continuité anatomique conservée pendant l’extension','rétraction des segments vers une longueur normale'],
-'Queue préhensile renforcée':['queue épaisse et très mobile conçue pour saisir et maintenir','extrémité sans pince articulée','musculature caudale renforcée pour la traction'],
-'Queue à lames rétractables':['plusieurs lames organiques rétractables disposées le long de la queue','lames pouvant sortir ou rentrer dans des logements anatomiques','aucune arme métallique indépendante'],
-'Queue à crochet':['grand crochet osseux ou corné à l’extrémité','forme courbe conçue pour accrocher et tirer','continuité organique avec la queue'],
-'Queue à membrane tranchante':['crête ou membrane rigide et affûtée déployable le long de la queue','surface continue destinée aux balayages tranchants','structure entièrement organique'],
-'Queue mitraillette':['organe balistique naturel intégré à la partie terminale de la queue','plusieurs canaux ou orifices organiques de tir','projectiles biologiques durcis de type épines ou aiguillons','aucun mécanisme métallique, chargeur, douille ou poudre'],
-'Queue à ventouses prédatrices':['structures adhésives organiques réparties sur la face interne de la queue','surface conçue pour saisir, fixer et tirer','aucun mécanisme d’absorption énergétique'],
-'Queue à bélier':['queue capable de se rigidifier sur une grande partie de sa longueur','structure renforcée transmettant une poussée concentrée','pas de grosse masse terminale distincte'],
-'Queue bifide':['extrémité divisée en exactement deux branches caudales préhensiles','deux branches capables de se mouvoir indépendamment','aucune pince mécanique terminale'],
-'Queue vibratoire':['structure musculaire et osseuse capable de vibrer à haute fréquence','vibration concentrée dans la queue elle-même','aucun émetteur sonore ou énergétique à distance']
-};
-const CLASSIC_WEAPON_TRAITS={
-'Épée':['une seule lame droite de longueur intermédiaire','garde distincte','poignée conçue pour UNE main','pommeau distinct','INTERDIT : seconde lame, manche de lance, proportions d’épée à deux mains'],
-'Épée à deux mains':['une seule très longue lame droite','grande garde','longue poignée permettant DEUX mains espacées','les DEUX mains tiennent simultanément la poignée en combat','INTERDIT : prise à une main, poignée courte, proportions d’épée normale'],
-'Katana':['une seule lame longue légèrement courbe à tranchant unique','tsuba distincte','longue tsuka gainée permettant une prise à deux mains','en combat les DEUX mains tiennent la tsuka avec une prise espacée','INTERDIT : lame droite occidentale, double tranchant, grande garde européenne'],
-'Dagues doubles':['EXACTEMENT DEUX dagues distinctes de dimensions similaires','lames courtes','une dague tenue dans chaque main','INTERDIT : troisième arme, lames longues d’épée, fusion des deux dagues'],
-'Hache':['manche court ou moyen conçu pour UNE main','une tête de hache de guerre clairement identifiable montée transversalement au manche','large lame de hache','INTERDIT : très long manche, hallebarde, hache à deux mains, petite hachette d’outil'],
-'Hache à deux mains':['très long manche droit, proche de la taille du porteur','les DEUX mains tiennent simultanément le manche avec une prise espacée','une seule grosse et lourde tête de hache de guerre montée à l’extrémité du manche','large lame de hache clairement identifiable','proportions d’une arme lourde à deux mains','INTERDIT : hachette, petite hache, hache à une main, hallebarde, lance ou tête de hache minuscule'],
-'Marteau de guerre':['long manche robuste','lourde tête métallique de marteau montée perpendiculairement au manche','surface de frappe massive clairement identifiable','les DEUX mains tiennent le manche pour le modèle lourd','INTERDIT : petit marteau d’outil, masse sphérique, tête de hache'],
-'Rope Dart / Corde-dard':['EXIGENCE FORTE : une longue corde réellement souple, continue et clairement identifiable','la corde est enroulée plusieurs fois autour de l’avant-bras avant de passer par la main qui la contrôle','la corde sort de la main et se prolonge SANS INTERRUPTION jusqu’au projectile','EXACTEMENT UN petit dard métallique, pointe ou petite lame uniquement à l’extrémité libre','continuité visible : avant-bras entouré de corde → main → corde libre → dard terminal','INTERDIT : manche rigide, hampe, poignée de fouet, chaîne métallique, lance, multiples pointes'],
-'Lance':['très longue hampe droite et continue','EXACTEMENT UNE pointe de lance principale alignée à une extrémité','les DEUX mains tiennent la hampe avec une prise espacée en combat','INTERDIT : lame de hache latérale, chaîne, manche court, hallebarde'],
-'Hallebarde':['très longue hampe droite','tête unique composée d’une pointe supérieure ET d’une grande lame de hache latérale près de la même extrémité','les DEUX mains tiennent la hampe avec une prise espacée','INTERDIT : simple lance, simple hache, composants flottants ou séparés'],
-'Faux':['très long manche','EXACTEMENT UNE longue lame fortement courbée montée presque perpendiculairement à l’extrémité','les DEUX mains tiennent le manche','INTERDIT : petite faucille, kusarigama, chaîne, hallebarde'],
-'Bâton':['long bâton rigide, droit et continu','longueur proche ou supérieure à la taille du porteur','les DEUX mains le contrôlent avec une prise espacée en combat','AUCUNE lame, pointe, chaîne ou tête de masse'],
-'Nunchaku':['EXIGENCE FORTE : EXACTEMENT DEUX bâtons COURTS distincts et de longueur similaire','les deux bâtons sont reliés DIRECTEMENT et UNIQUEMENT par UNE courte chaîne ou corde souple clairement visible','aucun troisième segment','INTERDIT : bâton long, canne, lance, deux armes séparées'],
-'Chaîne / Kusarigama':['EXIGENCE FORTE : kusarigama traditionnel structurellement lisible','UNE faucille à MANCHE COURT avec une seule lame courbe clairement identifiable','UNE longue chaîne métallique souple reliée DIRECTEMENT à la faucille','UN poids métallique lourd et distinct fixé à l’AUTRE extrémité de la chaîne','faucille + chaîne + poids = EXACTEMENT trois composants fonctionnels, distincts et correctement connectés','la chaîne ne traverse pas une ceinture, un anneau de vêtement ou un élément du décor','INTERDIT : faux longue, seconde faucille, fouet, simple chaîne, lame montée sur une longue hampe'],
-'Fouet':['UNE poignée courte clairement identifiable','UNE longue lanière souple continue qui s’amincit vers son extrémité','une main tient la poignée','INTERDIT : chaîne rigide, dard/lame terminale, rope dart, kusarigama, tige rigide'],
-'Gantelets de combat':['EXACTEMENT DEUX gantelets portés sur les mains et avant-bras','les mains et doigts restent anatomiquement à l’intérieur des gantelets','renforcés pour frapper','INTERDIT : gantelets flottants, mains supplémentaires, arme séparée tenue dans les mêmes mains'],
-'Bouclier offensif':['UN bouclier clairement identifiable fixé ou tenu par un avant-bras/main','large surface protectrice','bossage, bord ou renfort utilisable pour frapper','INTERDIT : simple brassard, seconde arme fusionnée au bouclier sans cohérence'],
-'Arc':['corps d’arc courbé continu','corde tendue reliant directement les deux extrémités','UNE flèche distincte encochée lorsque le personnage tire','une main tient l’arc et l’autre tire réellement la corde','INTERDIT : mécanisme de détente, fût d’arbalète, corde absente'],
-'Arbalète':['EXIGENCE FORTE : silhouette immédiatement reconnaissable comme une arbalète','fût rigide longitudinal','arc transversal perpendiculaire au fût','corde tendue reliant les deux branches','mécanisme de détente','carreau aligné sur le rail de tir','tenue à deux mains','INTERDIT : arc vertical classique, fusil dépourvu d’arc transversal'],
-'Pistolet':['silhouette immédiatement reconnaissable comme un pistolet','un seul canon COURT aligné avec la culasse/carcasse','poignée inclinée sous l’arrière de la carcasse','détente et pontet correctement placés','AUCUNE crosse longue','INTERDIT : canon de fusil, chargeur courbe externe dominant, lame fusionnée'],
-'Fusil':['silhouette immédiatement reconnaissable comme un fusil','UN canon long et rectiligne','boîtier mécanique','crosse clairement épaulée derrière le mécanisme','poignée/détente fonctionnelles','deux mains : main arrière à la poignée/détente, main avant sous le garde-main','INTERDIT : pistolet agrandi, crosse absente, lame principale, canon tordu'],
-'Fusil de précision':['UN très long canon rectiligne','crosse épaulée alignée avec le canon','lunette tubulaire montée AU-DESSUS du boîtier et alignée avec le canon','poignée/détente et garde-main fonctionnels','deux mains en position de tir stable','INTERDIT : lunette flottante ou latérale, canon court, silhouette de fusil d’assaut générique'],
-'Fusil à pompe':['silhouette immédiatement reconnaissable comme un fusil à pompe','UN canon long et relativement large','UN tube-magasin parallèle directement SOUS le canon','UN garde-main coulissant / pompe distinct autour ou le long du tube-magasin','crosse épaulée','main arrière sur poignée/détente ET main avant SUR LA POMPE','INTERDIT : chargeur courbe type fusil d’assaut, pompe absente, tube-magasin absent, lunette de précision obligatoire, lame'],
-'Mitrailleuse':['arme à feu lourde immédiatement reconnaissable','canon long et lourd','boîtier massif','alimentation visible et plausible par bande ou grand chargeur','crosse, poignées ou support cohérents','tenue/support à deux mains','INTERDIT : petit fusil d’assaut générique, pistolet, alimentation incohérente, lame'],
-'Lance-roquettes':['GRAND tube de lancement rigide et rectiligne constituant la forme principale','large bouche de lancement visible à l’avant et axe continu','zone arrière d’évacuation cohérente','porté/épaulé et contrôlé à deux mains','viseur/poignées fixés au tube','INTERDIT : fusil conventionnel à canon fin, chargeur de fusil, lance de mêlée, lame'],
-'Arme énergétique':['arme technologique construite autour d’un émetteur ou cœur énergétique physiquement identifiable','poignée/zone de contrôle et structure porteuse cohérentes','partie émettrice clairement connectée au corps de l’arme','l’énergie complète la structure mais ne remplace pas sa mécanique','INTERDIT : simple arme classique entourée d’une aura, composants flottants, lame ajoutée arbitrairement'],
-'Grimoire / catalyseur':['objet magique PHYSIQUE clairement identifiable','si grimoire : couverture, épaisseur et pages visibles; si catalyseur : foyer matériel distinct','tenu ou flottant à proximité immédiate du porteur','la manifestation magique émane de cet objet','INTERDIT : simple halo ou pages isolées sans objet source'],
-'Arme improvisée':['le SOUS-TYPE réellement tiré doit rester immédiatement reconnaissable comme l’objet d’origine','sa forme réelle est conservée même s’il est renforcé ou enchanté','utilisé directement pour combattre','INTERDIT : transformation spontanée en épée, lance, hache ou autre arme conventionnelle'],
-'Aucune arme':['AUCUNE arme tenue, portée, attachée, posée comme équipement ou flottant autour du personnage','mains sans arme','dos et ceinture sans arme'],
-'Arme unique':['la description unique générée définit obligatoirement la topologie de l’arme','nombre de pièces, lames/projectiles, poignées/manches et connexions décrits doivent rester cohérents et lisibles','une seule identité fonctionnelle','INTERDIT : assemblage aléatoire de plusieurs armes incompatibles ou disparition des composants majeurs décrits']};
-const NEXUS_WEAPON_TRAITS={
-'Lame':['lame techno-organique','matière noire ou graphite','tranchant ou réseau énergétique doré','structure continue et organique','aucune apparence d’épée métallique conventionnelle'],
-'Griffes':['griffes intégrées aux mains ou avant-bras','plusieurs lames organiques','matière techno-organique sombre','énergie dorée interne','aucune arme séparée tenue en main'],
-'Arme contondante':['masse techno-organique','extrémité lourde conçue pour l’impact','structure sombre organique','noyau ou réseau énergétique doré','aucune lame principale'],
-'Perforante':['longue pointe principale destinée à transpercer','profil étroit','structure techno-organique','matière sombre','énergie dorée parcourant la pointe'],
-'Projectiles':['arme techno-organique à distance','organe ou mécanisme d’émission clairement identifiable','projectiles matérialisés ou biologiquement produits','énergie dorée','aucune apparence de fusil humain conventionnel'],
-'Énergétique':['énergie constituant directement la partie offensive','noyau techno-organique sombre','émission dorée intense','énergie attachée à une structure physique Neoxus','aucune simple arme classique entourée d’une aura'],
-'Fouet / câble':['long appendice techno-organique flexible','relié physiquement à une poignée ou au corps de l’arme','matière sombre segmentée','énergie dorée circulant sur toute sa longueur'],
-'Bouclier offensif':['large structure techno-organique protectrice','portée au bras','surface ou bords capables d’attaquer','matière sombre','réseau énergétique doré','fusion visuelle entre protection et arme'],
-'Arme articulée':['plusieurs segments rigides reliés par des articulations mobiles','structure techno-organique','peut se courber ou se reconfigurer mécaniquement','connexions énergétiques dorées visibles entre les segments'],
-'Arme polymorphe':['une seule arme techno-organique capable de changer physiquement de forme','matière vivante sombre','réseau énergétique doré','parties en transformation ou reconfiguration visibles','reste une seule entité cohérente']};
-const CYBORG_WEAPON_TRAITS={
-'Lame':['lame mécanique intégrée à un bras ou avant-bras','métal et composants cybernétiques','mécanisme de déploiement visible','aucune épée indépendante tenue en main'],
-'Griffes':['plusieurs griffes mécaniques rétractables intégrées aux doigts ou avant-bras','articulations cybernétiques','lames métalliques','aucune arme indépendante'],
-'Arme contondante':['partie d’un membre cybernétique transformée ou renforcée pour l’impact','structure métallique massive','vérins ou articulations mécaniques','aucune lame principale'],
-'Perforante':['pointe mécanique intégrée au membre','longue structure destinée à transpercer','mécanisme de déploiement','ancrage cybernétique clairement visible'],
-'Projectiles':['lanceur intégré au bras, à l’épaule ou à une autre partie du corps','canon ou ouverture de tir visible','mécanisme d’alimentation interne','aucune arme à feu indépendante tenue en main'],
-'Énergétique':['émetteur énergétique intégré au corps','noyau ou source d’énergie artificielle','conduits ou composants cybernétiques','partie offensive constituée directement d’énergie'],
-'Fouet / câble':['câble mécanique rétractable physiquement relié au corps','système d’enroulement ou déploiement intégré','extrémité offensive','câble clairement artificiel'],
-'Bouclier offensif':['bouclier mécanique déployable depuis le bras','ancrage cybernétique','panneaux articulés','surface protectrice','bords ou mécanisme permettant l’attaque'],
-'Arme articulée':['arme intégrée composée de plusieurs segments mécaniques articulés','articulations clairement visibles','structure repliable ou déployable','connexion permanente au corps'],
-'Arme polymorphe':['module cybernétique intégré capable de se reconfigurer en plusieurs formes d’armes','pièces mécaniques mobiles','transformation physique visible','reste connecté au corps']};
-const DRAGON_TAIL_WEAPON_TRAITS={
-'Lame caudale':['extrémité de la queue transformée en longue lame tranchante','continuité anatomique avec les écailles','aucun manche','lame orientée dans l’axe de la queue'],
-'Masse caudale':['extrémité de queue massive et épaissie','lourde masse osseuse ou écailleuse','reliefs renforcés','conçue pour les impacts'],
-'Pointe perforante':['queue terminée par une longue pointe rigide','profil étroit','pointe osseuse ou cornée','conçue pour transpercer'],
-'Faux caudale':['grande lame courbe poussant latéralement depuis l’extrémité de la queue','forme de faux clairement identifiable','continuité organique'],
-'Massue épineuse':['extrémité épaissie','plusieurs grandes pointes ou cornes réparties autour de la masse','structure osseuse ou écailleuse'],
-'Queue barbelée':['queue longue et flexible','rangées de lames ou barbelures sur sa partie terminale','extrémité également acérée','utilisée comme un fouet tranchant'],
-'Pince caudale':['extrémité transformée en deux mâchoires ou pinces opposées articulées','capable de saisir','articulation anatomiquement reliée à la queue'],
-'Dard caudal':['queue terminée par un aiguillon recourbé','réservoir ou glande anatomique associé','silhouette rappelant un dard de scorpion'],
-'Foreuse caudale':['extrémité formant une pointe hélicoïdale ou cornée','plusieurs reliefs spiralés','structure destinée à perforer les protections'],
-'Arme caudale unique':['mutation offensive originale de la queue','entièrement organique et anatomiquement intégrée','fonction clairement lisible','ne correspond à aucune des neuf catégories précédentes']};
-function finalDragonComponent(c=state){if(hasFinalRaceAlteration(c))return null;const L=c?.lineage||{};const all=[L.primaryComponent,L.hybridCompA,L.hybridCompB,L.originComponent].filter(Boolean);return all.find(x=>x?.race==='Dragon humanoïde'&&Number(x?.power)>90)||null}
-function weaponTraitsFor(name,system='classic'){const map=system==='neoxus'?NEXUS_WEAPON_TRAITS:system==='cyborg'?CYBORG_WEAPON_TRAITS:system==='dragon-tail'?DRAGON_TAIL_WEAPON_TRAITS:CLASSIC_WEAPON_TRAITS;return [...(map[name]||[])];}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function weaponOptionsForCurrent(forceRanged=false){return finalDragonComponent()?EQ(DRAGON_TAIL_WEAPONS):weaponOptions(forceRanged)}
 function attachWeaponTraits(w,system='classic'){w.weaponSystem=system;w.mandatoryWeaponTraits=weaponTraitsFor(w.name,system);return w}
 function dragonTailUniqueMutationTask(w,label='Arme'){return task(`${label} — Mutation caudale unique`,EQ(DRAGON_TAIL_UNIQUE_MUTATIONS),x=>{w.tailMutation=x;w.mandatoryWeaponTraits=[...(DRAGON_TAIL_UNIQUE_TRAITS[x]||[])];});}
-const REGION_VISUAL_IDENTITIES={
-  Aetherys:['Gigantesques plateaux célestes séparés par des précipices noyés de nuages','Architecture monumentale ancienne en pierre ivoire ou gris clair et or vieilli','Grandes étendues d’altitude sobres et ouvertes'],
-  Thoryndra:['Immense chaîne montagneuse sombre sous un ciel de tempête','Vastes landes et plateaux battus par les vents','Grand lac froid avec architecture fortifiée rare'],
-  Liorael:['Grande forêt ancienne verdoyante aux arbres géants espacés','Prairies et clairières fertiles','Grand fleuve avec quelques cascades tombant vers Yndara'],
-  Caelorn:['Longues routes traversant des plateaux célestes venteux','Arches et ponts naturels monumentaux','Rares relais, caravanes et bannières évoquant le voyage'],
-  Sylvaeryn:['Immense océan de canopée sur des collines','Grand fleuve sinueux','Quelques arbres titanesques avec le colossal Vaelyr dominant le paysage'],
-  Kharadryn:['Massifs montagneux fracturés','Gigantesques falaises et fractures rocheuses','Vallées encaissées dominées par la pierre'],
-  Avelorn:['Grandes plaines fertiles ouvertes','Terres agricoles et cours d’eau','Villes et cités intégrées dans un paysage largement cultivé'],
-  Drakhenor:['Steppes sauvages immenses','Hauts plateaux rocheux et escarpements','Horizon très ouvert et territoire rude exposé aux éléments'],
-  Maelora:['Jungle tropicale dense et humide','Grands marais et eaux stagnantes ou lentes','Végétation envahissante dans une atmosphère chaude et brumeuse'],
-  Iskarya:['Toundra et grandes étendues enneigées','Reliefs et glaces boréales','Côtes froides prises par la glace'],
-  Nexara:['Immense territoire marqué par un cratère','Structures et matières techno-organiques Neoxus intégrées au paysage','Noir et graphite traversés d’éléments énergétiques dorés'],
-  Kaelora:['Paysage maritime insulaire','Mer dominante et côtes découpées','Îles habitées liées à la navigation'],
-  Vaerunn:['Archipel fortement exposé aux tempêtes','Falaises et îles battues par une mer violente','Vents, embruns et ciel très mouvementé'],
-  Varkhoryn:['Gigantesques cavernes volcaniques','Magma et lave visibles','Forges et constructions massives intégrées à la roche'],
-  Kythera:['Immenses formations cristallines et minérales','Cavernes rocheuses scintillantes','Eaux souterraines pâles contrastant avec les cristaux'],
-  Lumerys:['Forêt cavernicole bioluminescente','Végétation et champignons lumineux','Vastes voûtes souterraines baignées d’une lumière naturelle colorée'],
-  Naeroth:['Mer souterraine gigantesque','Côtes et falaises abyssales','Obscurité profonde ponctuée par les reflets de l’eau'],
-  "Mor'Khal":['Cavernes extrêmement profondes','Ruines anciennes monumentales','Immensité rocheuse obscure évoquant une civilisation engloutie']
-};
-function regionVisualIdentityFor(c){const r=String(c?.birthRegion||'').trim();return REGION_VISUAL_IDENTITIES[r]?REGION_VISUAL_IDENTITIES[r].slice():[]}
 
-function weaponVisualTraitsFromCharacter(c){const out=[];for(const w of (c?.weapons||[])){let system=w.weaponSystem||'classic';if(w.racial&&!w.weaponSystem){const comp=c?.lineage?.primaryComponent;system=comp?.race==='Cyborg'&&Number(comp?.power)<50?'cyborg':'neoxus'}if(DRAGON_TAIL_WEAPONS.includes(w.name))system='dragon-tail';const traits=(w.mandatoryWeaponTraits?.length?w.mandatoryWeaponTraits:weaponTraitsFor(w.name,system));if(traits.length)out.push(...traits.map(t=>`${w.name}: ${t}`))}return out;}
-function dragonComponentsFromCharacter(c){
-  if(hasFinalRaceAlteration(c))return [];
-  const L=c?.lineage||{},out=[],seen=new Set();
-  const walk=x=>{if(!x||typeof x!=='object'||seen.has(x))return;seen.add(x);if(x.race==='Dragon humanoïde')out.push(x);walk(x.compA);walk(x.compB);walk(x.originComponent)};
-  walk(L.primaryComponent);walk(L.hybridCompA);walk(L.hybridCompB);walk(L.originComponent);return out;
-}
-function dragonVisualTraitsFromCharacter(c){const out=[];for(const d of dragonComponentsFromCharacter(c)){const blood=String(d.dragonBlood||'Ancestral'),st=superiorStage(d);if(blood==='Ancestral'){if(st<3)out.push('Lignée draconique ancestrale: UNE PAIRE DE GRANDES AILES DRACONIQUES MEMBRANEUSES clairement visibles et anatomiquement attachées au dos, même sous forme humanoïde; ne jamais les omettre ni les remplacer par une aura');else out.push('Dragon ancestral pur: véritable dragon non humanoïde à EXACTEMENT SIX MEMBRES — quatre pattes distinctes + deux grandes ailes draconiques membraneuses — avec longue queue et corps colossal')}else{if(st<3)out.push('Lignée draconique originelle: AUCUNE AILE; conserver une morphologie humanoïde avec caractères draconiques sans inventer d’ailes');else out.push('Dragon originel pur: véritable dragon non humanoïde au corps long et serpentin, EXACTEMENT QUATRE MEMBRES et AUCUNE AILE')}}return out;}
-function dragonValidationRulesFromCharacter(c){const out=[];for(const d of dragonComponentsFromCharacter(c)){const blood=String(d.dragonBlood||'Ancestral'),st=superiorStage(d);if(blood==='Ancestral'){out.push(st<3?'VALIDATION DRAGON ANCESTRAL — même en forme humanoïde/basique, une paire de grandes ailes draconiques membraneuses doit être clairement visible et reliée anatomiquement au dos. Si les deux ailes sont absentes, cachées, réduites à des effets d’énergie ou non reconnaissables, CRITICAL FAIL.':'VALIDATION DRAGON ANCESTRAL PUR — vérifier exactement quatre pattes + deux ailes draconiques, soit six membres. Toute aile manquante ou tout nombre de membres incorrect = CRITICAL FAIL.')}else out.push(st<3?'VALIDATION DRAGON ORIGINEL — aucune aile ne doit être présente. Des ailes inventées = CRITICAL FAIL.':'VALIDATION DRAGON ORIGINEL PUR — corps serpentin, exactement quatre membres, aucune aile. Toute aile = CRITICAL FAIL.')}return out;}
-function weaponValidationRulesFromCharacter(c){
-  const out=[];
-  const firearmNames=['Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes'];
-  const topologyNames=['Arc','Arbalète','Nunchaku','Chaîne / Kusarigama','Rope Dart / Corde-dard','Fouet','Hallebarde','Faux'];
-  const exact={
-    'Épée à deux mains':'VALIDATION ÉPÉE À DEUX MAINS — très longue lame, longue poignée et DEUX mains simultanément sur la poignée. Une prise à une main ou des proportions d’épée normale = FAIL.',
-    'Hache à deux mains':'VALIDATION HACHE À DEUX MAINS — très long manche tenu simultanément par les DEUX mains avec prise espacée + grosse tête de hache lourde à large lame. Manche court, une seule main, petite tête, hallebarde ou lance = FAIL.',
-    'Nunchaku':'VALIDATION NUNCHAKU — EXACTEMENT deux bâtons COURTS reliés directement par UNE liaison souple courte visible. Bâton long, troisième segment, liaison absente ou armes séparées = FAIL.',
-    'Chaîne / Kusarigama':'VALIDATION KUSARIGAMA — exiger EXACTEMENT une faucille à manche court + une longue chaîne souple directement reliée à la faucille + un poids métallique distinct à l’autre extrémité. La chaîne ne doit traverser ni ceinture ni anneau de vêtement. Faux longue, seconde faucille, simple chaîne, fouet ou connexion incorrecte = CRITICAL FAIL.',
-    'Rope Dart / Corde-dard':'VALIDATION ROPE DART — corde souple continue enroulée autour de l’avant-bras, passant par la main puis allant sans interruption jusqu’à UNE SEULE petite pointe terminale. Hampe rigide, chaîne, multiples pointes ou continuité illisible = FAIL.',
-    'Arc':'VALIDATION ARC — corps courbe + corde réellement tendue entre les deux extrémités; en tir, une main tient l’arc et l’autre tire la corde avec la flèche encochée. Corde absente ou mécanique d’arbalète = FAIL.',
-    'Arbalète':'VALIDATION ARBALÈTE — fût longitudinal + arc transversal + corde + détente + carreau aligné. Si l’arc transversal ou sa connexion au fût manque, = FAIL.',
-    'Fusil à pompe':'VALIDATION FUSIL À POMPE — exiger canon long + tube-magasin parallèle SOUS le canon + pompe coulissante distincte + crosse; main avant sur la pompe. Chargeur courbe type fusil d’assaut, tube absent ou pompe absente = CRITICAL FAIL.',
-    'Fusil de précision':'VALIDATION FUSIL DE PRÉCISION — très long canon + crosse épaulée + lunette tubulaire fixée au-dessus et alignée avec le canon. Lunette flottante/décalée ou canon court = FAIL.',
-    'Lance-roquettes':'VALIDATION LANCE-ROQUETTES — grand tube de lancement constituant la silhouette principale, épaulé et contrôlé de façon plausible. Silhouette de fusil conventionnel ou canon fin = FAIL.',
-    'Aucune arme':'VALIDATION AUCUNE ARME — aucune arme ne doit apparaître dans les mains, sur le dos, à la ceinture ou flottant autour du personnage.'
-  };
-  for(const w of (c?.weapons||[])){
-    const n=String(w?.name||''); if(!n)continue;
-    const traits=(w.mandatoryWeaponTraits?.length?w.mandatoryWeaponTraits:weaponTraitsFor(n,w.weaponSystem||'classic'));
-    if(traits.length)out.push(`VALIDATION ARME — ${n}: vérifier CHAQUE trait structurel obligatoire séparément (nombre de composants, proportions, connexions, orientation et prise en main). Un enchantement ou effet visuel ne peut jamais remplacer, masquer ou modifier la topologie fondamentale de l’arme.`);
-    if(firearmNames.includes(n))out.push(`VALIDATION ARME À FEU — ${n}: axe du canon continu jusqu’à la bouche, boîtier, poignée/détente et crosse si requise doivent former une mécanique plausible et connectée. Rejeter arme fondue, tordue, hybride avec une lame ou type exact non reconnaissable.`);
-    if(topologyNames.includes(n))out.push(`VALIDATION TOPOLOGIE — ${n}: compter explicitement les pièces et vérifier leurs connexions physiques. Le nom ou la ressemblance générale ne suffit pas.`);
-    if(exact[n])out.push(exact[n]);
-    if(n==='Arme improvisée'&&w.detail)out.push(`VALIDATION ARME IMPROVISÉE — l’objet tiré « ${w.detail} » doit rester physiquement reconnaissable comme cet objet précis; l’enchantement ne peut pas le transformer en arme conventionnelle.`);
-    if(n==='Arme unique'&&w.detail)out.push(`VALIDATION ARME UNIQUE — respecter littéralement la structure décrite par « ${w.detail} » et rejeter toute disparition, fusion ou ajout incohérent d’un composant majeur.`);
-  }
-  return out;
-}
-function weaponHandlingRulesFromCharacter(c){
-  const normText=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-  const ws=(c?.weapons||[]).filter(w=>w?.name&&normText(w.name)!=='aucune arme');
-  if(ws.length<2)return [];
-  const twoHanded=n=>{const x=normText(n);return ['epee a deux mains','hache a deux mains','marteau de guerre','lance','hallebarde','faux','baton','arc','arbalete','fusil','fusil de precision','fusil a pompe','mitrailleuse','lance-roquettes'].some(k=>x.includes(k))};
-  const oneHanded=n=>{const x=normText(n);return ['epee','katana','hache','pistolet','fouet','bouclier offensif'].some(k=>x.includes(k))&&!twoHanded(n)};
-  const handheld=ws.filter(w=>w.weaponSystem!=='cyborg'&&w.weaponSystem!=='neoxus'&&w.weaponSystem!=='dragon-tail');
-  const heavy=handheld.filter(w=>twoHanded(w.name));
-  const light=handheld.filter(w=>oneHanded(w.name));
-  const rules=[];
-  if(heavy.length>=2)rules.push(`MULTI-WEAPON HANDLING: ${heavy.map(w=>w.name).join(' + ')} each require two hands. Only ONE may be actively wielded at a time; all other two-handed weapons must be completely separate, clearly identifiable, and securely stowed/carried on the back, shoulder sling, harness, or other plausible equipment mount.`);
-  else if(heavy.length===1&&handheld.length>=2)rules.push(`MULTI-WEAPON HANDLING: ${heavy[0].name} requires both hands when actively wielded. Any other handheld weapon must be clearly separate and stowed/carried, not simultaneously gripped.`);
-  if(light.length>=2&&heavy.length===0)rules.push('MULTI-WEAPON HANDLING: at most one one-handed weapon may be held in each normal available hand.');
-  rules.push('WEAPON SEPARATION: distinct weapons must remain distinct objects; never fuse, merge, share a barrel, blade, shaft, handle, stock, grip, or other structural component.');
-  rules.push('ANATOMICAL COHERENCE: never invent extra arms, hands, or limbs merely to hold multiple weapons. Preserve the character’s required racial anatomy and exact limb count.');
-  return rules;
-}
 
-const improvisedWeapons=['Barre métallique','Chaîne lourde','Bouteille brisée','Marteau d’atelier','Clé anglaise','Pied-de-biche','Pelle','Pioche','Hachette d’outil','Morceau de mobilier','Chaise','Panneau métallique','Tuyau','Câble lesté','Brique','Pierre massive','Débris de béton','Planche cloutée','Morceau de statue','Objet du décor inhabituel'];
-const secretTechniques=['Frappe éclair','Frappe destructrice','Point vital','Défense absolue','Contre parfait','Pas fantôme','Technique d’entrave','Lecture du combat','Coupe ultime','Tir impossible','Redirection','Libération physique','Contrôle corporel','Perception extrême','Onde de choc','Technique sacrificielle','Technique énergétique','Technique de scellement','Art martial légendaire','Technique unique'];
-const uniqueSecretTechniques=['Paume du Néant Retourné','Septième Pas sans Ombre','Coupure de l’Instant','Poing de la Dernière Étoile','Cercle des Mille Contres','Souffle du Fil Invisible','Frappe du Cœur Silencieux','Verrou du Destin','Danse de l’Arme Absente','Impact à Retardement'];
-const ranged=['Arc','Arbalète','Pistolet','Fusil','Fusil de précision','Fusil à pompe','Mitrailleuse','Lance-roquettes','Arme énergétique','Arme unique'];
-const ench=['Flamme','Givre','Foudre','Poison','Vampirisme','Explosion','Sacré','Spectral','Cosmique','Chaos','Démoniaque','Reality Break','Time Slasher','Distorsion','Anti-régénération','Exécution','Brise-garde','Amplification','Réflexion','Enchantement unique'];
-const blessings=['Fortune','Vitalité','Protection divine','Grâce guerrière','Puissance divine','Célérité divine','Clarté absolue','Prémonition','Grâce magique','Arme consacrée','Lumière protectrice','Grâce céleste','Refus de mourir','Dernier sursaut','Purification','Présence sacrée','Lien protecteur','Potentiel libéré','Faveur cosmique','Bénédiction unique'];
-const curses=['Corps fragile','Guérison entravée','Dégradation','Folie rampante','Hallucinations','Terreur','Pouvoir instable','Arme maudite','Soif','Transformation incontrôlée','Corruption','Entravé','Hanté','Double maléfique','Temps compté','Prix équivalent','Marqué','Destin inversé','Malédiction mortelle','Malédiction unique'];
-const artifactForms=['Anneau','Amulette','Couronne / Diadème','Vêtement','Talisman','Livre / Grimoire','Orbe / Cristal','Relique','Objet étrange','Forme unique'];
-const artifactEffects=['Barrière','Régénération','Téléportation','Invisibilité','Absorption d’énergie','Stockage d’énergie','Amplification d’un pouvoir','Amplification d’une arme','Résistance élémentaire','Résistance mentale','Détection surnaturelle','Invocation','Transformation','Manipulation spatiale','Manipulation temporelle','Manipulation de l’âme','Manipulation de probabilité','Altération de réalité','Copie','Pouvoir d’artefact unique'];
-const classicalWeak=['Soleil','Obscurité','Feu','Froid','Eau','Électricité','Vent','Terre','Poison','Sang','Sel','Argent','Fer','Énergie sacrée','Énergie démoniaque','Énergie cosmique','Chaos','Attaques mentales','Son','Explosions','Magnétisme','Magie','Dégâts physiques','Attaques spirituelles','Manipulation temporelle','Altération de réalité','Anti-régénération','Environnement hostile'];
-const improbableWeak=['Chats','Verre','Musique','Pollen','Café','Miroirs','Plumes','Champignons','Cloches','Mensonges','Canards','Applaudissements'];
-const personalities=['Agressif','Prudent','Calculateur','Impulsif','Imprévisible','Sanguinaire','Honorable','Fourbe','Courageux','Lâche','Froid','Colérique','Sadique','Pacifiste','Arrogant','Discipliné','Opportuniste','Protecteur','Excentrique','Personnalité unique'];
 
-const uniquePowers=['Manipulation du verre','Contrôle de la friction','Encre vivante','Manipulation des os','Portails miroirs','Vol de mouvement','Densité variable','Contrôle des rêves','Mémoire matérialisée','Papier tranchant','Manipulation des ombres solides','Chance inversée','Cristallisation','Filaments dimensionnels','Écho causal','Peinture vivante','Gravure de runes instantanée','Vol d’inertie','Manipulation des odeurs','Compression de matière'];
-const uniqueWeapons=['Épée-fouet segmentée','Lance télescopique orbitale','Arc à lames','Marteau gravitationnel','Chaîne de verre noir','Faux circulaire','Canon runique portatif','Gantelets à câbles','Trident magnétique','Boomerang monomoléculaire','Lame accordéon','Bouclier-lance','Harpie mécanique de combat','Aiguille géante','Arme vivante symbiotique','Disque dimensionnel','Fusil à portails','Sabre liquide','Chaîne d’éclairs solidifiés','Arme impossible'];
-const uniqueEnchants=['Friction zéro','Écho du Néant','Morsure d’âme','Poids infini','Mémoire des blessures','Rupture dimensionnelle','Gel du mouvement','Marque du chasseur','Onde inversée','Faim d’énergie','Lame miroir','Entropie','Résonance vitale','Trajectoire impossible','Saignement temporel','Silence absolu','Dette karmique','Ancrage spatial','Impact différé','Enchantement paradoxal'];
-const uniqueBlessings=['Seconde chance du destin','Main invisible protectrice','Œil des possibles','Souffle des anciens','Grâce du voyageur','Serment inviolable','Étoile gardienne','Cœur inépuisable','Pas hors du destin','Refuge de l’âme','Éclat du premier soleil','Voile du hasard','Mémoire ancestrale','Sceau de paix','Faveur du dernier instant','Sang de lumière','Horizon favorable','Écho du futur','Protection des oubliés','Intervention divine'];
-const uniqueCurses=['Ombre affamée','Nom véritable exposé','Blessures mémorielles','Dette envers le Néant','Reflet hostile','Cœur de verre','Temps volé','Voix maudite','Présence attirant les monstres','Douleur partagée','Corps qui se fissure','Pouvoir qui oublie son maître','Chance cannibale','Faim de souvenirs','Âme fragmentée','Serment fatal','Marque du dernier survivant','Mort différée','Écho de souffrance','Condamnation croissante'];
-const uniqueArtifactEffects=['Arrêt d’un instant local','Porte vers une pièce impossible','Stockage d’une attaque reçue','Création d’un clone de lumière','Échange de blessures','Vol temporaire d’une propriété','Réécriture d’une trajectoire','Ancrage dans la réalité','Prison de souvenir','Transfert de vitesse','Dédoublement d’objet','Détection des mensonges physiques','Création d’une zone sans magie','Marquage d’une cible à travers les dimensions','Retour à une position précédente','Compression d’espace','Conversion douleur-énergie','Invocation d’une arme oubliée','Neutralisation d’un phénomène précis','Effet impossible'];
-const uniqueArtifactForms=['Masque brisé','Clé impossible','Dé à vingt faces noir','Montre sans aiguilles','Œil de cristal','Chaîne de sceaux','Fragment de météore','Miroir de poche','Gant solitaire','Pièce sans valeur','Plume métallique','Os gravé','Boussole folle','Coffret scellé','Dent gigantesque','Ruban vivant','Fragment de couronne','Prisme flottant','Aiguille cérémonielle','Objet indescriptible'];
-const uniquePersonalities=['Stoïque mais superstitieux','Jovial face au danger','Obsédé par les défis','Poliment terrifiant','Curieux jusqu’à l’imprudence','Fataliste serein','Théâtral et méthodique','Muet et observateur','Rieur sous pression','Protecteur envers ses ennemis','Obsédé par l’équité','Fasciné par la douleur sans être sadique','Paranoïaque lucide','Excessivement patient','Incapable de refuser un duel','Cherche toujours une sortie pacifique','Collectionne les techniques adverses','Combat comme s’il dansait','Imite le comportement de son adversaire','Tempérament impossible à classer'];
 
-const improbableJobs=['Éleveur de limaces de guerre','Testeur de pièges','Cartographe de rêves','Dresseur de nuages','Croque-mort pour immortels','Réparateur de portails','Bibliothécaire de monstres','Juge de duels culinaires','Chasseur de parapluies maudits','Messager interdimensionnel','Berger de golems','Collectionneur de cris','Gardien de portes inutiles','Fabricant de fausses prophéties','Pêcheur d’étoiles','Traducteur de fantômes','Coiffeur de dragons','Nettoyeur de donjons','Éleveur de mimics','Métier totalement absurde'];
-const improbableHistories=['A survécu à sa propre exécution par erreur administrative','A été élevé par une arme consciente','S’est réveillé dans le mauvais siècle','A gagné un royaume à un jeu de cartes','A été poursuivi dix ans par un canard immortel','A accidentellement créé sa propre religion','A vécu dans un miroir pendant sept ans','A été confondu avec une divinité','A perdu un duel contre son futur lui-même','A été adopté par une guilde de monstres','A volé son propre cadavre','A épousé son clone temporel','A détruit une prophétie en la lisant mal','A été banni d’un monde qui n’existe plus','A travaillé comme faux héros officiel','A survécu à une apocalypse en dormant','A trouvé une porte menant à son enfance','A été déclaré mort sans jamais mourir','A échangé son ombre contre un repas','Passé totalement impossible'];
-const improbableExtras=['Peut parler aux portes','Possède une cuillère indestructible','Est suivi par une pluie personnelle','Son ombre applaudit parfois','Peut invoquer une chaise une fois par combat','Entend les mensonges comme des cloches','A un deuxième reflet indépendant','Ses chaussures refusent certains terrains','Porte une clé qui n’ouvre rien de connu','Peut sentir la direction du nord absolu','Un petit nuage le suit','Son rire produit des étincelles','Possède un dé qui tombe toujours sur une face inconnue','Peut échanger deux objets identiques de place','Les animaux le prennent pour un roi','Sa cape change d’humeur','Peut faire apparaître une tasse vide','Les miroirs lui répondent parfois','Est accompagné d’un poisson spectral','Sa gravité personnelle s’inverse quand il éternue'];
-const improbableTransformations=['Forme de canard colossal','Forme de statue articulée','Forme de marionnette vivante','Forme de nuage humanoïde','Forme entièrement réfléchissante','Forme de squelette en verre','Forme de masse de rubans','Forme de géant minuscule paradoxal','Forme de silhouette en papier','Forme de cloche vivante','Forme de constellation ambulante','Forme de champignon guerrier','Forme de machine à vapeur organique','Forme de poupée inquiétante','Forme de liquide inversé','Forme d’ombre colorée','Forme de cristal mou','Forme de pluie consciente','Forme de mosaïque mouvante','Transformation impossible'];
-const uniqueTransformations=['Avatar du Premier Feu','Corps du Néant étoilé','Dragon de verre dimensionnel','Séraphin mécanique','Bête aux mille ombres','Titan de lumière noire','Forme du Temps brisé','Chimère astrale','Corps de runes vivantes','Monarque spectral','Machine divine organique','Phénix du Chaos','Forme de gravité incarnée','Archange abyssal','Léviathan humanoïde','Corps de matière impossible','Avatar de l’Entropie','Gardien des dimensions','Forme du Dernier Jour','Transformation sans équivalent'];
-const awakeningEvolutions=['Pouvoir principal transcendé','Arme principale transcendée','Trait racial actif transcendé','Transformation renforcée','Technique secrète transcendée','Chi transcendé','Enchantement principal transcendé','Capacité défensive transcendée','Mobilité transcendée','Perception transcendée','Régénération transcendée','Capacité de contrôle transcendée','Capacité d’attaque transcendée','Capacité de soutien transcendée','Capacité unique transcendée'];
-const transformationTypes=['Bestiale','Monstrueuse','Élémentaire','Démoniaque','Céleste','Draconique','Spectrale','Mécanique','Cosmique','Chaotique','Forme géante','Forme miniature','Forme énergétique','Forme ancestrale','Forme évoluée','Forme berserk','Forme parfaite','Forme interdite','Transformation improbable','Transformation unique'];
-const transformationTraits=['Aucun trait supplémentaire','Ailes temporaires','Écailles / armure naturelle','Aura élémentaire','Intangibilité partielle','Régénération accrue','Vision surnaturelle','Membres supplémentaires','Corps énergétique','Camouflage','Résistance mentale','Résistance élémentaire','Allonge accrue','Mobilité aérienne','Présence terrifiante','Perception accélérée','Armes naturelles','Corps adaptable','Trait improbable','Trait unique'];
-const statNames=['Combat','Force','Intelligence','Résilience','Vitesse'];
-const namingSets={
-Human:{start:['Al','Ald','Ar','Ari','Bel','Cael','Cal','Cor','Da','Dar','Del','El','Eli','Er','Fael','Ga','Hal','I','Ja','Ka','Kel','La','Leo','Lor','Ma','Mar','Na','Nor','Or','Ra','Ren','Ro','Sa','Sel','Ser','Ta','Th','Va','Val','Wil','Ys'],mid:['ri','an','el','or','ae','en','is','ar','io','ev','ul','em','ian','er','iel','on','as','ir','al','in','eo','ara','eth','us'],end:['n','r','s','a','ia','en','el','or','is','ys','ane','ion','ian','iel','as','os','us','in','en','ara','eth','ir','on','ea']},
-Elf:{start:['Ae','Ael','Aer','Ari','Cael','Cele','Eil','Ela','Ely','Fael','Ily','Lae','Leth','Lia','Myr','Nae','Nim','Sael','Syl','Tha','Thal','Vael','Yl','Zae'],mid:['li','ri','th','wen','ae','iel','yn','ora','eth','is','en','yl','ara','evi','ion','ael','ir','uin','ess','al','ith','eir','iel','ysa'],end:['r','n','l','a','iel','wen','ith','yn','eth','is','ara','ion','ael','ir','iel','uin','or','ys','ea','iel','iel','essa','ion','yr']},
-Dwarf:{start:['Bal','Bar','Bel','Bor','Br','Bryn','Dag','Dor','Dra','Dur','Gar','Gim','Har','Keld','Khar','Kor','Mor','Nor','Or','Rag','Th','Thor','Yr','Bro'],mid:['om','or','in','ag','un','ek','ald','rim','urn','okk','ild','arr','grim','dur','gar','rik','mund','var','din','rak','ulf','orn','mir','ain'],end:['m','n','r','a','in','ek','um','or','ald','ya','i','ok','grim','dur','rik','gar','mund','var','din','rak','ulf','orn','mir','a']},
-Orc:{start:['Br','Darg','Durg','Gar','Gor','Gr','Grom','Karg','Krag','Kr','Magr','Mok','Rag','Rog','Th','Thrag','Urg','Varg','Zog','Zurn','Druk','Khur','Maz','Gul'],mid:['ak','or','ug','ra','ash','uk','og','ar','un','rag','urk','az','gor','nak','dur','mak','rok','th','um','zar','gar','osh','rak','zul'],end:['k','g','r','a','uk','ash','og','ra','un','gar','za','ok','gor','nak','dur','mak','rok','th','um','zar','osh','zul','ag','ar']},
-Goblin:{start:['Bik','Fizz','Glim','Gri','Kip','Kre','Mog','Nib','Ni','Nix','Pip','Rik','Sk','Sn','Tik','Vek','Zib','Zi','Zog','Klak','Miz','Taz','Wik','Yip'],mid:['ki','zi','ak','ek','im','ig','ox','ap','ir','un','izz','og','nik','tik','zap','urk','ibi','onk','ash','ell','ip','rag','ux','ee'],end:['k','x','i','a','ik','ox','ek','zi','ip','og','ix','ka','nik','tik','zap','urk','ibi','onk','ash','ell','rag','ux','ee','o']},
-Demon:{start:['Ab','Aza','Az','Bel','Dra','Draz','Ere','Ish','Kha','Kor','Lil','Mal','Mor','Nyz','Nyx','Rhaz','Sha','Va','Vel','Vey','Xar','Zar','Zev','Vor'],mid:['ra','eth','or','akh','yss','iel','oth','ar','ez','un','ira','ax','ael','zur','mon','ith','esh','ul','az','ion','yr','oth','aen','yx'],end:['kh','n','x','a','eth','iel','or','is','ax','un','ara','oth','ael','zur','mon','ith','esh','ul','az','ion','yr','yx','os','ir']},
-Angel:{start:['Ael','Ana','Ast','Aur','Cae','Ely','Gab','Iri','Lum','Mik','Ori','Raz','Rem','Sar','Ser','Sol','Uri','Ves','Zad','Ari','Ciel','Elu','Ith','Liora'],mid:['aph','iel','ae','um','or','eth','ia','el','ari','ion','ael','eri','iel','iel','iel','ora','un','ael','iri','eth','ora','iel','aia','eon'],end:['el','a','um','iel','on','is','ael','ara','iel','os','en','ia','iel','ael','or','eth','iel','ion','iel','ora','aia','eon','ir','ys']},
-Spirit:{start:['Ai','Ash','Ei','Eir','Iri','Ka','Ki','Me','Mio','Na','No','O','Or','Rei','Sa','Shi','Si','Va','Yue','Yu','Ame','Hae','Lun','Sae'],mid:['r','mi','al','io','ue','ya','ri','ae','en','oi','uu','ei','shi','rai','no','mei','ka','ru','sei','yo','ha','rin','lua','ori'],end:['i','e','a','u','r','n','ya','ae','io','en','ri','s','shi','rai','no','mei','ka','ru','sei','yo','ha','lua','ori','ai']},
-Dragon:{start:['Azh','Drak','Drav','Khar','Kyr','Nyss','Rha','Rhaeg','Rhaz','Sary','Sylk','Taz','Thyr','Vaer','Vor','Vyra','Xyr','Zer','Zhyr','Ashk','Kaer','Myrr','Ska','Vhar'],mid:['az','yn','uun','ra','or','eth','ax','ir','ara','is','ek','oth','ael','yr','esh','uun','ak','or','ith','aen','oss','yra','ur','ez'],end:['ek','th','n','a','ax','ra','yn','ir','oth','is','uun','ara','ael','yr','esh','ak','or','ith','aen','oss','yra','ur','ez','ys']},
-Tech:{start:['Nex','Ax','Syn','Hex','Vect','Null','Iris','Node','Unit','K','Xen','Vant','Axiom','Core','Delta','Echo','Flux','Gamma','Ion','Nova','Omni','Proto','Sigma','Zero'],mid:['-','i','o','a','ex','on','7','9','x','-K','-R','-N','-X','-0','-V','ix','ar','um','-Prime','-Sigma','-Z','-A','01','Ω'],end:['7','9','X','0','12','Prime','Null','V','K','A','R','Ω','Sigma','Delta','01','IX','Core','Node','Z','N','Alpha','Beta','Vector','One']},
-Default:{start:['Ael','Ar','As','Aster','Ca','Dra','Eri','Ily','Kai','Kes','Lio','Mir','Na','Nar','Ny','Or','Ryn','Sa','Ser','Tal','Tor','Va','Var','Vey','Zel','Zor','Kae','Myr','Rha','Syl','Tha','Yri'],mid:['te','ra','el','an','io','yn','or','ae','is','ev','ul','en','ir','ael','oth','ara','iel','un','ys','eth','ai','eri','on','al','eir','uma','ith','oro','ien','esh','yr','iel'],end:['r','n','a','s','ia','el','or','yn','is','en','ar','ion','ir','ael','oth','ara','iel','un','ys','eth','ai','eri','on','al','eir','uma','ith','oro','ien','esh','yr','iel']}
-};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // V18.30 — banque de syllabes étendue : davantage de prénoms tout en conservant le style propre à chaque race.
-const namingExtensions={
-Human:{start:['Adr','Ama','Bren','Ced','Dam','Ed','Fin','Gav','Jul','Luc','Mat','Owen','Quin','Tris','Xav','Zan'],mid:['av','ed','om','ur','ai','ol','ent','adr','im','av','ess','orn'],end:['ic','an','er','on','ard','iel','ine','elle','ric','wen','ian','or']},
-Elf:{start:['Aeth','Alth','Elen','Fae','Gal','Isil','Luth','Maer','Nuala','Quel','Riel','Tyr','Vala','Xyl'],mid:['anor','eal','imir','olas','uwen','yra','elis','aith','anor','iel','uin','essa'],end:['dor','las','mir','riel','riel','wyn','lith','dil','nor','thas','vyn','iel']},
-Dwarf:{start:['Bof','Dain','Eik','Fald','Grund','Hrod','Krag','Lod','Odin','Skor','Ulf','Vig'],mid:['ber','brand','grom','heim','mar','nir','sten','vald','rik','drin','gund','thor'],end:['beard','rik','gar','grim','dottir','son','drin','sten','vald','nir','heim','brand']},
-Orc:{start:['Azg','Borg','Drek','Ghaz','Gruk','Krom','Lug','Muz','Naz','Skarg','Urz','Vrok'],mid:['bag','dush','gash','grim','khul','mog','nash','rog','sk','thr','zug','gar'],end:['bash','dush','fang','gash','grim','mog','nash','skull','zug','gul','rak','thar']},
-Goblin:{start:['Bop','Crik','Diz','Flek','Gub','Jib','Kix','Lop','Mek','Quib','Razz','Skrib'],mid:['ble','dak','fiz','gik','kob','lum','mip','nib','pok','rik','snik','waz'],end:['bit','fizz','gik','kip','nib','nik','pop','rik','snik','wix','zle','zap']},
-Demon:{start:['Aby','Bael','Cyr','Ereb','Gha','Kyr','Meph','Ner','Oph','Qar','Syth','Zha'],mid:['addon','ael','eph','gor','khar','mora','neth','qir','sath','vyr','zeth','yra'],end:['adon','ael','eph','gor','khar','mora','neth','qir','sath','vyr','zeth','yra']},
-Angel:{start:['Adri','Cass','Elior','Han','Joph','Kass','Nath','Oph','Rap','The','Yoph','Zaph'],mid:['ana','ar','eph','iel','ion','ora','uel','ael','eth','iah','iel','ora'],end:['ael','iel','uel','iah','ion','ora','eth','iel','a','on','is','ys']},
-Spirit:{start:['Aoi','Fuu','Haru','Hoshi','Kaze','Mizu','Rin','Sora','Tsuki','Umi','Yoru','Zen'],mid:['hana','hiko','kaze','mori','nagi','sora','tama','yuki','rei','kiri','hane','tsu'],end:['hana','hiko','ka','ki','mi','na','ra','rei','sora','tama','yuki','zen']},
-Dragon:{start:['Akr','Bah','Cind','Fyr','Ign','Kael','Mord','Pyrr','Qyr','Saph','Vulk','Wyr'],mid:['aeg','drak','fyr','gor','kar','myr','rax','syr','thal','vyr','wyr','zhar'],end:['aeron','drak','fyr','gorn','kar','myr','rax','syr','thal','vyr','wyr','zhar']},
-Tech:{start:['Arc','Bit','Cipher','Digi','Grid','Helix','Logic','Meta','Nano','Pixel','Quant','Relay'],mid:['-2','-5','-8','bit','core','grid','link','net','sys','tek','void','ware'],end:['02','05','08','Byte','Core','Grid','Link','Net','Sys','Tek','Void','Ware']},
-Default:{start:['Aven','Bryn','Cyr','Eld','Fyn','Galen','Hyr','Isen','Jor','Kyr','Lys','Mav','Nyr','Oryn','Phae','Quor'],mid:['aen','dyr','eon','fyr','ian','kai','lor','myr','nor','ryn','syl','vae'],end:['aen','dyr','eon','fyr','ian','kai','lor','myr','nor','ryn','syl','vae']}
-};
-Object.entries(namingExtensions).forEach(([k,v])=>{const set=namingSets[k];if(!set)return;for(const part of ['start','mid','end'])set[part]=[...new Set([...(set[part]||[]),...(v[part]||[])])]});
-const namePools={
-'Humain':['Aren','Mira','Kael','Lyra','Darian','Selene','Orin','Neris','Corvin','Elia','Rovan','Maelis'],
-'Elfe':['Aelir','Sylwen','Thalion','Elyra','Vaelis','Naevyn','Ilyndra','Caeril','Lethiel','Aerin','Saelith','Myriel'],
-'Nain':['Brom','Dagna','Korrin','Brynja','Thorek','Hilda','Garrum','Yrsa','Dorn','Freya','Kelda','Brokk'],
-'Orc':['Gorak','Urza','Krosh','Magra','Thruk','Varka','Rogha','Zurna','Brakk','Korga','Durg','Shara'],
-'Gobelin':['Zik','Nakka','Grib','Tizzi','Mog','Krekka','Rikk','Pippa','Snag','Vekki','Glim','Noxx'],
-'Démon':['Azrakh','Velka','Mordren','Nyxara','Zareth','Malka','Korvax','Ishra','Drazel','Veyra','Xarun','Lilith'],
-'Ange':['Seraphel','Aurelia','Caelum','Iriel','Lumiel','Elyon','Raziel','Astrae','Mikael','Sola','Oriael','Vespera'],
-'Esprit':['Eir','Nami','Vaal','Sio','Oru','Mey','Kiri','Asha','Nox','Yue','Iri','Sae'],
-'Dragon humanoïde':['Rhazek','Sarynth','Vaerax','Nyssara','Kharuun','Zerya','Dravik','Ashkara','Voryn','Tazira','Rhaeg','Sylkara'],
-'N.E.X.U.S.':['NEX-7','AXIOM','K-Null','Vektor','Syn-9','Iris-X','Node-3','Hexa','Unit-12','Noma','Zero-K','Vanta'],
-'Default':['Aster','Veyl','Ryn','Kaia','Drax','Nara','Torin','Sera','Varo','Ilya','Kest','Mirae']};
 const uniqueColors=['Ivoire irisé','Bleu abyssal','Vert spectral','Rouge carmin métallique','Violet cosmique','Noir opalescent','Blanc lunaire','Or rose incandescent','Turquoise bioluminescent','Ambre vivant','Pourpre fumé','Argent bleuté','Bronze verdigris','Rose néon','Gris cendré luminescent','Couleur prismatique changeante','Couleur impossible','Teinte stellaire'];
-const armorTypes=['Armure légère','Armure moyenne','Armure lourde','Armure segmentée','Armure de plaques','Armure organique','Armure énergétique','Exosquelette','Armure runique','Armure vivante','Armure extraterrestre','Armure unique'];
-const armorEffects=['Résistance physique accrue','Résistance magique accrue','Résistance élémentaire','Bouclier énergétique','Régénération de l’armure','Camouflage adaptatif','Absorption d’énergie','Réflexion partielle','Mobilité augmentée','Force augmentée','Résistance mentale','Protection anti-projectiles','Protection anti-explosion','Protection anti-régénération','Ancrage gravitationnel','Adaptation au terrain','Stockage d’énergie','Aura protectrice','Transformation défensive','Propriété unique'];
-const armorUniqueEffects=['Plaques qui se déplacent avant l’impact','Armure qui mémorise les attaques reçues','Peau d’ombre solidifiée','Cristal autoréparant','Champ de stase instantané','Armure qui dévie l’inertie','Carapace dimensionnelle','Plaques spectrales traversables à volonté','Armure qui convertit la douleur en énergie','Manteau gravitationnel','Armure symbiotique consciente','Déphasage bref à l’impact','Armure qui se nourrit de magie','Armure qui repousse les attaques répétées','Armure à géométrie impossible'];
+
+
+
 const bodies=['Très mince','Mince','Élancé','Standard','Athlétique','Musclé','Très musclé','Massif','Corpulent','Corpulence atypique']; const colors=['Noir','Blanc','Gris','Rouge','Orange','Jaune','Vert','Bleu','Cyan','Violet','Rose','Brun','Or','Argent','Cuivre','Couleur unique']; const signs=['Cicatrices','Tatouages','Peintures corporelles','Marques lumineuses','Marques mystiques','Prothèse','Bijoux','Cape / manteau remarquable','Masque','Casque','Yeux inhabituels','Chevelure remarquable','Mutation visible','Aucun','Signe unique'];
 const mods=Object.fromEntries(Object.entries(RACIAL7).filter(([k])=>!k.includes(' bonus')&&!k.includes(' final bonus')).map(([k,v])=>[k,v.slice(0,5)]));
 const amods={'Guerrier':[2,1,0,1,0],'Berserker':[3,3,-1,2,1],'Gardien':[1,1,0,3,-1],'Assassin':[2,-1,1,-1,2],'Artiste martial':[3,1,0,1,2],'Tireur':[1,-1,1,-1,0],'Mage':[-1,-2,1,-1,-1],'Sorcier':[0,-1,0,0,0],'Érudit':[-1,-2,3,-1,-1],'Ingénieur':[0,0,2,0,0],'Stratège':[1,-1,3,0,0],'Soutien':[-1,-1,1,1,0],'Chasseur':[1,0,1,1,1],'Éclaireur':[1,-1,1,-1,2],'Commandant':[2,1,2,1,0],'Trickster':[0,-1,2,-1,1],'Slayer':[0,1,1,0,1],'Invocateur':[-1,-2,1,0,-1]};
-const pmr=Object.fromEntries(Object.entries(RACIAL7).filter(([k])=>!k.includes(' bonus')&&!k.includes(' final bonus')).map(([k,v])=>[k,v[5]||0])); const wmr=Object.fromEntries(Object.entries(RACIAL7).filter(([k])=>!k.includes(' bonus')&&!k.includes(' final bonus')).map(([k,v])=>[k,v[6]||0])); const pma={'Guerrier':-1,'Berserker':-1,'Mage':3,'Sorcier':3,'Érudit':1,'Ingénieur':-1,'Soutien':2,'Trickster':1,'Invocateur':2}; const beastMods={'Lion':[2,2,0,1,1],'Tigre':[2,2,0,1,2],'Loup':[2,1,0,1,2],'Renard':[1,-1,1,-1,2],'Ours':[2,3,-1,3,-1],'Sanglier':[2,2,-1,2,0],'Taureau':[1,3,-1,2,0],'Cheval':[1,1,0,1,3],'Cerf':[1,1,0,0,2],'Chèvre':[1,1,0,1,1],'Gorille':[2,3,0,2,0],'Singe':[1,0,1,0,2],'Éléphant':[1,4,0,3,-2],'Rhinocéros':[2,4,-1,4,-2],'Crocodile':[2,3,-1,3,-1],'Serpent':[1,-1,1,-1,2],'Lézard':[0,0,0,1,1],'Tortue':[-1,0,0,4,-3],'Aigle':[2,0,0,-1,3],'Hibou':[1,-1,2,-1,1],'Chauve-souris':[1,-1,0,-1,2],'Requin':[2,2,-1,2,2],'Baleine':[0,4,0,4,-2],'Poulpe':[1,0,2,0,1],'Scorpion':[2,1,-1,2,1],'Araignée':[2,0,0,0,2],'Scarabée':[1,3,-1,3,0],'Fourmi':[1,3,-1,2,1],'Guépard':[2,0,-1,-1,4],'Papillon':[-1,-2,0,-2,2],'Licorne':[1,1,1,1,2],'Pégase':[1,1,0,0,3],'Griffon':[3,2,0,1,2],'Phénix':[1,0,1,2,3],'Basilic':[2,1,0,2,0],'Cocatrix':[1,0,-1,0,1],'Fenrir':[4,4,0,3,3],'Cerbère':[3,3,-1,3,1],'Hydre':[3,3,-1,4,-1],'Manticore':[3,2,0,2,1],'Chimère':[3,2,0,2,1],'Minotaure':[3,4,-1,2,0],'Kelpie':[1,1,1,1,3],'Kraken':[2,5,0,4,-2],'Serpent de mer':[2,3,0,3,1],'Léviathan':[3,5,0,5,-2],'Loup spectral':[2,0,1,0,3],'Kitsune':[1,-1,3,0,2],'Tengu':[2,1,2,0,3],'Naga':[2,1,2,1,1]}; const beastPmr={'Lion':0,'Tigre':0,'Loup':0,'Renard':1,'Ours':0,'Sanglier':0,'Taureau':0,'Cheval':0,'Cerf':1,'Chèvre':0,'Gorille':0,'Singe':0,'Éléphant':0,'Rhinocéros':0,'Crocodile':0,'Serpent':1,'Lézard':0,'Tortue':0,'Aigle':0,'Hibou':1,'Chauve-souris':1,'Requin':0,'Baleine':0,'Poulpe':1,'Scorpion':1,'Araignée':1,'Scarabée':0,'Fourmi':0,'Guépard':0,'Papillon':2,'Licorne':3,'Pégase':1,'Griffon':1,'Phénix':4,'Basilic':3,'Cocatrix':3,'Fenrir':2,'Cerbère':2,'Hydre':2,'Manticore':2,'Chimère':3,'Minotaure':0,'Kelpie':2,'Kraken':2,'Serpent de mer':2,'Léviathan':3,'Loup spectral':3,'Kitsune':4,'Tengu':2,'Naga':3}; const beastWmr={'Lion':0,'Tigre':0,'Loup':0,'Renard':0,'Ours':-1,'Sanglier':-1,'Taureau':-1,'Cheval':0,'Cerf':0,'Chèvre':0,'Gorille':1,'Singe':1,'Éléphant':-1,'Rhinocéros':-1,'Crocodile':-1,'Serpent':0,'Lézard':0,'Tortue':-1,'Aigle':1,'Hibou':0,'Chauve-souris':0,'Requin':-1,'Baleine':-2,'Poulpe':1,'Scorpion':-1,'Araignée':0,'Scarabée':-1,'Fourmi':-1,'Guépard':0,'Papillon':-1,'Licorne':0,'Pégase':0,'Griffon':0,'Phénix':-1,'Basilic':-1,'Cocatrix':-1,'Fenrir':-1,'Cerbère':-1,'Hydre':-2,'Manticore':0,'Chimère':-1,'Minotaure':1,'Kelpie':0,'Kraken':-2,'Serpent de mer':-1,'Léviathan':-2,'Loup spectral':-1,'Kitsune':0,'Tengu':2,'Naga':1};
-function beastAnimal(p){
-  p=String(p||'');
-  let m=p.match(/^Homme-bête \((.+)\)$/);
-  if(m)return m[1];
-  if(p.startsWith('Homme-bête '))return p.slice('Homme-bête '.length);
-  return null;
-}
+const pmr=Object.fromEntries(Object.entries(RACIAL7).filter(([k])=>!k.includes(' bonus')&&!k.includes(' final bonus')).map(([k,v])=>[k,v[5]||0])); const wmr=Object.fromEntries(Object.entries(RACIAL7).filter(([k])=>!k.includes(' bonus')&&!k.includes(' final bonus')).map(([k,v])=>[k,v[6]||0])); const pma={'Guerrier':-1,'Berserker':-1,'Mage':3,'Sorcier':3,'Érudit':1,'Ingénieur':-1,'Soutien':2,'Trickster':1,'Invocateur':2};   
+
 const wma={'Guerrier':2,'Gardien':1,'Assassin':2,'Artiste martial':1,'Tireur':3,'Mage':-1,'Sorcier':-1,'Érudit':-1,'Ingénieur':2,'Chasseur':2,'Éclaireur':2,'Commandant':1,'Trickster':1,'Slayer':1,'Invocateur':-1};
 const mysticLinkTargets=['Une créature inconnue','Un esprit ancestral','Un démon errant','Une entité céleste','Un animal surnaturel','Une arme consciente','Un artefact ancien','Un lieu sacré','Un lieu maudit','Un autre personnage','Un ancêtre disparu','Une ombre vivante','Une entité cosmique','Une créature du Chaos','Un double dimensionnel','Une intelligence artificielle mystique','Un dragon ancien','Une divinité oubliée','Une âme prisonnière','Cible unique'];
 const otherCharacterStatus=['Personnage déjà existant','Personnage à venir'];
@@ -699,44 +1234,76 @@ const mysticLinkNatures=['Partage des blessures','Partage d’énergie','Percept
 const mysticUniqueEffects=['Les blessures deviennent des souvenirs échangeables','Le lien se renforce lorsque les deux êtres sont séparés','L’un peut emprunter brièvement l’ombre de l’autre','Une attaque reçue peut parfois être transformée en énergie pour l’autre','Le lien permet de traverser brièvement les rêves de l’autre','La mort de l’un déclenche une manifestation inconnue chez l’autre','Leurs positions peuvent se superposer un instant','Le lien conserve une copie d’un instant vécu ensemble','Leur puissance fluctue selon leur distance','Le lien attire périodiquement des anomalies surnaturelles'];
 const mysticDeathManifestations=['Sursaut de puissance','Barrière spirituelle','Transfert de vitalité restante','Apparition de l’écho du défunt','Partage de sa dernière perception','Héritage temporaire d’une capacité','Résistance accrue','Rage surnaturelle','Protection contre la mort','Manifestation unique'];
 const mysticAnomalies=['Distorsion spatiale','Fluctuation temporelle','Variation gravitationnelle','Apparition spectrale','Perturbation énergétique','Inversion momentanée d’une force','Zone de silence surnaturel','Brèche lumineuse','Ombre autonome','Anomalie impossible'];
-const artifactCopyNatures=['Pouvoir','Technique','Capacité raciale','Capacité physique','Capacité surnaturelle','Propriété d’arme','Enchantement d’arme','Propriété d’armure','Capacité de transformation','Copie universelle'];
-const artifactTransformations=['Dragon','Démon','Ange','Spectre','Loup','Félin','Ours','Rapace','Serpent','Arachnide','Requin','Insecte','Griffon','Hydre','Basilic','Manticore','Chimère','Golem','Machine','Feu','Glace','Foudre','Eau','Terre','Vent','Cristal','Lumière','Ténèbres','Cosmique','Chaos'];
-const artifactPhenomena=['Feu','Froid / Glace','Électricité / Foudre','Eau','Vent','Terre','Poison','Explosions','Magnétisme','Magie','Téléportation','Manipulation spatiale','Manipulation temporelle','Altération de réalité','Illusions','Attaques mentales','Attaques spirituelles','Régénération','Énergie sacrée','Énergie démoniaque'];
+
+
+
 const impossibleArtifactAnomalies=['Inverse brièvement la gravité autour du porteur','Rend temporairement une surface liquide et traversable','Permute deux objets non vivants visibles','Fige un objet dans l’espace','Supprime temporairement le poids d’un objet ou du porteur','Multiplie temporairement le poids d’un objet','Inverse momentanément le haut et le bas pour une cible','Crée un passage entre deux surfaces visibles','Décale le porteur quelques secondes hors du présent','Rend temporairement solide une ombre','Transforme momentanément un son en impulsion physique','Donne temporairement une masse à la lumière','Permet de marcher sur l’air','Inverse attraction et répulsion lors d’un contact','Fait revenir un projectile lancé à son point de départ','Sépare brièvement le mouvement d’un objet de sa position','Permet à deux espaces proches de se chevaucher temporairement','Rend momentanément tangible un phénomène immatériel','Rend momentanément intangible un objet non vivant','Crée un point où les directions spatiales deviennent incohérentes'];
 const cursedWeaponCosts=['Drain vital','Drain énergétique','Douleur du porteur','Blessure partagée','Soif de combat','Rejet du repos','Poids croissant','Arme possessive','Retour de force','Faim d’énergie'];
 const thirstResources=['Sang','Vitalité','Énergie magique','Énergie spirituelle','Énergie vitale','Émotions','Douleur','Chaleur corporelle','Souvenirs','Âme'];
 const equivalentPrices=['Vitalité','Endurance','Énergie surnaturelle','Douleur','Sang','Mobilité temporaire','Acuité sensorielle temporaire','Concentration / lucidité','Durée de récupération accrue','Puissance future'];
 const mortalCurseTriggers=['Temps écoulé','Blessure critique','Épuisement extrême','Utilisation excessive du pouvoir','Utilisation excessive de l’arme','Accumulation de blessures','Perte de sang importante','Pouvoir poussé au maximum','Échec d’une capacité surnaturelle','Contact avec sa faiblesse','Mort d’un allié lié','Proximité de la défaite'];
-const improbableShoeTerrains=['Pierre','Terre','Sable','Boue','Herbe / végétation','Bois','Métal','Glace / neige','Eau peu profonde','Sol artificiel'];
-const uniqueLegendaryArmorEffects=['Mémoire des impacts','Armure hors phase','Cœur de forteresse','Redistribution des dégâts','Blindage sacrificiel','Prison d’énergie','Armure réactive','Sceau d’immobilité','Peau de frontière','Refus de rupture','Échange de résistance','Armure miroir','Zone de sauvegarde','Verrou adaptatif','Dernier rempart'];
-const uniqueLegendaryTechniques=['Frappe des Neuf Ruptures','Pas de l’Angle Mort','Main qui Arrête la Guerre','Coupe sans Élan','Garde du Cercle Parfait','Frappe des Trois Temps','Chute du Géant','Trait sans Ligne','Étreinte du Dernier Rempart','Rupture du Rythme','Frappe du Souffle Coupé','Déviation du Colosse','Marche des Cent Batailles','Arme et Corps Unifiés','Instant du Maître'];
-const uniqueLegendaryDormantPowers=['Cœur de singularité','Sang des dimensions','Corps de l’orage primordial','Œil des fractures','Souffle de l’astre mourant','Chair du monde','Cœur du vide silencieux','Couronne des âmes','Mue de l’impossible','Résonance absolue','Flamme de l’âme','Avatar du seuil','Écho du commencement','Volonté incarnée','Rupture des lois'];
+
+
+
+
 const divineEchoDomains=['Guerre','Protection','Vie','Mort','Lumière','Ténèbres','Nature','Tempête','Connaissance','Destin','Feu','Glace','Océan','Terre','Ciel','Âmes','Voyage','Justice','Chaos','Cosmos'];
 
 const CHARACTERS_PER_SEASON=64;
 const STORAGE_SEASON='roue_seasonNumber_v18';
 let seasonNumber=parseInt(localStorage.getItem(STORAGE_SEASON)||'1',10);
-if(!Number.isFinite(seasonNumber)||seasonNumber<1) seasonNumber=1;
 const STORAGE_ROSTER='roue_roster_v16';
 const STORAGE_CURRENT='roue_characterNumber_v16';
 const STORAGE_DESC='roue_descendants_v18';
 const STORAGE_NPCS='roue_npcs_v18';
 const STORAGE_META='roue_universe_meta_v18';
 let characterNumber=parseInt(localStorage.getItem(STORAGE_CURRENT)||'1',10);
-if(!Number.isFinite(characterNumber)||characterNumber<1) characterNumber=1;
-// Migration des anciennes versions : S1-065 devient automatiquement S2-001, etc.
-if(characterNumber>CHARACTERS_PER_SEASON){
-  seasonNumber += Math.floor((characterNumber-1)/CHARACTERS_PER_SEASON);
-  characterNumber = ((characterNumber-1)%CHARACTERS_PER_SEASON)+1;
-  localStorage.setItem(STORAGE_SEASON,String(seasonNumber));
-  localStorage.setItem(STORAGE_CURRENT,String(characterNumber));
+
+{
+  const normalizedCursor=
+    normalizeSeasonCursor(
+      seasonNumber,
+      characterNumber,
+      CHARACTERS_PER_SEASON
+    );
+
+  const changed=
+    normalizedCursor.season!==seasonNumber ||
+    normalizedCursor.number!==characterNumber;
+
+  seasonNumber=
+    normalizedCursor.season;
+
+  characterNumber=
+    normalizedCursor.number;
+
+  if(changed){
+    localStorage.setItem(
+      STORAGE_SEASON,
+      String(seasonNumber)
+    );
+
+    localStorage.setItem(
+      STORAGE_CURRENT,
+      String(characterNumber)
+    );
+  }
 }
 
-function currentCharacterId(){return `S${seasonNumber}-${String(characterNumber).padStart(3,'0')}`}
-function firstEmptyCharacterNumber(season=seasonNumber,roster=loadRoster()){
-  const used=new Set(Object.keys(roster||{}).map(id=>String(id).match(/^S(\d+)-(\d+)$/)).filter(Boolean).filter(m=>Number(m[1])===Number(season)).map(m=>Number(m[2])).filter(n=>n>=1&&n<=CHARACTERS_PER_SEASON));
-  for(let n=1;n<=CHARACTERS_PER_SEASON;n++) if(!used.has(n)) return n;
-  return null;
+function currentCharacterId(){
+  return characterIdFor(
+    seasonNumber,
+    characterNumber
+  );
+}
+function firstEmptyCharacterNumber(
+  season=seasonNumber,
+  roster=loadRoster()
+){
+  return firstEmptyCharacterNumberFor(
+    season,
+    roster,
+    CHARACTERS_PER_SEASON
+  );
 }
 function moveCursorToFirstEmptySlot(season=seasonNumber){
   const n=firstEmptyCharacterNumber(season);
@@ -761,13 +1328,18 @@ function characterImageIdentity(characterId,c=null){
 
 
 function loadRoster(){
-  try{
-    const raw=localStorage.getItem(STORAGE_ROSTER);
-    const data=raw?JSON.parse(raw):{};
-    return data&&typeof data==='object'?data:{};
-  }catch(e){return {}}
+  return loadRosterFromStorage(
+    localStorage,
+    STORAGE_ROSTER
+  );
 }
-function saveRoster(roster){localStorage.setItem(STORAGE_ROSTER,JSON.stringify(roster))}
+function saveRoster(roster){
+  return saveRosterToStorage(
+    localStorage,
+    STORAGE_ROSTER,
+    roster
+  );
+}
 
 // Réconcilie le curseur avec les personnages RÉELLEMENT terminés.
 // Important : des brouillons fantômes S2/S3 créés par un ancien bug ne doivent jamais
@@ -775,220 +1347,57 @@ function saveRoster(roster){localStorage.setItem(STORAGE_ROSTER,JSON.stringify(r
 let seasonCursorReconciled=false;
 function reconcileSeasonCursor(){
   const roster=loadRoster();
-  const completed=Object.values(roster||{}).filter(c=>{
-    if(!c?.id) return false;
-    try{return isCharacterGenerationComplete(c)}catch(e){return !!c._generationComplete}
-  });
-  const parsed=completed.map(c=>parseCharacterCode(c.id)).filter(p=>Number.isFinite(p.season)&&Number.isFinite(p.number));
 
-  // Aucun combattant terminé : on reste en S1-001. Un brouillon futur ne suffit pas à changer cela.
-  if(!parsed.length){
-    if(seasonNumber!==1 || characterNumber!==1){
-      seasonNumber=1;characterNumber=1;
-      localStorage.setItem(STORAGE_SEASON,'1');
-      localStorage.setItem(STORAGE_CURRENT,'1');
-      seasonCursorReconciled=true;
-    }
+  const completed=
+    Object.values(roster||{})
+      .filter(character=>{
+        if(!character?.id)
+          return false;
+
+        try{
+          return isCharacterGenerationComplete(
+            character
+          );
+        }catch(error){
+          return !!character._generationComplete;
+        }
+      });
+
+  const canonical=
+    canonicalSeasonCursorFor(
+      completed,
+      parseCharacterCode,
+      CHARACTERS_PER_SEASON
+    );
+
+  if(
+    !isCursorAheadOf(
+      seasonNumber,
+      characterNumber,
+      canonical.season,
+      canonical.number
+    )
+  ){
     return;
   }
 
-  // On cherche la première saison qui n'est pas encore complète (64 combattants terminés).
-  // Tant que S1 est complète, on autorise S2 ; tant que S2 n'est pas complète, jamais S3, etc.
-  const counts={};
-  for(const p of parsed){
-    if(p.number>=1 && p.number<=CHARACTERS_PER_SEASON) counts[p.season]=(counts[p.season]||0)+1;
-  }
-  let canonicalSeason=1;
-  while((counts[canonicalSeason]||0)>=CHARACTERS_PER_SEASON) canonicalSeason++;
+  seasonNumber=
+    canonical.season;
 
-  // Dans la saison courante, le prochain numéro canonique est le premier emplacement non terminé.
-  const used=new Set(parsed.filter(p=>p.season===canonicalSeason).map(p=>p.number));
-  let canonicalNumber=1;
-  while(canonicalNumber<=CHARACTERS_PER_SEASON && used.has(canonicalNumber)) canonicalNumber++;
-  if(canonicalNumber>CHARACTERS_PER_SEASON){canonicalSeason++;canonicalNumber=1}
+  characterNumber=
+    canonical.number;
 
-  // Ne corrige automatiquement que les curseurs placés APRÈS le prochain emplacement canonique.
-  // Cela préserve la navigation volontaire vers d'anciens personnages.
-  const cursorAhead=seasonNumber>canonicalSeason || (seasonNumber===canonicalSeason && characterNumber>canonicalNumber);
-  if(cursorAhead){
-    seasonNumber=canonicalSeason;
-    characterNumber=canonicalNumber;
-    localStorage.setItem(STORAGE_SEASON,String(seasonNumber));
-    localStorage.setItem(STORAGE_CURRENT,String(characterNumber));
-    seasonCursorReconciled=true;
-  }
-}
-function ensureGenealogyShape(s){
-  if(!s.genealogy) s.genealogy={parents:[],children:[],generation:1,lineage:[],partnerLinks:[]};
-  if(!Array.isArray(s.genealogy.parents)) s.genealogy.parents=[];
-  if(!Array.isArray(s.genealogy.children)) s.genealogy.children=[];
-  if(!Array.isArray(s.genealogy.lineage)) s.genealogy.lineage=[];
-  if(!Array.isArray(s.genealogy.partnerLinks)) s.genealogy.partnerLinks=[];
-  if(!Array.isArray(s.genealogy.siblings)) s.genealogy.siblings=[];
-  if(!Number.isFinite(s.genealogy.generation)) s.genealogy.generation=1;
-  if(!Array.isArray(s.relationships)) s.relationships=[];
-  return s;
-}
-function saveCurrentCharacter({renderRosterNow=true,cloudNow=true}={}){
-  applyAlienStateIfNeeded();
-  applyAlienModifiersToStats();
+  localStorage.setItem(
+    STORAGE_SEASON,
+    String(seasonNumber)
+  );
 
-  if(state.race==='Extraterrestre'){
-    applyAlienStateIfNeeded();
-    if(state.alienBiology?.trait && state.alienBiology?.mods?.length===3 && Array.isArray(state.logs) && !state.logs.some(x=>x.cat==='Biologie extraterrestre')){
-      state.logs.push({cat:'Biologie extraterrestre',val:state.alienBiology.trait});
-      state.logs.push({cat:'Adaptation extraterrestre',val:state.alienBiology.mods.map(x=>`${x.stat} ${x.value>0?'+':''}${x.value}`).join(' / ')});
-    }
-  }
+  localStorage.setItem(
+    STORAGE_CURRENT,
+    String(characterNumber)
+  );
 
-  if(!state || !state.id) return;
-  ensureCharacterInstanceId(state);
-  ensureGenealogyShape(state);
-  const roster=loadRoster();
-  // Ne jamais écraser silencieusement un combattant déjà matérialisé (notamment un
-  // descendant sélectionné) avec un nouveau brouillon qui porte momentanément le même ID.
-  // Cela pouvait arriver au début d'une saison : le curseur restait sur Sx-001 alors que
-  // Sx-001 était déjà occupé par un descendant, puis le premier tirage normal le remplaçait.
-  const existing=roster[state.id];
-  if(existing && existing.instanceId && state.instanceId && existing.instanceId!==state.instanceId && existing._generationComplete){
-    console.warn('Sauvegarde ignorée : ID déjà occupé par un combattant terminé',state.id);
-    return;
-  }
-  roster[state.id]=JSON.parse(JSON.stringify(state));
-  saveRoster(roster); // sécurité locale immédiate : reprise exacte même si l'app est quittée
-  if(renderRosterNow) renderRoster();
-  if(cloudNow){
-    if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-    if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
-  }
-}
-
-let __wheelPersistenceTimer=null;
-function scheduleWheelPersistence(){
-  clearTimeout(__wheelPersistenceTimer);
-  __wheelPersistenceTimer=setTimeout(()=>{
-    __wheelPersistenceTimer=null;
-    try{
-      renderRoster();
-      if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-      if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
-    }catch(e){console.warn('Persistance différée roue',e)}
-  },2600);
-}
-function flushWheelPersistence(){
-  clearTimeout(__wheelPersistenceTimer);__wheelPersistenceTimer=null;
-  try{
-    saveCurrentCharacter({renderRosterNow:false,cloudNow:false});
-    if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(state);
-    if(typeof queueCloudGameStateSave==='function') queueCloudGameStateSave();
-  }catch(e){}
-}
-window.addEventListener('pagehide',flushWheelPersistence);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushWheelPersistence()});
-
-reconcileSeasonCursor();
-
-function blankCharacterState(id){
-  return {alienBiology:null,id:id||currentCharacterId(),instanceId:newCharacterInstanceId(),name:'',title:'',raceParts:[],race:'',lineage:{},birthStratum:'',birthRegion:'',culture:'',gender:'',size:'',arch:'',archParts:[],slayerTarget:null,job:'',history:[],extra:'',extraDetail:[],extraStatMods:[],relationships:[],genealogy:{parents:[],children:[],generation:1,lineage:[],partnerLinks:[]},personality:'',stats:{},powers:[],weapons:[],weakness:'',blessings:[],curses:[],clothingStyle:'',appearance:{},transformation:null,awakening:null,chi:null,martial:null,prodigeMods:[],logs:[]};
-}
-function rebuildGenerationFromLogs(saved){
-  const logs=Array.isArray(saved?.logs)?JSON.parse(JSON.stringify(saved.logs)):[];
-  state=blankCharacterState(saved?.id||currentCharacterId());state.instanceId=saved?.instanceId||newCharacterInstanceId();
-  queue=[];index=0;rotation=0;spinNumber=0;
-  buildInitial();
-  for(const entry of logs){
-    const t=queue[index];
-    if(!t) break;
-    try{
-      t.apply(entry.val);
-      state.logs.push({cat:entry.cat||t.title,val:entry.val});
-      index++; spinNumber++;
-    }catch(e){
-      console.warn('Reprise arrêtée à',entry,e);
-      break;
-    }
-  }
-  ensureGenealogyShape(state);
-}
-function loadCharacterById(id){
-  const roster=loadRoster(), saved=roster[id];
-  if(!saved) return false;
-
-  // V21 : toute fiche terminée est un instantané complet et ne doit jamais être
-  // rejouée depuis ses anciens logs. L'ajout de nouvelles sous-roues changerait sinon
-  // l'alignement des logs et décalerait Genre/Taille/Archétype/etc.
-  if(saved._generationComplete){
-    state=ensureGenealogyShape(JSON.parse(JSON.stringify(saved)));
-    queue=[];index=0;rotation=0;spinNumber=Array.isArray(state.logs)?state.logs.length:0;
-    auto=false;spinning=false;autoBtn.textContent='Auto : OFF';spinBtn.disabled=false;
-    spinBtn.textContent='Nouveau personnage';taskTitle.textContent='Personnage terminé';
-    result.innerHTML='Fiche terminée et sauvegardée<small>'+state.id+' — '+state.name+'</small>';
-    count.textContent=`${state.logs?.length||0} tirages`;render();drawWheel([W('✓')]);return true;
-  }
-
-  rebuildGenerationFromLogs(saved);
-
-  // If an old file contains fields that are not reconstructed from wheel logs,
-  // preserve them without replacing the rebuilt queue/index.
-  const rebuilt=state;
-  for(const [k,v] of Object.entries(saved)){
-    if(k==='logs') continue;
-    if((rebuilt[k]===undefined || rebuilt[k]===null || rebuilt[k]==='' ||
-       (Array.isArray(rebuilt[k])&&rebuilt[k].length===0)) && v!==undefined){
-      rebuilt[k]=JSON.parse(JSON.stringify(v));
-    }
-  }
-  state=ensureGenealogyShape(rebuilt);
-
-  // Réparation/garantie d'identité des descendants déjà matérialisés :
-  // le combattant garde le prénom canonique de DESC-xxxx, même si une ancienne version
-  // de la roue avait tiré un nouveau prénom (ex. DESC-0004 Raoros devenu Ophir).
-  {
-    const ds=descendants();
-    // Les versions buggées ont parfois perdu descendantSourceId. fighterId dans DESC-xxxx
-    // reste alors la source de vérité et permet de réparer automatiquement le combattant.
-    const source=state.descendantSourceId?ds[state.descendantSourceId]:Object.values(ds).find(d=>d?.fighterId===state.id);
-    if(source){
-      state.descendantSourceId=source.id;
-      state.isDescendant=true;
-      state.name=source.name||state.name;
-      state.race=source.race||state.race;
-      state.raceParts=JSON.parse(JSON.stringify(source.raceParts||state.raceParts||[]));
-      state.gender=source.gender||state.gender;
-      state.racialTraits=JSON.parse(JSON.stringify(source.racialTraits||state.racialTraits||[]));
-      state.inheritedPowers=JSON.parse(JSON.stringify(source.inheritedPowers||state.inheritedPowers||[]));
-      state.inheritedMutations=JSON.parse(JSON.stringify(source.mutations||state.inheritedMutations||[]));
-      state.genealogy=JSON.parse(JSON.stringify(source.genealogy||state.genealogy||{}));
-      state.genealogy.parents=[...(source.parentIds||source.genealogy?.parents||[])];
-      // Un descendant chargé mais encore incomplet reste prioritaire dans la roue.
-      // fighterDataGenerated signifie désormais réellement « génération terminée » et non « fiche ouverte ».
-      source.fighterDataGenerated=!!state._generationComplete;
-      source.fighterId=state.id;
-      source.selectedForSeason=Number(String(state.id).match(/^S(\d+)-/)?.[1]||seasonNumber);
-      source.status=state._generationComplete
-        ? `Combattant S${source.selectedForSeason} — ${state.id}`
-        : `Descendant — génération en cours S${source.selectedForSeason} — ${state.id}`;
-      ds[source.id]=source;saveStore(STORAGE_DESC,ds);
-      const rr=loadRoster();rr[state.id]=JSON.parse(JSON.stringify(state));saveRoster(rr);
-    }
-  }
-
-  auto=false;spinning=false;autoBtn.textContent='Auto : OFF';spinBtn.disabled=false;
-  const complete=!!state.name && !!state.title && index>=queue.length;
-  if(complete){
-    spinBtn.textContent='Nouveau personnage';
-    taskTitle.textContent='Personnage terminé';
-    result.innerHTML='Fiche terminée et sauvegardée<small>'+state.id+' — '+state.name+'</small>';
-  }else{
-    spinBtn.textContent=index===0?'Commencer':'Continuer';
-    taskTitle.textContent=index<queue.length?'Reprise — '+queue[index].title:'Reprise';
-    result.innerHTML='Progression restaurée<small>Prochaine roue : '+(queue[index]?.title||'fin')+'.</small>';
-    if(index<queue.length){try{const resumeOpts=queue[index].options();if(Array.isArray(resumeOpts)&&resumeOpts.length>1)drawWheel(resumeOpts,rotation)}catch(e){console.warn('Impossible d’afficher la roue restaurée',e)}}
-  }
-  count.textContent=`${state.logs.length} tirages`;
-  render();
-  drawWheel(index<queue.length ? queue[index].options() : [W('✓')]);
-  return true;
+  seasonCursorReconciled=true;
 }
 function selectedDescendantForCurrentSlot(){
   if(seasonNumber<=1)return null;
@@ -1128,77 +1537,85 @@ function previousCharacter(){
   goToCharacterNumber(characterNumber-1);
 }
 function birthEventChildIds(ev){
-  const ids=[];
-  if(Array.isArray(ev?.childIds)) ids.push(...ev.childIds.filter(Boolean));
-  if(ev?.childId && !ids.includes(ev.childId)) ids.push(ev.childId);
-  return ids;
+  return birthEventChildIdsFor(ev);
 }
-function characterSeasonFromId(p,fallback=seasonNumber){
-  return Number(String(p?.id||'').match(/^S(\d+)-/)?.[1]||fallback);
+function characterSeasonFromId(
+  p,
+  fallback=seasonNumber
+){
+  return characterSeasonFromIdFor(
+    p,
+    fallback
+  );
 }
 function characterHasPossessesChildExtra(p){
-  if(!p) return false;
-  const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const isPossessChild=v=>norm(v).includes('possede un enfant');
-  if(isPossessChild(p.extra)) return true;
-  if(Array.isArray(p.extras)&&p.extras.some(isPossessChild)) return true;
-  if(Array.isArray(p.logs)&&p.logs.some(x=>isPossessChild(x?.val)||isPossessChild(x?.label)||isPossessChild(x?.result))) return true;
-  try{return isPossessChild(JSON.stringify({extra:p.extra,extras:p.extras,logs:p.logs,extraDetail:p.extraDetail}))}catch(e){return false}
+  return characterHasChildExtra(p);
 }
 function emergencyBackupUniverse(){
   try{return JSON.parse(localStorage.getItem(CLOUD_BACKUP_KEY)||'null')}catch(e){return null}
 }
-function recoverDescendantsFromEmergencyBackup(descStore,ids){
-  if(!ids?.length)return 0;
-  const backup=emergencyBackupUniverse();
-  const old=backup?.descendants||{};
-  let restored=0;
-  for(const id of ids){
-    if(!descStore[id]&&old[id]){descStore[id]=old[id];restored++}
+function recoverDescendantsFromEmergencyBackup(
+  descStore,
+  ids
+){
+  const restored=
+    recoverDescendantsFromBackup({
+      descendants:descStore,
+      ids,
+      backup:
+        emergencyBackupUniverse()
+    });
+
+  if(restored){
+    saveStore(
+      STORAGE_DESC,
+      descStore
+    );
   }
-  if(restored)saveStore(STORAGE_DESC,descStore);
+
   return restored;
 }
-function repairMissingBirthEvents(roster=loadRoster(),descStore=descendants()){
-  let changed=false;
-  const repaired=[];
-  for(const p of Object.values(roster||{})){
-    if(!p||!characterHasPossessesChildExtra(p)) continue;
-    p.extraDetail=Array.isArray(p.extraDetail)?p.extraDetail:[];
-    ensureGenealogyShape(p);
-    const birthSeason=characterSeasonFromId(p,seasonNumber);
-    let ev=p.extraDetail.find(x=>x?.kind==='Enfant');
-    if(!ev){
-      ev={kind:'Enfant',otherParentId:null,origin:null};
-      p.extraDetail.push(ev);
-      changed=true;
-    }
-    const referenced=[...new Set(birthEventChildIds(ev))];
-    // Si une ancienne synchro cloud a perdu temporairement la table descendants,
-    // on tente d'abord de restaurer les enfants depuis la sauvegarde locale d'urgence.
-    recoverDescendantsFromEmergencyBackup(descStore,referenced);
-    const descValues=Object.values(descStore||{}).filter(Boolean);
-    const existingKids=descValues.filter(d=>Array.isArray(d?.parentIds)&&d.parentIds.includes(p.id)).map(d=>d.id).filter(Boolean);
-    // IMPORTANT : un childId déjà enregistré signifie que la naissance a été résolue.
-    // On ne le supprime jamais uniquement parce que sa fiche descendant manque momentanément.
-    const realKids=[...new Set([...referenced,...existingKids])];
-    const before=JSON.stringify({status:ev.status,birthEventId:ev.birthEventId,childIds:ev.childIds,childId:ev.childId,birthSeason:ev.birthSeason,eligibleSeason:ev.eligibleSeason});
-    ev.birthEventId=ev.birthEventId||`BIRTH-${p.id}`;
-    ev.childIds=realKids;
-    delete ev.childId;
-    ev.birthSeason=Number(ev.birthSeason||birthSeason);
-    ev.eligibleSeason=Number(ev.eligibleSeason||ev.birthSeason+1);
-    ev.status=realKids.length?`${realKids.length} naissance${realKids.length>1?'s':''} résolue${realKids.length>1?'s':''}`:'Naissance en attente de résolution';
-    if(realKids.length)p.genealogy.children=[...new Set([...(p.genealogy.children||[]),...realKids])];
-    const after=JSON.stringify({status:ev.status,birthEventId:ev.birthEventId,childIds:ev.childIds,birthSeason:ev.birthSeason,eligibleSeason:ev.eligibleSeason});
-    if(before!==after) changed=true;
-    roster[p.id]=p;repaired.push(p);
+function repairMissingBirthEvents(
+  roster=loadRoster(),
+  descStore=descendants()
+){
+  const result=
+    repairBirthEvents({
+      roster,
+      descendants:descStore,
+      fallbackSeason:seasonNumber,
+
+      backup:
+        emergencyBackupUniverse(),
+
+      ensureGenealogyShape
+    });
+
+  if(result.descendantsRestored){
+    saveStore(
+      STORAGE_DESC,
+      descStore
+    );
   }
-  if(changed){
+
+  if(result.changed){
     saveRoster(roster);
-    for(const p of repaired) if(typeof queueCloudCharacterSave==='function') queueCloudCharacterSave(p);
+
+    for(const p of result.repaired){
+      if(
+        typeof queueCloudCharacterSave===
+        'function'
+      ){
+        queueCloudCharacterSave(p);
+      }
+    }
   }
-  return {roster,changed,count:repaired.length};
+
+  return {
+    roster,
+    changed:result.changed,
+    count:result.repaired.length
+  };
 }
 function isCharacterGenerationComplete(p){
   if(!p) return false;
@@ -1206,34 +1623,35 @@ function isCharacterGenerationComplete(p){
   const statsOk=['Combat','Force','Intelligence','Résilience','Vitesse'].every(k=>Number.isFinite(Number(p.stats?.[k])));
   return !!(p.name&&p.title&&p.race&&p.gender&&p.arch&&p.job&&p.personality&&p.appearance?.age&&p.appearance?.body&&p.appearance?.c1&&p.appearance?.c2&&p.appearance?.sign&&statsOk);
 }
-function pendingBirthEventsForSeason(season=seasonNumber){
+function pendingBirthEventsForSeason(
+  season=seasonNumber
+){
   const roster=loadRoster();
-  repairMissingBirthEvents(roster,descendants());
-  const pending=[];
-  for(const p of Object.values(roster)){
-    for(const ev of (p?.extraDetail||[])){
-      if(ev?.kind!=='Enfant') continue;
-      const birthSeason=Number(ev.birthSeason||characterSeasonFromId(p,season));
-      if(birthSeason===Number(season) && birthEventChildIds(ev).length===0){
-        pending.push({parent:p,event:ev});
-      }
-    }
-  }
-  return pending;
+
+  repairMissingBirthEvents(
+    roster,
+    descendants()
+  );
+
+  return pendingBirthEventsForSeasonFromRoster(
+    roster,
+    season
+  );
 }
-function pendingBirthEventsDue(upToSeason=seasonNumber){
+function pendingBirthEventsDue(
+  upToSeason=seasonNumber
+){
   const roster=loadRoster();
-  repairMissingBirthEvents(roster,descendants());
-  const pending=[];
-  for(const p of Object.values(roster)){
-    for(const ev of (p?.extraDetail||[])){
-      if(ev?.kind!=='Enfant'||birthEventChildIds(ev).length) continue;
-      ev.birthSeason=Number(ev.birthSeason||characterSeasonFromId(p,upToSeason));
-      ev.eligibleSeason=Number(ev.eligibleSeason||ev.birthSeason+1);
-      if(ev.birthSeason<=Number(upToSeason)) pending.push({parent:p,event:ev});
-    }
-  }
-  return pending.sort((a,b)=>(a.event.birthSeason-b.event.birthSeason)||String(a.parent.id).localeCompare(String(b.parent.id)));
+
+  repairMissingBirthEvents(
+    roster,
+    descendants()
+  );
+
+  return pendingBirthEventsDueFromRoster(
+    roster,
+    upToSeason
+  );
 }
 function blockSeasonAdvanceForBirths(){
   const pending=pendingBirthEventsForSeason(seasonNumber);
@@ -1270,83 +1688,68 @@ function blockGenerationIfPreviousTournamentIncomplete(){
   renderTournament();
   return true;
 }
-function descendantsAwaitingSelectionForSeason(season=seasonNumber){
-  if(Number(season)<=1)return [];
-  const d=descendants();
-  return Object.values(d).filter(x=>x && !x.legacy && !!x.fullFighterData && Number(x.eligibleSeason)===Number(season) && x.selectedForSeason==null);
+function descendantsAwaitingSelectionForSeason(
+  season=seasonNumber
+){
+  return descendantsAwaitingSelectionForSeasonFor(
+    descendants(),
+    season
+  );
 }
 function seasonCompleted(season){
-  const roster=loadRoster();
-  let n=0;
-  for(const c of Object.values(roster||{})){
-    const parsed=parseCharacterCode(c?.id||'');
-    if(Number(parsed?.season)!==Number(season)||Number(parsed?.number)<1||Number(parsed?.number)>CHARACTERS_PER_SEASON)continue;
-    try{if(isCharacterGenerationComplete(c))n++}catch(e){if(c?._generationComplete)n++}
-  }
-  return n>=CHARACTERS_PER_SEASON;
+  return seasonCompletedFor({
+    season,
+    roster:loadRoster(),
+    parseCharacterCode,
+    isCharacterGenerationComplete,
+    charactersPerSeason:
+      CHARACTERS_PER_SEASON
+  });
 }
 function seasonTransitionMeta(){
-  const meta=universeMeta();
-  meta.birthsResolvedBySeason=(meta.birthsResolvedBySeason&&typeof meta.birthsResolvedBySeason==='object')?meta.birthsResolvedBySeason:{};
-  meta.descendantsSelectedBySeason=(meta.descendantsSelectedBySeason&&typeof meta.descendantsSelectedBySeason==='object')?meta.descendantsSelectedBySeason:{};
-  return meta;
+  return normalizeSeasonTransitionMeta(
+    universeMeta()
+  );
 }
 function markBirthResolutionComplete(season){
-  const meta=seasonTransitionMeta();meta.birthsResolvedBySeason[String(season)]=new Date().toISOString();saveUniverseMeta(meta);
+  const meta=seasonTransitionMeta();
+
+  markBirthResolutionCompleteFor(
+    meta,
+    season,
+    new Date().toISOString()
+  );
+
+  saveUniverseMeta(meta);
 }
 function markDescendantSelectionComplete(season){
-  const meta=seasonTransitionMeta();meta.descendantsSelectedBySeason[String(season)]=new Date().toISOString();saveUniverseMeta(meta);
+  const meta=seasonTransitionMeta();
+
+  markDescendantSelectionCompleteFor(
+    meta,
+    season,
+    new Date().toISOString()
+  );
+
+  saveUniverseMeta(meta);
 }
 function birthsResolvedForSeason(season){
   const s=Number(season);
   const meta=seasonTransitionMeta();
-  if(meta.birthsResolvedBySeason?.[String(s)])return true;
-  // Source de vérité de secours : si la saison est terminée, a son champion et
-  // qu'aucun événement de naissance de cette saison n'est encore vide, l'étape
-  // est réellement résolue même si le marqueur de transition a été perdu.
-  if(seasonCompleted(s)&&tournamentChampionForSeason(s)){
-    const pending=pendingBirthEventsForSeason(s);
-    if(pending.length===0){
-      markBirthResolutionComplete(s);
-      return true;
-    }
-  }
-  return false;
-}
-function descendantsSelectedForSeason(season){
-  const s=Number(season), target=s+1;
-  const meta=seasonTransitionMeta();
-  if(meta.descendantsSelectedBySeason?.[String(s)])return true;
 
-  // Auto-réparation d'un marqueur de transition perdu :
-  // si la saison suivante existe déjà dans le roster, sa sélection a forcément
-  // été finalisée auparavant (même lorsqu'aucun descendant n'avait été retenu).
-  const roster=loadRoster();
-  const targetExists=Object.values(roster||{}).some(c=>{
-    const parsed=parseCharacterCode(c?.id||'');
-    return Number(parsed?.season)===target;
+  const pending=
+    pendingBirthEventsForSeason(s);
+
+  return birthsResolvedForSeasonFor({
+    season:s,
+    meta,
+    seasonCompleted:
+      seasonCompleted(s),
+    championId:
+      tournamentChampionForSeason(s),
+    pendingBirthCount:
+      pending.length
   });
-  if(targetExists){
-    markDescendantSelectionComplete(s);
-    return true;
-  }
-
-  // Deuxième preuve : des descendants portent déjà explicitement la sélection cible.
-  const d=descendants();
-  const selected=Object.values(d||{}).some(x=>Number(x?.selectedForSeason)===target);
-  if(selected){
-    markDescendantSelectionComplete(s);
-    return true;
-  }
-
-  // Compatibilité avec le registre historique selectedBySeason, y compris [] :
-  // la présence de la clé signifie que la sélection a été exécutée.
-  const raw=universeMeta();
-  if(raw.selectedBySeason && Object.prototype.hasOwnProperty.call(raw.selectedBySeason,String(target))){
-    markDescendantSelectionComplete(s);
-    return true;
-  }
-  return false;
 }
 function blockGenerationIfDescendantsNotSelected(){
   // Répare les descendants créés trop tôt par l'ancienne version (ex. S4 alors que S3 est en cours).
@@ -1705,54 +2108,8 @@ function closeCharacterDetail(){
   rosterList.style.display='';
 }
 
-const RACIAL_TRAITS={
-'Humain':['Adaptabilité'],'Elfe':['Sens aiguisés','Affinité naturelle','Longévité'],
-'Nain':['Corps robuste','Résistance aux toxines','Vision nocturne'],
-'Orc':['Force naturelle','Fureur de survie'],'Gobelin':['Ingéniosité','Vision nocturne','Survie opportuniste'],
-'Fée':['Vol','Poussière féerique','Affinité magique'],'Géant':['Force colossale','Masse gigantesque'],
-'Vampire':['Régénération','Sens surnaturels','Longévité'],'Loup-garou':['Transformation','Régénération','Sens surnaturels'],
-'Démon':['Résistance surnaturelle','Énergie démoniaque'],'Ange':['Vol','Énergie céleste','Perception surnaturelle'],
-'Esprit':['Intangibilité','Possession / traversée de matière','Aucun besoin biologique'],
-'Dragon humanoïde':['Souffle draconique','Écailles','Sens draconiques'],
-'Golem / Artificiel':['Aucun besoin biologique','Immunité poison / maladie','Corps artificiel'],
-'Extraterrestre':[0,0,0,0,0,0,0],'Demi-dieu':['Corps divin mineur','Longévité surnaturelle'],
-'Divinité':['Corps divin','Immortalité naturelle','Présence divine'],
-'Dieu céleste':['Corps divin céleste','Immortalité naturelle','Présence divine renforcée'],
-'Titan':['Puissance titanesque','Gigantisme'],'Titan primordial':['Puissance titanesque primordiale','Gigantisme primordial'],
-'Titan fondateur':['Puissance titanesque fondatrice','Gigantisme fondateur'],
-'Squelette':['Aucun besoin biologique','Immunité saignement / poison / maladie'],
-'Liche':['Phylactère','Nature morte-vivante','Magie innée'],
-'Cyborg':['Augmentations cybernétiques','Interface technologique'],
-'N.E.X.U.S.':['Corps techno-organique','Auto-réparation','Interface technologique'],
-'Neoxus':['Corps techno-organique renforcé','Auto-réparation supérieure','Interface technologique'],
-'Deus Machina':['Corps divin','Immortalité naturelle','Présence divine','Corps techno-organique','Auto-réparation','Interface technologique'],
-'Titan céleste':['Corps divin','Immortalité naturelle','Présence divine','Puissance titanesque primordiale','Gigantisme primordial'],
-'Colosse Nexus':['Corps techno-organique','Auto-réparation','Interface technologique','Puissance titanesque primordiale','Gigantisme primordial']
-};
+
 const ACTIVE_RACIAL_TRAITS=new Set(['Affinité naturelle','Fureur de survie','Vol','Poussière féerique','Régénération','Transformation','Énergie démoniaque','Énergie céleste','Intangibilité','Possession / traversée de matière','Souffle draconique','Phylactère','Magie innée','Auto-réparation','Auto-réparation supérieure']);
-const ORDINARY_COMPONENTS=['Humain','Elfe','Nain','Orc','Gobelin','Fée','Géant','Vampire','Loup-garou','Démon','Ange','Esprit','Dragon humanoïde','Golem / Artificiel','Extraterrestre','Squelette','Liche'];
-const LOW_CHAIN=new Set(['Demi-dieu','Cyborg','Titan']);
-const HIGH_CHAIN=new Set(['Divinité','N.E.X.U.S.','Titan primordial']);
-const REINFORCED=new Set(['Dieu céleste','Neoxus','Titan fondateur']);
-const HIGH_TO_LOW={'Divinité':'Demi-dieu','N.E.X.U.S.':'Cyborg','Titan primordial':'Titan'};
-const REINFORCED_TO_HIGH={'Dieu céleste':'Divinité','Neoxus':'N.E.X.U.S.','Titan fondateur':'Titan primordial'};
-const CHAIN={
-'Demi-dieu':0,'Divinité':1,'Dieu céleste':2,
-'Cyborg':0,'N.E.X.U.S.':1,'Neoxus':2,
-'Titan':0,'Titan primordial':1,'Titan fondateur':2
-};
-const CHAIN_FAMILY={
-'Demi-dieu':'divine','Divinité':'divine','Dieu céleste':'divine',
-'Cyborg':'nexus','N.E.X.U.S.':'nexus','Neoxus':'nexus',
-'Titan':'titan','Titan primordial':'titan','Titan fondateur':'titan'
-};
-const SPECIAL_CROSS={
-'Divinité|N.E.X.U.S.':'Deus Machina','Divinité|Titan primordial':'Titan céleste','N.E.X.U.S.|Titan primordial':'Colosse Nexus'
-};
-const SPECIAL_PARTS={
-'Deus Machina':['Divinité','N.E.X.U.S.'],'Titan céleste':['Divinité','Titan primordial'],'Colosse Nexus':['N.E.X.U.S.','Titan primordial'],
-'Dieu céleste':['Divinité'],'Neoxus':['N.E.X.U.S.'],'Titan fondateur':['Titan primordial']
-};
 
 const alienBiologyTraits=[
   'Vision thermique',
@@ -1788,51 +2145,95 @@ const NPC_JOBS=['Artisan','Marchand','Érudit','Médecin','Explorateur','Mercena
 const CHILD_NAME_START=['Ael','Ny','Ka','Va','Iri','Ze','Or','Tha','Ly','Sa','Myr','Eli','No','Ra','Shi','Vor','Ae','Ky'];
 const CHILD_NAME_MID=['ra','li','en','or','ae','yn','is','va','eth','io','ar','un'];
 const CHILD_NAME_END=['n','a','is','or','el','yx','ia','en','os','ar','eth','i'];
-function loadStore(key,fallback){try{const x=JSON.parse(localStorage.getItem(key)||'null');return x??fallback}catch(e){return fallback}}
-function saveStore(key,v){localStorage.setItem(key,JSON.stringify(v)); if(typeof queueCloudUniverseSync==='function') queueCloudUniverseSync()}
-function descendants(){return loadStore(STORAGE_DESC,{})}
-function npcs(){return loadStore(STORAGE_NPCS,{})}
-function saveUniverseMeta(meta){saveStore(STORAGE_META,meta)}
-function universeMeta(){const m=loadStore(STORAGE_META,{nextDesc:1,nextNpc:1,selectedBySeason:{},champions:{},championTeam:[],multiplayerStats:{}});m.selectedBySeason??={};m.champions??={};m.championTeam=Array.isArray(m.championTeam)?m.championTeam:[];m.championTeamDraft=Array.isArray(m.championTeamDraft)?m.championTeamDraft:[];m.multiplayerStats=(m.multiplayerStats&&typeof m.multiplayerStats==='object')?m.multiplayerStats:{};m.multiplayerStats.teamWins=Number(m.multiplayerStats.teamWins)||0;m.multiplayerStats.teamLosses=Number(m.multiplayerStats.teamLosses)||0;m.multiplayerStats.duelWins=Number(m.multiplayerStats.duelWins)||0;m.multiplayerStats.duelLosses=Number(m.multiplayerStats.duelLosses)||0;m.multiplayerStats.teamHistory=Array.isArray(m.multiplayerStats.teamHistory)?m.multiplayerStats.teamHistory.slice(0,10):[];m.multiplayerStats.duelHistory=Array.isArray(m.multiplayerStats.duelHistory)?m.multiplayerStats.duelHistory.slice(0,10):[];return m}
+function loadStore(key,fallback){
+  return loadJsonStore(
+    localStorage,
+    key,
+    fallback
+  );
+}
+
+function saveStore(key,value){
+  saveJsonStore(
+    localStorage,
+    key,
+    value
+  );
+
+  if(
+    typeof queueCloudUniverseSync===
+    'function'
+  ){
+    queueCloudUniverseSync();
+  }
+
+  return value;
+}
+
+function descendants(){
+  return loadJsonStore(
+    localStorage,
+    STORAGE_DESC,
+    {}
+  );
+}
+
+function npcs(){
+  return loadJsonStore(
+    localStorage,
+    STORAGE_NPCS,
+    {}
+  );
+}
+
+function saveUniverseMeta(meta){
+  return saveStore(
+    STORAGE_META,
+    meta
+  );
+}
+
+function universeMeta(){
+  return loadUniverseMetaFromStorage(
+    localStorage,
+    STORAGE_META
+  );
+}
 function rpick(a){return a[Math.floor(Math.random()*a.length)]}
 function chance(p){return Math.random()*100<p}
 function weightedValue(items){let r=Math.random()*items.reduce((s,x)=>s+x[1],0);for(const [v,w] of items){r-=w;if(r<0)return v}return items[items.length-1][0]}
 function centeredRoll(){return parseInt(weightedValue([[1,2],[2,4],[3,8],[4,14],[5,22],[6,22],[7,14],[8,8],[9,4],[10,2]]),10)}
 function childName(){return rpick(CHILD_NAME_START)+(chance(50)?rpick(CHILD_NAME_MID):'')+rpick(CHILD_NAME_END)}
 function baseComponentList(s){
-  if(!s)return ['Humain'];
-  if(SPECIAL_PARTS[s.race])return [...SPECIAL_PARTS[s.race]];
-  let parts=(s.raceParts||[]).filter(x=>mods[x]||CHAIN[x]!==undefined||ORDINARY_COMPONENTS.includes(x));
-  parts=parts.filter(x=>!['Ascension Demi-dieu','Martial God'].includes(x));
-  if(!parts.length && s.race) parts=[s.race];
-  return [...new Set(parts.flatMap(x=>SPECIAL_PARTS[x]||[x]))];
+  const known=[
+    ...new Set([
+      ...ORDINARY_COMPONENTS,
+      ...Object.keys(mods||{})
+    ])
+  ];
+
+  return baseComponentListPure(s,known);
 }
-function transmittedComponent(s){let p=baseComponentList(s);return rpick(p)}
-function isOrdinary(c){return !LOW_CHAIN.has(c)&&!HIGH_CHAIN.has(c)&&!REINFORCED.has(c)}
-function combineComponents(a,b){
-  a=REINFORCED_TO_HIGH[a]||a;b=REINFORCED_TO_HIGH[b]||b;
-  if(a===b){
-    if(a==='Demi-dieu')return {race:'Divinité',parts:['Divinité']};
-    if(a==='Divinité')return {race:'Dieu céleste',parts:['Dieu céleste']};
-    if(a==='Cyborg')return {race:'N.E.X.U.S.',parts:['N.E.X.U.S.']};
-    if(a==='N.E.X.U.S.')return {race:'Neoxus',parts:['Neoxus']};
-    if(a==='Titan')return {race:'Titan primordial',parts:['Titan primordial']};
-    if(a==='Titan primordial')return {race:'Titan fondateur',parts:['Titan fondateur']};
-    return {race:a,parts:[a]};
-  }
-  if(CHAIN_FAMILY[a]&&CHAIN_FAMILY[a]===CHAIN_FAMILY[b]){
-    const winner=CHAIN[a]>=CHAIN[b]?a:b;return {race:winner,parts:[winner]};
-  }
-  if(HIGH_CHAIN.has(a)&&isOrdinary(b))a=HIGH_TO_LOW[a];
-  if(HIGH_CHAIN.has(b)&&isOrdinary(a))b=HIGH_TO_LOW[b];
-  const key=[a,b].sort((x,y)=>['Divinité','N.E.X.U.S.','Titan primordial'].indexOf(x)-['Divinité','N.E.X.U.S.','Titan primordial'].indexOf(y)).join('|');
-  if(SPECIAL_CROSS[key])return {race:SPECIAL_CROSS[key],parts:[a,b]};
-  return {race:`${a}/${b}`,parts:[a,b]};
-}
+
 function singleParentRace(s){
-  let c=transmittedComponent(s);c=HIGH_TO_LOW[c]||c;c=REINFORCED_TO_HIGH[c]||c;
-  return {race:c,parts:[c]};
+  return singleParentRaceFromComponent(
+    transmittedComponent(s)
+  );
 }
+
+function chooseOtherFighter(parent,roster){
+  const candidates=
+    compatiblePartnerCandidates(
+      parent,
+      roster
+    );
+
+  return candidates.length
+    ? rpick(candidates)
+    : null;
+}
+
+function transmittedComponent(s){let p=baseComponentList(s);return rpick(p)}
 
 function rollAlienBiology(){
   const statKeys=['Combat','Pouvoir','Arme','Intelligence','Résilience','Vitesse','Force'];
@@ -1856,105 +2257,86 @@ function raceTraitsFor(race,parts){
   if(!list.length) list=(parts||[]).flatMap(p=>RACIAL_TRAITS[p]||[]);
   return [...new Set(list)].map(name=>({name,origin:race,active:ACTIVE_RACIAL_TRAITS.has(name),mastery:ACTIVE_RACIAL_TRAITS.has(name)?centeredRoll():null,natural:true}));
 }
-function parentMutationTraits(s){
-  let out=[];
-  for(const m of (s?.mutations||[])) if(m?.name) out.push(m);
-  for(const d of (s?.extraDetail||[])) if(d.kind==='Mutation'&&d.manifestation) out.push({name:d.manifestation,origin:s.id,hereditary:false});
-  return out;
-}
 function inheritMutations(pa,pb){
-  const map={};
-  for(const p of [pa,pb].filter(Boolean))for(const m of parentMutationTraits(p)){if(!map[m.name])map[m.name]=[];map[m.name].push(p.id||p.name||'PNJ')}
-  let out=[];
-  for(const [name,origins] of Object.entries(map)){
-    const prob=origins.length>=2?50:25;
-    if(chance(prob))out.push({name,originIds:[...new Set(origins)],hereditary:true,transmissionChance:25});
-  }
-  return out;
-}
-function personalPowers(s){
-  let arr=[];
-  for(const p of (s?.powers||[]))if(p?.name)arr.push({name:p.name,source:s.id||s.name});
-  if(s?.chi)arr.push({name:'Chi',source:s.id||s.name});
-  if(s?.npcPower)arr.push({name:s.npcPower,source:s.id||s.name});
-  return arr;
+  return inheritMutationsForChild({
+    parentA:pa,
+    parentB:pb,
+    parentMutationTraits,
+    chance
+  });
 }
 function inheritPowers(pa,pb){
-  const map={};
-  for(const p of [pa,pb].filter(Boolean))for(const pow of personalPowers(p)){if(!map[pow.name])map[pow.name]=[];map[pow.name].push(pow.source)}
-  let out=[];
-  for(const [name,origins] of Object.entries(map)){
-    if(chance(origins.length>=2?50:25))out.push({name,mastery:centeredRoll(),inherited:true,origins:[...new Set(origins)]});
-  }
-  return out;
-}
-function normalizeGenderValue(g){return g==='Homme'?'Mâle':g==='Femme'?'Femelle':g;}
-function compatibleGender(a,b){a=normalizeGenderValue(a);b=normalizeGenderValue(b);return (a==='Mâle'&&b==='Femelle')||(a==='Femelle'&&b==='Mâle')||(a==='Autre / indéterminé'&&b==='Autre / indéterminé');}
-function incompatibleReinforcedRace(a,b){
-  const ra=REINFORCED.has(a?.race), rb=REINFORCED.has(b?.race);
-  return ra&&rb&&a.race!==b.race;
+  return inheritPowersForChild({
+    parentA:pa,
+    parentB:pb,
+    personalPowers,
+    chance,
+    masteryRoll:centeredRoll
+  });
 }
 function makeNpc(parent,meta,npcStore){
-  let id=`PNJ-${String(meta.nextNpc++).padStart(3,'0')}`;
-  let pg=normalizeGenderValue(parent.gender); let gender=pg==='Mâle'?'Femelle':pg==='Femelle'?'Mâle':'Autre / indéterminé';
-  let race=rpick([...ORDINARY_COMPONENTS,'Demi-dieu','Divinité','Titan','Titan primordial','Cyborg','N.E.X.U.S.']);
-  let npc={id,name:childName(),gender,race,raceParts:[race],job:rpick(NPC_JOBS),appearance:{age:rpick(['Jeune adulte','Adulte','Mature','Âgé']),body:rpick(bodies),c1:rpick(colors.filter(x=>x!=='Couleur unique')),c2:rpick(colors.filter(x=>x!=='Couleur unique')),sign:rpick(signs.filter(x=>x!=='Signe unique'))},racialTraits:raceTraitsFor(race,[race]),npcPower:rpick(powers.filter(x=>x!=='Pouvoir unique')),genealogy:{parents:[],children:[],siblings:[],generation:1,lineage:[],partnerLinks:[]},status:'PNJ extérieur'};
-  npcStore[id]=npc;return npc;
+  return createExternalNpc({
+    parent,
+    meta,
+    npcStore,
+    ordinaryComponents:ORDINARY_COMPONENTS,
+    jobs:NPC_JOBS,
+    bodies,
+    colors,
+    signs,
+    powers,
+    randomPick:rpick,
+    childName,
+    normalizeGenderValue,
+    raceTraitsFor
+  });
 }
-function chooseOtherFighter(parent,roster){
-  let candidates=Object.values(roster).filter(x=>x.id!==parent.id&&compatibleGender(parent.gender,x.gender)&&!incompatibleReinforcedRace(parent,x));
-  return candidates.length?rpick(candidates):null;
-}
-function inheritedAppearance(pa,pb,finalRace){
-  const fresh=()=>({body:rpick(bodies),c1:rpick(colors.filter(x=>x!=='Couleur unique')),c2:rpick(colors.filter(x=>x!=='Couleur unique')),sign:rpick(signs.filter(x=>x!=='Signe unique'))});
-  let f=fresh(), app={};
-  if(pb){
-    app.body=weightedValue([[pa.appearance?.body||f.body,40],[pb.appearance?.body||f.body,40],[f.body,20]]);
-    app.c1=weightedValue([[pa.appearance?.c1||f.c1,40],[pb.appearance?.c1||f.c1,40],[f.c1,20]]);
-    app.c2=weightedValue([[pa.appearance?.c2||f.c2,40],[pb.appearance?.c2||f.c2,40],[f.c2,20]]);
-    app.sign=weightedValue([[pa.appearance?.sign||f.sign,25],[pb.appearance?.sign||f.sign,25],[f.sign,50]]);
-  }else app=f;
-  app.age='À tirer lors de l’entrée en tournoi';
-  return app;
+function inheritedAppearance(
+  pa,
+  pb,
+  finalRace
+){
+  return inheritedAppearanceForChild({
+    parentA:pa,
+    parentB:pb,
+    bodies,
+    colors,
+    signs,
+    randomPick:rpick,
+    weightedValue
+  });
 }
 function mutationForChild(raceInfo){
-  if(!chance(10))return null;
-  const ascensible={'Demi-dieu':'Divinité','Cyborg':'N.E.X.U.S.','Titan':'Titan primordial'};
-  const eligible=(raceInfo.parts||[]).filter(p=>ascensible[p]);
-  if(eligible.length&&chance(12)){
-    const from=rpick(eligible),to=ascensible[from];
-    raceInfo.parts=raceInfo.parts.map(p=>p===from?to:p);
-    if(raceInfo.parts.length===1){raceInfo.race=to}
-    else{let c=combineComponents(raceInfo.parts[0],raceInfo.parts[1]);raceInfo.race=c.race;raceInfo.parts=c.parts}
-    return {name:`Ascension raciale : ${from} → ${to}`,type:'Ascension raciale',hereditary:false};
-  }
-  return {name:rpick(CHILD_MUTATIONS),type:'Mutation',hereditary:false};
+  return mutationForChildRace({
+    raceInfo,
+    mutations:CHILD_MUTATIONS,
+    chance,
+    randomPick:rpick,
+    combineComponents
+  });
 }
-function mergedLineage(pa,pb){
-  let x=[];
-  for(const p of [pa,pb].filter(Boolean)){
-    const l=p.genealogy?.lineage?.length?p.genealogy.lineage:[p.id||p.name];
-    x.push(...l);
-  }
-  return [...new Set(x.filter(Boolean))];
+function childCountRoll(){
+  return childCountRollFor(
+    Math.random
+  );
 }
-function childCountRoll(){let r=Math.random()*100;if(r<90)return 1;if(r<98)return 2;if(r<99.5)return 3;return 4+Math.floor(Math.random()*5)}
 // V20 — migration unique : tout descendant existant avant ce moteur devient Legacy.
 function migrateExistingDescendantsToLegacy(){
   const meta=universeMeta();
   const ds=descendants();
-  let changed=false;
-  // Tout descendant provenant de l'ancien moteur n'a pas de fullFighterData figée.
-  // On le marque Legacy même si une tentative précédente avait déjà posé engineVersion=20.
-  // Cela évite qu'un ancien DESC puisse à nouveau bloquer ou piloter les roues normales.
-  for(const d of Object.values(ds)){
-    if(!d || d.fullFighterData)continue;
-    if(!d.legacy){d.legacy=true;changed=true;}
-    const legacyStatus=d.status?.includes('Legacy')?d.status:`Legacy — ${d.status||'ancien descendant'}`;
-    if(d.status!==legacyStatus){d.status=legacyStatus;changed=true;}
+
+  const result=migrateLegacyDescendants({
+    descendants:ds,
+    meta,
+    engineVersion:20
+  });
+
+  if(result.changed){
+    saveStore(STORAGE_DESC,ds);
+    saveStore(STORAGE_META,meta);
   }
-  if(Number(meta.descendantEngineVersion||0)<20){meta.descendantEngineVersion=20;changed=true;}
-  if(changed){saveStore(STORAGE_DESC,ds);saveStore(STORAGE_META,meta);}
+
+  return result.changed;
 }
 
 // Génère une fiche complète avec EXACTEMENT le moteur normal, sans rendu, sauvegarde de
@@ -1996,189 +2378,397 @@ function generateCompleteDescendantData(child){
   }
 }
 
-function createChild(pa,pb,origin,event,meta,descStore){
-  let raceInfo=pb?combineComponents(transmittedComponent(pa),transmittedComponent(pb)):singleParentRace(pa);
-  let mutation=mutationForChild(raceInfo);
-  let inheritedMut=inheritMutations(pa,pb);
-  if(mutation&&mutation.type!=='Ascension raciale')inheritedMut.push(mutation);
-  let id=`DESC-${String(meta.nextDesc++).padStart(4,'0')}`;
-  let generation=Math.max(pa.genealogy?.generation||1,pb?.genealogy?.generation||1)+1;
-  let child={id,name:childName(),status:`Descendant complet — en attente de sélection S${event.eligibleSeason}`,birthSeason:event.birthSeason,eligibleSeason:event.eligibleSeason,selectedForSeason:null,origin,parentIds:[pa.id,...(pb?[pb.id]:[])],gender:rpick(['Mâle','Femelle','Autre / indéterminé']),race:raceInfo.race,raceParts:raceInfo.parts,racialTraits:raceTraitsFor(raceInfo.race,raceInfo.parts),inheritedPowers:inheritPowers(pa,pb),mutations:inheritedMut,appearance:inheritedAppearance(pa,pb,raceInfo.race),genealogy:{parents:[pa.id,...(pb?[pb.id]:[])],children:[],siblings:[],generation,lineage:mergedLineage(pa,pb),partnerLinks:[]},fighterDataGenerated:true,legacy:false};
-  child.fullFighterData=generateCompleteDescendantData(child);
-  // La fiche complète devient la source de vérité du descendant dès sa naissance.
-  if(child.fullFighterData){
-    child.name=child.fullFighterData.name||child.name;
-    child.race=child.fullFighterData.race||child.race;
-    child.raceParts=JSON.parse(JSON.stringify(child.fullFighterData.raceParts||child.raceParts));
-    child.gender=child.fullFighterData.gender||child.gender;
-    child.appearance=JSON.parse(JSON.stringify(child.fullFighterData.appearance||child.appearance));
-  }
-  descStore[id]=child;return child;
+function createChild(
+  pa,
+  pb,
+  origin,
+  event,
+  meta,
+  descStore
+){
+  const child=
+    createDescendantBase({
+      parentA:pa,
+      parentB:pb,
+      origin,
+      event,
+      meta,
+
+      randomPick:rpick,
+      childName,
+
+      transmittedComponent,
+      singleParentRace,
+      combineComponents,
+
+      mutationForChild,
+      inheritMutations,
+      inheritPowers,
+      inheritedAppearance,
+      raceTraitsFor,
+      mergedLineage
+    });
+
+  child.fullFighterData=
+    generateCompleteDescendantData(
+      child
+    );
+
+  applyGeneratedDescendantData(
+    child,
+    child.fullFighterData
+  );
+
+  descStore[child.id]=child;
+
+  return child;
 }
 function cleanupPrematureBirths(){
-  const roster=loadRoster(), d=descendants(), npcStore=npcs();
-  const removedIds=new Set();
-  // Cible uniquement les enfants créés par l'ancien bug :
-  // naissance issue d'une saison qui n'est PAS encore officiellement arrivée à sa transition.
-  for(const child of Object.values(d||{})){
-    if(!child||child.selectedForSeason!=null)continue;
-    const bs=Number(child.birthSeason);
-    if(!Number.isFinite(bs))continue;
-    if(seasonCompleted(bs)&&tournamentChampionForSeason(bs))continue;
-    if(Number(child.eligibleSeason)!==bs+1)continue;
-    removedIds.add(child.id);
+  const roster=loadRoster();
+  const d=descendants();
+  const npcStore=npcs();
+
+  const removed=
+    cleanupPrematureDescendants({
+      roster,
+      descendants:d,
+      npcs:npcStore,
+
+      seasonCompleted,
+      tournamentChampionForSeason,
+      ensureGenealogyShape
+    });
+
+  if(!removed)
+    return 0;
+
+  saveRoster(roster);
+
+  saveStore(
+    STORAGE_DESC,
+    d
+  );
+
+  saveStore(
+    STORAGE_NPCS,
+    npcStore
+  );
+
+  if(
+    typeof saveEmergencyLocalBackup===
+    'function'
+  ){
+    saveEmergencyLocalBackup();
   }
-  if(!removedIds.size)return 0;
 
-  for(const id of removedIds)delete d[id];
-
-  // Nettoie toutes les références laissées dans les combattants et PNJ parents.
-  const cleanPerson=p=>{
-    if(!p)return;
-    ensureGenealogyShape(p);
-    p.genealogy.children=(p.genealogy.children||[]).filter(id=>!removedIds.has(id));
-    p.genealogy.siblings=(p.genealogy.siblings||[]).filter(id=>!removedIds.has(id));
-    for(const ev of (p.extraDetail||[])){
-      if(ev?.kind!=='Enfant')continue;
-      const kept=birthEventChildIds(ev).filter(id=>!removedIds.has(id));
-      ev.childIds=kept;delete ev.childId;
-      if(!kept.length){
-        ev.status='Naissance en attente de résolution';
-        // Conserver birthSeason/eligibleSeason : l'événement devra être résolu
-        // normalement à la fin de SA saison.
-      }else{
-        ev.status=`${kept.length} naissance${kept.length>1?'s':''} résolue${kept.length>1?'s':''}`;
-      }
-    }
-  };
-  Object.values(roster||{}).forEach(cleanPerson);
-  Object.values(npcStore||{}).forEach(cleanPerson);
-  Object.values(d||{}).forEach(cleanPerson);
-
-  saveRoster(roster);saveStore(STORAGE_DESC,d);saveStore(STORAGE_NPCS,npcStore);
-  if(typeof saveEmergencyLocalBackup==='function')saveEmergencyLocalBackup();
-  return removedIds.size;
+  return removed;
 }
 async function resolveBirthEvents(){
   saveCurrentCharacter();
-  if(seasonCompleted(seasonNumber)&&!tournamentChampionForSeason(seasonNumber)){
-    alert(`La transition de S${seasonNumber} est verrouillée : termine d'abord le tournoi et obtiens un champion avant de résoudre les naissances.`);
-    showTab('tournament');renderTournament();return;
+
+  if(
+    seasonCompleted(seasonNumber) &&
+    !tournamentChampionForSeason(
+      seasonNumber
+    )
+  ){
+    alert(
+      `La transition de S${seasonNumber} est verrouillée : termine d'abord le tournoi et obtiens un champion avant de résoudre les naissances.`
+    );
+
+    showTab('tournament');
+    renderTournament();
+    return;
   }
-  const roster=loadRoster(), descStore=descendants(), npcStore=npcs(), meta=universeMeta();
-  repairMissingBirthEvents(roster,descStore);
-  // Une naissance appartient toujours à la saison où l'Extra « Possède un enfant » a été obtenu.
-  // On peut donc la résoudre plus tard sans la déplacer vers la saison courante.
-  let made=0, events=0, skippedIncomplete=0;
-  const resolvedByBirthSeason={};
-  for(const pa of Object.values(roster)){
-    ensureGenealogyShape(pa);
-    for(const ev of (pa.extraDetail||[]).filter(x=>x?.kind==='Enfant'&&birthEventChildIds(x).length===0)){
-      const sourceSeason=Number(ev.birthSeason||characterSeasonFromId(pa,seasonNumber));
-      // Une naissance n'est résolue qu'à la transition officielle de sa saison :
-      // 64 personnages terminés + champion. Jamais pendant la saison suivante en cours.
-      if(!seasonCompleted(sourceSeason)||!tournamentChampionForSeason(sourceSeason))continue;
-      ev.birthSeason=Number(ev.birthSeason||characterSeasonFromId(pa,seasonNumber));
-      // Ne jamais traiter comme future une naissance provenant d'une saison qui n'a pas encore eu lieu.
-      if(ev.birthSeason>seasonNumber) continue;
-      ev.eligibleSeason=Number(ev.eligibleSeason||ev.birthSeason+1);
-      events++;
-      resolvedByBirthSeason[ev.birthSeason]=(resolvedByBirthSeason[ev.birthSeason]||0)+1;
-      if(!ev.birthEventId) ev.birthEventId=`BIRTH-${pa.id}`;
-      let origin=weightedValue([['Autre combattant',50],['PNJ extérieur',30],['Parent unique',10],['Origine improbable',10]]);
-      let pb=null;
-      if(origin==='Autre combattant'){
-        pb=chooseOtherFighter(pa,roster);
-        if(!pb){origin='PNJ extérieur';pb=makeNpc(pa,meta,npcStore)}
-      }else if(origin==='PNJ extérieur')pb=makeNpc(pa,meta,npcStore);
-      let improbable=null;
-      if(origin==='Origine improbable')improbable=rpick(IMPROBABLE_ORIGINS);
-      ev.origin=improbable?`${origin} — ${improbable}`:origin;
-      ev.otherParentId=pb?.id||null;
-      ev.childIds=[];
-      delete ev.childId;
-      let n=childCountRoll(), siblings=[];
-      for(let i=0;i<n;i++){
-        let child=createChild(pa,pb,ev.origin,ev,meta,descStore);
-        ev.childIds.push(child.id);siblings.push(child.id);made++;
-      }
-      for(const id of siblings)descStore[id].genealogy.siblings=siblings.filter(x=>x!==id);
-      pa.genealogy.children=[...new Set([...(pa.genealogy.children||[]),...siblings])];
-      if(pb){
-        ensureGenealogyShape(pb);
-        pb.genealogy.children=[...new Set([...(pb.genealogy.children||[]),...siblings])];
-        pa.genealogy.partnerLinks=[...new Set([...(pa.genealogy.partnerLinks||[]),pb.id])];
-        pb.genealogy.partnerLinks=[...new Set([...(pb.genealogy.partnerLinks||[]),pa.id])];
-        if(roster[pb.id])roster[pb.id]=pb;else npcStore[pb.id]=pb;
-      }
-      ev.status=`${n} naissance${n>1?'s':''} résolue${n>1?'s':''}`;
+
+  const roster=loadRoster();
+  const descStore=descendants();
+  const npcStore=npcs();
+  const meta=universeMeta();
+
+  repairMissingBirthEvents(
+    roster,
+    descStore
+  );
+
+  const result=
+    resolveBirthEventsInStores({
+      roster,
+      descendants:descStore,
+      npcs:npcStore,
+      meta,
+      currentSeason:seasonNumber,
+
+      birthEventChildIds,
+      characterSeasonFromId,
+      seasonCompleted,
+      tournamentChampionForSeason,
+      ensureGenealogyShape,
+
+      weightedValue,
+      randomPick:rpick,
+      improbableOrigins:
+        IMPROBABLE_ORIGINS,
+
+      chooseOtherFighter,
+      makeNpc,
+      childCountRoll,
+      createChild
+    });
+
+  saveRoster(roster);
+
+  saveStore(
+    STORAGE_DESC,
+    descStore
+  );
+
+  saveStore(
+    STORAGE_NPCS,
+    npcStore
+  );
+
+  saveStore(
+    STORAGE_META,
+    meta
+  );
+
+  if(
+    typeof saveEmergencyLocalBackup===
+    'function'
+  ){
+    saveEmergencyLocalBackup();
+  }
+
+  if(
+    typeof cloudSyncAllData===
+    'function'
+  ){
+    try{
+      await cloudSyncAllData();
+    }catch(e){
+      console.warn(
+        'Sync naissances',
+        e
+      );
     }
-    roster[pa.id]=pa;
   }
-  saveRoster(roster);saveStore(STORAGE_DESC,descStore);saveStore(STORAGE_NPCS,npcStore);saveStore(STORAGE_META,meta);
-  // Sauvegarde locale immédiatement après la naissance : elle permet une restauration
-  // même si l'onglet est fermé ou rechargé pendant la synchronisation Supabase.
-  if(typeof saveEmergencyLocalBackup==='function')saveEmergencyLocalBackup();
-  if(typeof cloudSyncAllData==='function'){
-    try{await cloudSyncAllData()}catch(e){console.warn('Sync naissances',e)}
-  }
-  // Une saison complète ne valide cette étape qu'une fois toutes ses naissances effectivement résolues.
-  for(let s=1;s<=seasonNumber;s++){
-    if(seasonCompleted(s)&&tournamentChampionForSeason(s)&&pendingBirthEventsForSeason(s).length===0){
+
+  for(
+    let s=1;
+    s<=seasonNumber;
+    s++
+  ){
+    if(
+      seasonCompleted(s) &&
+      tournamentChampionForSeason(s) &&
+      pendingBirthEventsForSeason(s)
+        .length===0
+    ){
       markBirthResolutionComplete(s);
     }
   }
-  renderRoster();renderGenealogy();
-  const suffix=skippedIncomplete?`\n\n${skippedIncomplete} personnage${skippedIncomplete>1?'s':''} encore en cours de génération n${skippedIncomplete>1?'ont':'a'} pas été traité${skippedIncomplete>1?'s':''}.`:'';
-  const seasons=Object.keys(resolvedByBirthSeason).map(Number).sort((a,b)=>a-b);
-  const seasonText=seasons.length?seasons.map(s=>`S${s} → éligible S${s+1}`).join(', '):'';
-  alert(events?`${made} descendant${made>1?'s':''} généré${made>1?'s':''} à partir de ${events} événement${events>1?'s':''}.${seasonText?`\n${seasonText}`:''}${suffix}`:`Aucune naissance en attente à résoudre jusqu'à S${seasonNumber}.${suffix}`);
+
+  renderRoster();
+  renderGenealogy();
+
+  const suffix=
+    result.skippedIncomplete
+      ? `\n\n${result.skippedIncomplete} personnage${result.skippedIncomplete>1?'s':''} encore en cours de génération n${result.skippedIncomplete>1?'ont':'a'} pas été traité${result.skippedIncomplete>1?'s':''}.`
+      : '';
+
+  const seasons=
+    Object.keys(
+      result.resolvedByBirthSeason
+    )
+      .map(Number)
+      .sort((a,b)=>a-b);
+
+  const seasonText=
+    seasons.length
+      ? seasons
+          .map(
+            s=>
+              `S${s} → éligible S${s+1}`
+          )
+          .join(', ')
+      : '';
+
+  alert(
+    result.events
+      ? `${result.made} descendant${result.made>1?'s':''} généré${result.made>1?'s':''} à partir de ${result.events} événement${result.events>1?'s':''}.${seasonText?`\n${seasonText}`:''}${suffix}`
+      : `Aucune naissance en attente à résoudre jusqu'à S${seasonNumber}.${suffix}`
+  );
 }
 function selectDescendantsForNextSeason(){
   migrateExistingDescendantsToLegacy();
+
   const completedSeason=seasonNumber;
-  if(!seasonCompleted(completedSeason)){alert(`La sélection des descendants de S${completedSeason+1} ne s'ouvre qu'une fois S${completedSeason}-064 terminé.`);return}
-  if(!tournamentChampionForSeason(completedSeason)){alert(`Termine d'abord le tournoi de S${completedSeason} et obtiens son champion.`);showTab('tournament');renderTournament();return}
-  if(!birthsResolvedForSeason(completedSeason)){alert(`Résous d'abord les naissances de S${completedSeason}.`);return}
-  const d=descendants(), meta=universeMeta(), roster=loadRoster();
-  const target=completedSeason+1;
-  let eligible=Object.values(d).filter(x=>!x.legacy&&Number(x.eligibleSeason)===target&&x.selectedForSeason==null&&x.fullFighterData);
+
+  if(!seasonCompleted(completedSeason)){
+    alert(
+      `La sélection des descendants de S${completedSeason+1} ne s'ouvre qu'une fois S${completedSeason}-064 terminé.`
+    );
+    return;
+  }
+
+  if(
+    !tournamentChampionForSeason(
+      completedSeason
+    )
+  ){
+    alert(
+      `Termine d'abord le tournoi de S${completedSeason} et obtiens son champion.`
+    );
+
+    showTab('tournament');
+    renderTournament();
+    return;
+  }
+
+  if(
+    !birthsResolvedForSeason(
+      completedSeason
+    )
+  ){
+    alert(
+      `Résous d'abord les naissances de S${completedSeason}.`
+    );
+    return;
+  }
+
+  const d=descendants();
+  const meta=universeMeta();
+  const roster=loadRoster();
+
+  const target=
+    completedSeason+1;
+
+  const eligible=
+    eligibleDescendantsForSeason(
+      d,
+      target
+    );
+
   if(!eligible.length){
-    meta.selectedBySeason[target]=[];saveStore(STORAGE_META,meta);markDescendantSelectionComplete(completedSeason);
-    alert(`Aucun descendant éligible pour S${target}. La transition est validée et la roue de S${target} est débloquée.`);
-    activateNextSeasonAfterTransition(completedSeason);return;
+    meta.selectedBySeason??={};
+    meta.selectedBySeason[target]=[];
+
+    saveStore(
+      STORAGE_META,
+      meta
+    );
+
+    markDescendantSelectionComplete(
+      completedSeason
+    );
+
+    alert(
+      `Aucun descendant éligible pour S${target}. La transition est validée et la roue de S${target} est débloquée.`
+    );
+
+    activateNextSeasonAfterTransition(
+      completedSeason
+    );
+
+    return;
   }
-  for(let i=eligible.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[eligible[i],eligible[j]]=[eligible[j],eligible[i]]}
-  const selected=eligible.slice(0,20), chosen=new Set(selected.map(x=>x.id));
-  const occupied=new Set(Object.keys(roster).filter(id=>id.startsWith(`S${target}-`)).map(id=>Number(id.split('-')[1])));
-  const free=[];for(let n=1;n<=CHARACTERS_PER_SEASON;n++)if(!occupied.has(n))free.push(n);
-  if(free.length<selected.length){alert(`Impossible d'intégrer ${selected.length} descendants : seulement ${free.length} emplacement(s) libre(s) en S${target}.`);return}
-  const portraits=[];
-  for(const x of eligible){
-    if(chosen.has(x.id)){
-      const n=free.shift(), fid=`S${target}-${String(n).padStart(3,'0')}`;
-      const fighter=JSON.parse(JSON.stringify(x.fullFighterData));
-      fighter.id=fid;fighter.instanceId=newCharacterInstanceId();fighter.isDescendant=true;fighter.descendantSourceId=x.id;
-      fighter._generationComplete=true;fighter._autoSavedAtFinish=true;fighter._portraitGenerated=false;
-      ensureGenealogyShape(fighter);fighter.genealogy.parents=[...(x.parentIds||[])];
-      roster[fid]=fighter;
-      x.selectedForSeason=target;x.fighterId=fid;x.status=`Combattant S${target} — ${fid}`;x.fighterDataGenerated=true;
-      portraits.push(fid);
-    }else{
-      x.selectedForSeason=false;x.status='PNJ descendant — non sélectionné';x.fighterId=null;
-    }
-    d[x.id]=x;
+
+  const free=
+    freeFighterNumbersForSeason({
+      roster,
+      season:target,
+      charactersPerSeason:
+        CHARACTERS_PER_SEASON
+    });
+
+  const wanted=
+    Math.min(
+      20,
+      eligible.length
+    );
+
+  if(free.length<wanted){
+    alert(
+      `Impossible d'intégrer ${wanted} descendants : seulement ${free.length} emplacement(s) libre(s) en S${target}.`
+    );
+    return;
   }
-  meta.selectedBySeason[target]=selected.map(x=>x.id);
-  saveRoster(roster);saveStore(STORAGE_DESC,d);saveStore(STORAGE_META,meta);
-  // Les IDs S+1 n'existent qu'après la sélection. Une fois attribués aux descendants,
-  // le curseur normal est placé sur le premier ID libre (ex. 4 descendants => S+1-005).
-  markDescendantSelectionComplete(completedSeason);
-  renderRoster();renderGenealogy();
-  activateNextSeasonAfterTransition(completedSeason);
-  // L'image n'est demandée qu'une fois le descendant devenu combattant.
-  for(const fid of portraits)setTimeout(()=>invokeCharacterImageGeneration(fid).catch(console.error),200);
-  alert(`${selected.length} descendant${selected.length>1?'s':''} intégré${selected.length>1?'s':''} comme combattant${selected.length>1?'s':''} de S${target}${eligible.length>20?` sur ${eligible.length} éligibles`:''}. Les autres deviennent PNJ.`);
+
+  const selection=
+    selectDescendantsForSeason({
+      descendants:d,
+      roster,
+      season:target,
+      charactersPerSeason:
+        CHARACTERS_PER_SEASON,
+      maxSelected:20,
+      newInstanceId:
+        newCharacterInstanceId,
+      ensureGenealogyShape
+    });
+
+  meta.selectedBySeason??={};
+
+  meta.selectedBySeason[target]=
+    selection.selectedIds;
+
+  saveRoster(roster);
+
+  saveStore(
+    STORAGE_DESC,
+    d
+  );
+
+  saveStore(
+    STORAGE_META,
+    meta
+  );
+
+  markDescendantSelectionComplete(
+    completedSeason
+  );
+
+  if(
+    typeof saveEmergencyLocalBackup===
+    'function'
+  ){
+    saveEmergencyLocalBackup();
+  }
+
+  if(
+    typeof cloudSyncAllData===
+    'function'
+  ){
+    cloudSyncAllData()
+      .catch(
+        e=>
+          console.warn(
+            'Sync descendants',
+            e
+          )
+      );
+  }
+
+  for(
+    const fighterId of
+    selection.portraitIds
+  ){
+    scheduleAutomaticCharacterImageGeneration(
+      fighterId
+    );
+  }
+
+  renderRoster();
+  renderGenealogy();
+
+  alert(
+    `${selection.selectedIds.length} descendant${selection.selectedIds.length>1?'s':''} sélectionné${selection.selectedIds.length>1?'s':''} pour S${target}. Les autres deviennent des PNJ descendants.`
+  );
+
+  activateNextSeasonAfterTransition(
+    completedSeason
+  );
 }
 function alienBiologyHtml(s){
   if(s?.race!=='Extraterrestre' || !s.alienBiology) return '';
@@ -3146,110 +3736,82 @@ function applyAlienStateIfNeeded(){
   state.racialTraits=state.racialTraits||[];
 }
 
-function reset(){state={alienBiology:null,id:currentCharacterId(),instanceId:newCharacterInstanceId(),name:'',title:'',raceParts:[],race:'',lineage:{},birthStratum:'',birthRegion:'',culture:'',gender:'',size:'',arch:'',archParts:[],slayerTarget:null,job:'',history:[],extra:'',extraDetail:[],extraStatMods:[],relationships:[],genealogy:{parents:[],children:[],generation:1,lineage:[],partnerLinks:[]},personality:'',stats:{},powers:[],weapons:[],weakness:'',blessings:[],curses:[],clothingStyle:'',appearance:{},transformation:null,awakening:null,chi:null,martial:null,prodigeMods:[],logs:[]};queue=[];index=0;rotation=0;spinNumber=0;buildInitial();render();drawWheel([W('?')])}
+function reset(){
+  state=createBlankCharacterState({
+    id:currentCharacterId(),
+    instanceId:newCharacterInstanceId()
+  });
 
-const VAELORIA_BIRTH_WEIGHTS={
-'Humain':[70,18,12],'Elfe':[70,20,10],'Nain':[65,5,30],'Orc':[70,10,20],
-'Gobelin':[60,10,30],'Fée':[65,30,5],'Géant':[70,15,15],'Vampire':[55,15,30],
-'Loup-garou':[70,10,20],'Démon':[15,10,75],'Ange':[15,75,10],
-'Dragon humanoïde':[34,33,33],'Golem / Artificiel':[50,20,30],
-'Divinité / Demi-dieu':[30,55,15],'Titan':[40,30,30],'Squelette':[55,15,30],
-'Homme-bête':[65,15,20],'Cyborg':[75,10,15],'Extraterrestre':[50,25,25],
-'Esprit':[40,30,30],'Hybride':[50,25,25]
-};
-const VAELORIA_REGIONS={
-Yndara:['Sylvaeryn','Kharadryn','Avelorn','Drakhenor','Maelora','Iskarya','Nexara','Kaelora','Vaerunn'],
-Elyrion:['Aetherys','Thoryndra','Liorael','Caelorn'],
-Nharak:['Varkhoryn','Kythera','Lumerys','Naeroth',"Mor'Khal"]
-};
-const VAELORIA_CULTURES={
-Sylvaeryn:['Sylvaine','Clairières','Itinérante'],Kharadryn:['Forteresses','Hautes-cimes','Routes profondes'],
-Avelorn:['Urbaine','Rurale','Marchande'],Drakhenor:['Clans des steppes','Cités des plateaux','Nomade'],
-Maelora:['Jungle','Marais','Frontière sauvage'],Iskarya:['Boréale','Côtière','Nomade des glaces'],
-Nexara:['Nexus traditionnelle','Technopolitaine','Frontière techno-organique'],Kaelora:['Insulaire','Maritime','Marchande'],
-Vaerunn:['Navigatrice','Insulaire fortifiée','Nomade des tempêtes'],Aetherys:['Haute-céleste','Savante','Cosmopolite'],
-Thoryndra:['Insulaire des tempêtes','Navigatrice céleste','Martiale'],Liorael:['Verdoyante','Contemplative','Rurale céleste'],
-Caelorn:['Frontalière','Marchande','Voyageuse'],Varkhoryn:['Volcanique','Forgienne','Cavernicole'],
-Kythera:['Cristalline','Minière','Savante'],Lumerys:['Forestière profonde','Bioluminescente','Spirituelle'],
-Naeroth:['Maritime souterraine','Littorale','Abyssale'],"Mor'Khal":['Profonde','Nomade souterraine','Ruines anciennes']
-};
-const VAELORIA_CRADLES={
-'Humain':['Avelorn',3],'Elfe':['Sylvaeryn',3],'Nain':['Kharadryn',3],'Orc':['Drakhenor',3],
-'Gobelin':['Maelora',2],'Fée':['Sylvaeryn',3],'Géant':['Kharadryn',2],
-'Cyborg':['Nexara',3],'N.E.X.U.S.':['Nexara',3],'Ange':['Aetherys',3]
-};
+  queue=[];
+  index=0;
+  rotation=0;
+  spinNumber=0;
+
+  buildInitial();
+  render();
+  drawWheel([W('?')]);
+}
+
+
+
+
+
 function vaeloriaPrimaryRace(){
  const parts=state.raceParts||[];
  return parts.find(x=>VAELORIA_BIRTH_WEIGHTS[x])||parts[0]||state.race||'';
 }
-function vaeloriaBirthStrataOptions(){return [W('Yndara',50),W('Elyrion',25),W('Nharak',25)];}
-function vaeloriaRegionOptions(){const arr=VAELORIA_REGIONS[state.birthStratum]||VAELORIA_REGIONS.Yndara;return EQ(arr);}
-function vaeloriaCultureOptions(){
- return EQ(VAELORIA_CULTURES[state.birthRegion]||['Locale','Cosmopolite','Itinérante']);
-}
+
+
+
 
 // Affinité culturelle avec l'archétype Artiste martial.
 // Les autres archétypes conservent un poids de 1 ; seul Artiste martial est favorisé.
-const MARTIAL_ARCHETYPE_CULTURE_MULTIPLIERS={
-  3:['Martiale','Clans des steppes'],
-  2:['Cités des plateaux','Nomade','Forteresses','Hautes-cimes','Haute-céleste','Contemplative','Spirituelle','Volcanique','Forgienne','Insulaire fortifiée','Nomade des tempêtes','Nomade souterraine'],
-  1.5:['Sylvaine','Clairières','Itinérante','Routes profondes','Jungle','Frontière sauvage','Boréale','Nomade des glaces','Nexus traditionnelle','Navigatrice','Insulaire des tempêtes','Navigatrice céleste','Verdoyante','Frontalière','Voyageuse','Cristalline','Forestière profonde','Bioluminescente','Profonde','Ruines anciennes']
-};
-function martialArchetypeCultureMultiplier(culture=state.culture||''){
-  for(const [mult,cultures] of Object.entries(MARTIAL_ARCHETYPE_CULTURE_MULTIPLIERS))if(cultures.includes(culture))return Number(mult);
-  return 1;
+
+
+
+
+
+function vaeloriaRegionOptions(){
+  return vaeloriaRegionOptionsFor(
+    state.birthStratum
+  );
 }
+
+function vaeloriaCultureOptions(){
+  return vaeloriaCultureOptionsFor(
+    state.birthRegion
+  );
+}
+
+function martialArchetypeCultureMultiplier(
+  culture=state.culture||''
+){
+  return martialArchetypeCultureMultiplierFor(
+    culture
+  );
+}
+
 function vaeloriaArchetypeOptions(){
-  const martialMultiplier=martialArchetypeCultureMultiplier();
-  return archs.map(a=>W(a,a==='Artiste martial'?martialMultiplier:1));
+  const martialMultiplier=
+    martialArchetypeCultureMultiplierFor(
+      state.culture||''
+    );
+  return archs.map(a=>
+    W(
+      a,
+      a==='Artiste martial'
+        ? martialMultiplier
+        : 1
+    )
+  );
 }
 
 function task(title,options,apply){return{title,options:()=>typeof options==='function'?options():options,apply,_subwheel:false}} function insert(tasks){for(const t of tasks||[])if(t)t._subwheel=true;queue.splice(index+1,0,...tasks)}
-function raceKey(p){if(p.startsWith('Homme-bête'))return null;return p} 
-function summonCountFromMastery(m){
-  m=Number(m)||0;
-  if(m<=3)return 1;if(m<=5)return 2;if(m<=7)return 3;
-  if(m===8)return 4;if(m===9)return 5;if(m===10)return 6;
-  return 6+(m-10);
-}
-function summonRaceMods(parts){
-  let s=[0,0,0,0,0];
-  for(const p of parts||[]){
-    const m=mods[raceKey(p)]||[0,0,0,0,0];
-    s=s.map((v,i)=>v+(m[i]||0));
-  }
-  return s;
-}
-function summonTraits(parts){
-  let out=[];
-  for(const p of parts||[]){
-    const species=beastAnimal(p);
-    if(species){
-      for(const t of beastMandatoryTraits(species))if(!out.includes(t))out.push(t);
-      continue;
-    }
-    const k=raceKey(p);
-    for(const t of (RACIAL_TRAITS[k]||[]))if(t&& !out.includes(t))out.push(t);
-  }
-  return out;
-}
-function summonVisualConstraint(s){
-  if(!s)return '';
-  const parts=s.raceParts||[];
-  const lines=[];
-  for(const p of parts){
-    const species=beastAnimal(p);
-    if(species){
-      const traits=beastMandatoryTraits(species);
-      if(traits.length)lines.push(`HOMME-BÊTE ${species.toUpperCase()} — MANDATORY RACIAL ANATOMY: ${traits.join('; ')}. Every listed trait must be visibly present and anatomically coherent.${beastForbiddenVisualConfusion(species)?' '+beastForbiddenVisualConfusion(species):''}`);
-      continue;
-    }
-    const traits=(RACIAL_TRAITS[raceKey(p)]||[]).filter(Boolean);
-    if(traits.length)lines.push(`${p} — MANDATORY RACIAL TRAITS: ${traits.join('; ')}. Make every physically visible racial trait clearly readable on the summoned being.`);
-  }
-  if(s.alienTrait)lines.push(`EXTRATERRESTRIAL BIOLOGY — MANDATORY: ${s.alienTrait}. This biological trait must visibly shape the summoned being.`);
-  return lines.join('\n');
-}
+ 
+
+
+
+
 function beginSummonerInvocation(){
   if(state.summon)return;
   state.summon={raceParts:[],race:null,statsRaw:[null,null,null,null,null],statsFinal:null,traits:[]};
@@ -3292,10 +3854,17 @@ function finishSummonRace(){
     }
   })));
 }
-function summonerMastery(s=state){
-  if(!s?.powers?.length)return 0;
-  return Number(s.powers[0]?.mastery)||0;
+function finalDragonComponent(c=state){
+  return finalDragonComponentFor(
+    c,
+    hasFinalRaceAlteration(c)
+  );
 }
+
+function summonerMastery(s=state){
+  return summonerMasteryFor(s);
+}
+
 function summonerSummaryHtml(s=state){
   if(!s?.summon)return '';
   const q=s.summon,m=summonerMastery(s),n=summonCountFromMastery(m);
@@ -3303,15 +3872,60 @@ function summonerSummaryHtml(s=state){
   return `<div class="box summoner-box"><b>🜲 Invocation</b><br>Race : <b>${q.race||'En attente'}</b><br>Nombre simultané : <b>${n}</b> <span class="muted">(maîtrise ${m})</span>${stats?`<br>Stats : ${stats}`:''}<br>Capacités raciales : ${(q.traits||[]).join(', ')||'—'}</div>`;
 }
 
-function activeArchs(){return state.archParts&&state.archParts.length?state.archParts:(state.arch?[state.arch]:[])}
-function modSum(){let rp=racialProfile7(),s=rp.slice(0,5);for(const a of activeArchs()){let m=amods[a];if(m)s=s.map((x,i)=>x+(m?.[i]||0))}for(const pm of state.prodigeMods||[]){let i=statNames.indexOf(pm.stat);if(i>=0)s[i]+=pm.value}for(const em of state.extraStatMods||[]){let i=statNames.indexOf(em.stat);if(i>=0)s[i]+=em.value}return s}
-function masteryMod(kind){let rp=racialProfile7(),s=kind==='power'?rp[5]:rp[6];for(const a of activeArchs())s+=(kind==='power'?pma[a]:wma[a])||0;return s}
-function statBreakdown(si){let arr=[],rp=racialProfile7();if(rp[si])arr.push({source:'Race / lignée',value:rp[si]});for(const a of activeArchs()){let m=amods[a];if(m&&m[si])arr.push({source:`Archétype ${a}`,value:m[si]})}for(const pm of state.prodigeMods||[]){if(statNames.indexOf(pm.stat)===si)arr.push({source:'Prodige',value:pm.value})}for(const em of state.extraStatMods||[]){if(statNames.indexOf(em.stat)===si)arr.push({source:em.source||'Extra',value:em.value})}return arr}
+function activeArchs(){
+  return activeArchsFor(state);
+}
+
+function modSum(){
+  return modSumFor({
+    racialProfile:racialProfile7(),
+    activeArchs:activeArchs(),
+    archetypeMods:amods,
+    prodigeMods:state.prodigeMods||[],
+    extraStatMods:state.extraStatMods||[],
+    statNames
+  });
+}
+
+function masteryMod(kind){
+  return masteryModFor(
+    kind,
+    {
+      racialProfile:racialProfile7(),
+      activeArchs:activeArchs(),
+      powerMasteryMods:pma,
+      weaponMasteryMods:wma
+    }
+  );
+}
+
+function statBreakdown(si){
+  return statBreakdownFor(
+    si,
+    {
+      racialProfile:racialProfile7(),
+      activeArchs:activeArchs(),
+      archetypeMods:amods,
+      prodigeMods:state.prodigeMods||[],
+      extraStatMods:state.extraStatMods||[],
+      statNames
+    }
+  );
+}
+
 function replaceUniquePower(idx,label){insert([task(`${label} — Manifestation unique`,EQ(uniquePowers),u=>state.powers[idx].name=u)])}
 function replaceUniqueWeapon(idx,label){insert([task(`${label} — Manifestation unique`,EQ(uniqueWeapons),u=>state.weapons[idx].name=u)])}
 function enchantTasks(w,label,n){let ts=[];for(let j=1;j<=n;j++)ts.push(task(`${label} — Enchantement ${j}`,vaeloriaEnchantOptions,e=>{if(e==='Enchantement unique')insert([task(`${label} — Enchantement unique ${j}`,EQ(uniqueEnchants),u=>w.ench.push(u))]);else w.ench.push(e)}));return ts}
-function armorStatBonus(level){return level<=3?1:level<=6?2:level<=8?3:level===9?4:5}
-function registerArmorStatBonus(a){if(!a||!a.power)return;let map={'Force augmentée':'Force','Mobilité augmentée':'Vitesse','Résistance physique accrue':'Résilience'};let stat=map[a.effect];if(!stat)return;state.extraStatMods=state.extraStatMods||[];state.extraStatMods.push({stat,value:armorStatBonus(a.power),source:`Armure spéciale — ${a.effect}`})}
+
+function registerArmorStatBonus(a){
+  const mod=armorStatModifier(a);
+  if(!mod)return;
+
+  state.extraStatMods=
+    state.extraStatMods||[];
+
+  state.extraStatMods.push(mod);
+}
 function addSlayerTarget(label='Slayer'){insert([task(`${label} — Race cible`,()=>raceOptions().filter(o=>o.label!=='Hybride'),r=>state.slayerTarget=r)])}
 function addProdigeBonuses(){
   insert([
@@ -3325,68 +3939,26 @@ function applyArchetypeSubwheels(a){
   if(a==='Prodige')addProdigeBonuses();
 }
 
+
 function vaeloriaPowerOptions(){
- const score=Object.fromEntries(powers.map(x=>[x,1]));
- const boost=(names,m)=>names.forEach(n=>{if(score[n]!=null)score[n]*=m});
- const L=state.lineage||{}, race=state.race||'', region=state.birthRegion||'', culture=state.culture||'';
-
- // 1. Lignée / nature raciale — influence la plus forte.
- const tokens=[
-  L.vampire,L.werewolf,L.spiritEssence,L.dragonLineage,L.artificialOrigin,
-  L.alienType,L.alienEnvironment,L.divineDomain,L.titanOrigin,L.undeadForm,L.beastSpecies
- ].filter(Boolean).join(' ');
- if(/Sanguine|Sang|Vampire/i.test(tokens+' '+race))boost(['Sang','Régénération','Absorption'],3);
- if(/Nocturne|Spectrale|Ombre|Squelette|Liche/i.test(tokens+' '+race))boost(['Ténèbres','Invisibilité','Illusion'],3);
- if(/Psychique|Énergétique/i.test(tokens))boost(['Télépathie','Télékinésie','Barrières'],3);
- if(/Lunaire|Spirituelle/i.test(tokens))boost(['Métamorphose','Régénération','Nature'],2);
- if(/Tempête|Foudre/i.test(tokens))boost(['Foudre','Air'],3);
- if(/Volcan|Magma|Feu/i.test(tokens))boost(['Feu','Explosion'],3);
- if(/Glace|Glaciaire/i.test(tokens))boost(['Glace','Eau'],3);
- if(/Océan|Aquatique|Abyssale/i.test(tokens))boost(['Eau','Glace'],3);
- if(/Forêt|Forestière|Végétaloïde|Nature/i.test(tokens))boost(['Nature','Terre'],3);
- if(/Cristal|Cristallin/i.test(tokens))boost(['Terre','Barrières'],3);
- if(/Lumière|Céleste|Ange/i.test(tokens+' '+race))boost(['Lumière','Barrières','Régénération'],3);
- if(/Démon/i.test(race))boost(['Ténèbres','Feu','Malédiction'].filter(x=>score[x]!=null),2);
- if(/Nexus|Synthétique|Artificiel|Cyborg|N\.E\.X\.U\.S/i.test(tokens+' '+race))boost(['Magnétisme','Barrières','Télékinésie'],2);
-
- // 2. Région / culture — influence secondaire.
- if(region==='Varkhoryn'||/Volcanique|Forgienne/i.test(culture))boost(['Feu','Explosion'],2);
- if(region==='Kythera'||/Cristalline|Minière/i.test(culture))boost(['Terre','Barrières'],2);
- if(region==='Lumerys'||/Forestière|Bioluminescente/i.test(culture))boost(['Nature','Lumière'],2);
- if(region==='Naeroth'||/Maritime|Littorale|Abyssale/i.test(culture))boost(['Eau','Glace'],2);
- if(region==='Thoryndra'||region==='Vaerunn'||/tempêtes/i.test(culture))boost(['Foudre','Air'],2);
- if(region==='Sylvaeryn'||/Sylvaine|Clairières/i.test(culture))boost(['Nature','Terre'],2);
- if(region==='Nexara'||/Nexus|Technopolit|techno/i.test(culture))boost(['Magnétisme','Télékinésie','Barrières'],2);
- if(region==='Aetherys'||/Haute-céleste/i.test(culture))boost(['Air','Lumière'],2);
-
- return powers.map(x=>W(x,score[x]));
+  return vaeloriaPowerOptionsFor(
+    powers,
+    {
+      lineage:state.lineage||{},
+      race:state.race||'',
+      birthRegion:state.birthRegion||'',
+      culture:state.culture||''
+    }
+  );
 }
 
 function addPower(label='Pouvoir',chaosMode=false){insert([task(label,()=>chaosMode?EQ(chaos):vaeloriaPowerOptions(),x=>{let p={name:x,mastery:null};state.powers.push(p);let follow=[];if(x==='Pouvoir unique')follow.push(task(`${label} — Manifestation unique`,EQ(uniquePowers),u=>p.name=u));follow.push(...metamorphosisTasks(p,label));follow.push(task(`${label} — Maîtrise`,centered,m=>{p.masteryBase=valNum(m);p.masteryMod=masteryMod('power');p.mastery=Math.max(0,p.masteryBase+p.masteryMod)}));insert(follow)})])}
 function addWeapon(label='Arme',forceRanged=false,after=null){insert([task(label,()=>weaponOptionsForCurrent(forceRanged),x=>{let sys=DRAGON_TAIL_WEAPONS.includes(x)?'dragon-tail':'classic';let w=attachWeaponTraits({name:x,mastery:null,ench:[]},sys);state.weapons.push(w);let follow=[];if(x==='Arme unique')follow.push(task(`${label} — Manifestation unique`,EQ(uniqueWeapons),u=>w.name=u));if(x==='Arme caudale unique')follow.push(dragonTailUniqueMutationTask(w,label));if(x==='Arme improvisée')follow.push(task(`${label} — Objet improvisé`,EQ(improvisedWeapons),u=>w.name=`Arme improvisée — ${u}`));if(x==='Aucune arme'){w.mastery='—';w.enchantmentCount=0;if(after)after()}else{follow.push(task(`${label} — Maîtrise`,centered,m=>{w.masteryBase=valNum(m);w.masteryMod=masteryMod('weapon');w.mastery=Math.max(0,w.masteryBase+w.masteryMod);let n=(w.mastery>=8?2:(w.mastery>=5?1:0));w.directEnchantBonus=activeArchs().includes('Tireur')?1:0;n+=w.directEnchantBonus;w.enchantmentCount=n;insert(enchantTasks(w,label,n));if(after)after()}))}insert(follow)})])}
+
 function namingStyle(){
- const c=state.culture||'',r=state.race||'';
- // Culture is primary when it has a clear existing phonetic family.
- if(/Nexus|Technopolit|techno/i.test(c))return'Tech';
- if(/Sylvaine|Clairières|Verdoyante|Contemplative/i.test(c))return'Elf';
- if(/Forteresses|Hautes-cimes|Routes profondes|Minière|Forgienne/i.test(c))return'Dwarf';
- if(/Clans des steppes|Martiale|Volcanique/i.test(c))return'Orc';
- if(/Spirituelle|Bioluminescente/i.test(c))return'Spirit';
- if(/Haute-céleste/i.test(c))return'Angel';
- // Race is secondary/fallback.
- if(r.includes('N.E.X.U.S.'))return'Tech';
- if(r.includes('Dragon'))return'Dragon';
- if(r.includes('Démon'))return'Demon';
- if(r.includes('Ange'))return'Angel';
- if(r.includes('Elfe')||r.includes('Fée'))return'Elf';
- if(r.includes('Nain'))return'Dwarf';
- if(r.includes('Orc')||r.includes('Géant'))return'Orc';
- if(r.includes('Gobelin'))return'Goblin';
- if(r.includes('Esprit'))return'Spirit';
- if(r.includes('Humain'))return'Human';
- return'Default';
+  return namingStyleFor(state.culture||'',state.race||'');
 }
-const METAMORPHOSIS_FORMS=['Loup','Renard','Ours','Lion','Tigre','Guépard','Panthère','Hyène','Sanglier','Taureau','Cerf','Cheval','Gorille','Éléphant','Rhinocéros','Crocodile','Serpent','Aigle','Faucon','Corbeau','Hibou','Requin','Orque','Pieuvre','Araignée','Scorpion','Mante religieuse','T. rex','Vélociraptor','Tricératops','Ankylosaure','Spinosaurus','Ptéranodon','Smilodon','Mammouth','Mégalodon','Griffon','Hippogriffe','Phénix','Hydre','Manticore','Chimère','Basilic','Cockatrice','Pégase','Licorne','Cerbère','Minotaure','Sphinx','Kraken','Wyverne','Roc','Kitsune','Kirin','Naga','Oni','Wendigo','Gargouille','Golem','Ent','Slime','Mimique','Ver géant','Chauve-souris géante','Araignée géante','Loup géant','Serpent géant','Dragon','Elfe','Orc','Nain','Gobelin','Fée','Neoxus','Homme-bête','Ange','Démon','Drakéon','Liche','Élémentaire de feu','Élémentaire d’eau','Élémentaire de terre','Élémentaire d’air','Élémentaire de glace','Élémentaire de foudre','Élémentaire de lumière','Élémentaire d’ombre'];
+
 function metamorphosisTasks(p,label='Pouvoir'){
   if(!p||p.name!=='Métamorphose')return[];
   return [task(`${label} — Forme de métamorphose`,EQ(METAMORPHOSIS_FORMS),form=>{
@@ -3396,15 +3968,7 @@ function metamorphosisTasks(p,label='Pouvoir'){
     }
   })];
 }
-function frenchPowerComplement(value){
-  const x=String(value||'').trim();
-  const special={Air:'des airs',Ténèbres:'des ténèbres',Eau:'de l’eau',Explosion:'de l’explosion',Illusion:'de l’illusion',Invisibilité:'de l’invisibilité',Absorption:'de l’absorption',Annulation:'de l’annulation',Espace:'de l’espace'};
-  if(special[x])return special[x];
-  const feminine=new Set(['Glace','Foudre','Terre','Nature','Lumière','Télékinésie','Télépathie','Téléportation','Métamorphose','Régénération','Gravité','Copie']);
-  if(feminine.has(x))return `de la ${x.toLowerCase()}`;
-  if(/^[AEIOUYÉÈÊËÀÂÄÎÏÔÖÙÛÜH]/i.test(x))return `de l’${x.toLowerCase()}`;
-  return `du ${x.toLowerCase()}`;
-}
+
 function addNameGeneration(){insert([task('Prénom — Structure',EQ(['Court','Long']),x=>{state._nameParts=[];let set=namingSets[namingStyle()]||namingSets.Default;let ts=[task('Prénom — Début',EQ(set.start),v=>state._nameParts.push(v))];if(x==='Long')ts.push(task('Prénom — Milieu',EQ(set.mid),v=>state._nameParts.push(v)));ts.push(task('Prénom — Fin',EQ(set.end),v=>{state._nameParts.push(v);let raw=state._nameParts.join('');state.name=raw.charAt(0).toUpperCase()+raw.slice(1);if(state.martial?.status==='Fondateur'&&state.martial?.clanId)martialUpdateClan(c=>{c.founderName=state.name;c.name=`Clan ${state.name}`});delete state._nameParts}));insert(ts)})])}
 function titleOptions(){
   const out=['Sans titre'];
@@ -3569,9 +4133,9 @@ function titleOptions(){
 
   return EQ([...new Set(out)]);
 }
-function transformationBonus(level){return level<=3?1:level<=6?2:level<=8?3:level===9?4:5}
 
-function abilityCount(level){return level>=10?3:level>=8?2:1}
+
+
 function creatureDetailTask(prefix,type,setter){if(type==='Créature élémentaire'){let d={element:null,species:null};insert([task(`${prefix} — Affinité élémentaire`,EQ(elementalAffinities),v=>d.element=v),task(`${prefix} — Espèce / manifestation`,EQ(elementalCreatureSpecies),v=>{d.species=v;setter(`${v} — ${d.element}`)})]);return;}let map={
 'Félin sauvage':wildFelines,'Reptile':reptiles,'Créature aquatique':aquaticCreatures,'Insecte':insects,'Petit esprit':smallSpirits,'Créature élémentaire':elementalCreatures,'Créature extraterrestre':alienCreatures,'Créature fantastique':fantasyCreatures,
 'Félin géant':giantFelines,'Oiseau géant':giantBirds,'Reptile géant':giantReptiles,'Monture mécanique':mechanicalMounts
@@ -3584,25 +4148,25 @@ function addArtificialCompanion(){let c={kind:'Compagnon artificiel',type:null,p
 function addLegendaryFamiliar(){let f={kind:'Familier légendaire',type:null,name:null,power:null,abilities:[],mythic:false};state.extraDetail.push(f);insert([task('Familier légendaire — Nature',EQ(legendaryFamiliarTypes),v=>f.type=v),task('Familier légendaire — Manifestation',EQ(legendaryFamiliarNames),v=>f.name=v),task('Familier légendaire — Puissance',centered,v=>{f.power=valNum(v);if(f.power===10){f.mythic=true;insert([task('Familier mythique — Manifestation',EQ(mythicFamiliars),u=>f.name=u)])}let ts=[];for(let i=1;i<=abilityCount(f.power);i++)ts.push(task(`Familier légendaire — Capacité ${i}`,()=>EQ(legendaryAbilities.filter(a=>!f.abilities.includes(a))),a=>f.abilities.push(a)));insert(ts)})])}
 
 function addTransformation(){insert([task('Transformation — Type',EQ(transformationTypes),x=>{state.transformation={type:x,level:null,stats:[],bonus:0,trait:null};state.extraDetail.push({kind:'Transformation',ref:state.transformation});if(x==='Transformation improbable')insert([task('Transformation improbable — Manifestation',EQ(improbableTransformations),u=>state.transformation.type=u)]);if(x==='Transformation unique')insert([task('Transformation unique — Manifestation',EQ(uniqueTransformations),u=>state.transformation.type=u)])}),task('Transformation — Niveau',centered,x=>{state.transformation.level=valNum(x);state.transformation.bonus=transformationBonus(state.transformation.level)}),task('Transformation — Stat renforcée 1',EQ(statNames),x=>state.transformation.stats.push(x)),task('Transformation — Stat renforcée 2',()=>EQ(statNames.filter(s=>!state.transformation.stats.includes(s))),x=>state.transformation.stats.push(x)),task('Transformation — Trait temporaire',EQ(transformationTraits),x=>state.transformation.trait=x)])}
-function awakeningBonus(level){return level<=3?2:level<=6?3:level<=8?4:level===9?5:6}
+
 function addAwakening(){insert([task('Éveil — Niveau',centered,x=>{let level=valNum(x);state.awakening={level,primary:null,primaryBonus:awakeningBonus(level),secondary:null,secondaryBonus:level>=7?2:0,evolution:null};state.extraDetail.push({kind:'Éveil',ref:state.awakening})}),task('Éveil — Stat principale',EQ(statNames),x=>{state.awakening.primary=x;let follow=[];if(state.awakening.level>=7)follow.push(task('Éveil — Stat secondaire',()=>EQ(statNames.filter(s=>s!==state.awakening.primary)),y=>state.awakening.secondary=y));if(state.awakening.level===10)follow.push(task('Éveil — Évolution temporaire',EQ(awakeningEvolutions),y=>state.awakening.evolution=y));if(follow.length)insert(follow)})])}
 // V18.28 — sous-roues complètes des quatre lignées supérieures.
-const DIVINE_DOMAINS=['Guerre','Protection','Nature','Vie','Mort','Savoir','Magie','Justice','Liberté','Destin','Rêves','Océans','Terre','Ciel','Tempêtes','Feu','Lumière','Ténèbres','Temps','Espace'];
-const DIVINE_DOMAIN_STAT={'Guerre':'Combat','Protection':'Résilience','Nature':'Pouvoir','Vie':'Résilience','Mort':'Pouvoir','Savoir':'Intelligence','Magie':'Pouvoir','Justice':'Combat','Liberté':'Vitesse','Destin':'Intelligence','Rêves':'Intelligence','Océans':'Pouvoir','Terre':'Force','Ciel':'Vitesse','Tempêtes':'Vitesse','Feu':'Pouvoir','Lumière':'Pouvoir','Ténèbres':'Pouvoir','Temps':'Intelligence','Espace':'Intelligence'};
-const TITAN_AFFINITIES=['Montagne','Océan','Forêt ancestrale','Désert','Glace','Tempête','Magma','Cristal','Profondeurs','Terre'];
-const TITAN_AFFINITY_STAT={'Montagne':'Résilience','Océan':'Pouvoir','Forêt ancestrale':'Résilience','Désert':'Vitesse','Glace':'Combat','Tempête':'Vitesse','Magma':'Force','Cristal':'Résilience','Profondeurs':'Combat','Terre':'Force'};
-const DRAGON_AFFINITIES=['Feu','Glace','Foudre','Tempête','Terre','Océan','Nature','Vent','Magma','Sable','Lumière','Ténèbres','Cristal','Métal','Poison','Cendre','Gravité','Son','Sang','Éther'];
-const DRAGON_ANCESTRAL_STAT={'Feu':'Force','Glace':'Résilience','Foudre':'Vitesse','Tempête':'Vitesse','Terre':'Résilience','Océan':'Résilience','Nature':'Résilience','Vent':'Vitesse','Magma':'Force','Sable':'Vitesse','Lumière':'Combat','Ténèbres':'Combat','Cristal':'Résilience','Métal':'Force','Poison':'Combat','Cendre':'Combat','Gravité':'Force','Son':'Vitesse','Sang':'Force','Éther':'Combat'};
-const DRAGON_ORIGINEL_STAT={'Feu':'Pouvoir','Glace':'Intelligence','Foudre':'Pouvoir','Tempête':'Pouvoir','Terre':'Intelligence','Océan':'Pouvoir','Nature':'Intelligence','Vent':'Pouvoir','Magma':'Pouvoir','Sable':'Intelligence','Lumière':'Pouvoir','Ténèbres':'Pouvoir','Cristal':'Intelligence','Métal':'Combat','Poison':'Intelligence','Cendre':'Pouvoir','Gravité':'Pouvoir','Son':'Intelligence','Sang':'Combat','Éther':'Pouvoir'};
-const NEXUS_WEAPONS=['Lame','Griffes','Arme contondante','Perforante','Projectiles','Énergétique','Fouet / câble','Bouclier offensif','Arme articulée','Arme polymorphe'];
-const CYBORG_AUGS=[['Bras cybernétique','Force'],['Jambe cybernétique','Vitesse'],['Œil cybernétique','Combat'],['Organe interne artificiel','Résilience'],['Interface neurale','Intelligence'],['Renforcement squelettique','Résilience'],['Renforcement musculaire','Force'],['Blindage corporel','Résilience'],['Système sensoriel','Combat'],['Système énergétique','Pouvoir'],['Module de régénération','Résilience'],['Arme intégrée','Arme']];
-const NEXUS_STRUCTS=[['Membre renforcé','Force'],['Structure locomotrice','Vitesse'],['Œil Nexus','Combat'],['Organe Nexus','Résilience'],['Interface neurale vivante','Intelligence'],['Ossature techno-organique','Résilience'],['Fibres musculaires Nexus','Force'],['Carapace adaptative','Résilience'],['Réseau sensoriel Nexus','Combat'],['Noyau énergétique','Pouvoir'],['Tissus régénératifs','Résilience'],['Arme organo-technologique','Arme']];
-function superiorStage(comp){return (comp.power||1)>90?3:(comp.power||1)>=50?2:1}
+
+
+
+
+
+
+
+
+
+
+
 function addCompBonus(comp,stat,value){comp.special7=comp.special7||[0,0,0,0,0,0,0];let i=['Combat','Force','Intelligence','Résilience','Vitesse','Pouvoir','Arme'].indexOf(stat);if(i>=0)comp.special7[i]+=value}
 function addRacialPower(name,bonus=0,label=name,limit={}){let p={name,mastery:null,racial:true};state.powers.push(p);insert([task(`${label} — Maîtrise`,centered,m=>{p.masteryBase=valNum(m);let v=p.masteryBase+masteryMod('power')+bonus;if(limit.max!=null)v=Math.min(limit.max,v);if(limit.min!=null)v=Math.max(limit.min,v);p.mastery=Math.max(0,v);p.racialBonus=bonus})])}
 function addRacialWeapon(name,bonus=0,label=name,weaponSystem='neoxus'){let w=attachWeaponTraits({name,mastery:null,ench:[],racial:true,enchantmentCount:0},weaponSystem);state.weapons.push(w);insert([task(`${label} — Maîtrise`,centered,m=>{w.masteryBase=valNum(m);w.mastery=Math.max(0,w.masteryBase+masteryMod('weapon'));w.racialBonus=bonus})])}
 function removeGenericSizeTask(){for(let i=index+1;i<queue.length;i++){if(queue[i]?.title==='Taille'){queue.splice(i,1);break}}}
-function metricSizeOptions(min,max,step,unit='m'){let a=[];for(let n=min;n<=max+1e-9;n+=step){let v=Math.round(n*10)/10;a.push(W(`${Number.isInteger(v)?v:v.toFixed(1)} ${unit}`))}return a}
+
 function scheduleSuperiorSize(prefix,comp){let st=superiorStage(comp),opts=null;if(comp.race==='Titan'){opts=st===1?metricSizeOptions(15,40,1):st===2?metricSizeOptions(200,500,10):metricSizeOptions(1,5,.1,'km')}else if(comp.race==='Dragon humanoïde'&&st===3)opts=metricSizeOptions(15,40,1);if(!opts)return;insert([task(`${prefix} — Taille`,opts,x=>{state.size=x;comp.size=x;removeGenericSizeTask()})])}
 function scheduleDivine(prefix,comp){let st=superiorStage(comp),countOpts=st===1?[W('1 domaine',90),W('2 domaines',10)]:st===2?[W('1 domaine',60),W('2 domaines',35),W('3 domaines',5)]:[W('2 domaines',50),W('3 domaines',40),W('4 domaines',10)];comp.divineRank=st===1?'Demi-dieu':st===2?'Divinité':'Dieu céleste';insert([task(`${prefix} — Nombre de domaines divins`,countOpts,x=>{let n=parseInt(x),picked=[];comp.divineDomains=picked;let ts=[];for(let i=1;i<=n;i++)ts.push(task(`${prefix} — Domaine divin ${i}`,()=>EQ(DIVINE_DOMAINS.filter(d=>!picked.includes(d))),d=>{picked.push(d);let b=st,stat=DIVINE_DOMAIN_STAT[d];addCompBonus(comp,stat,b);addRacialPower(d,0,`${prefix} — ${d}`,st===1?{max:6}:st===2?{max:8}:{min:5})}));insert(ts)})])}
 function nexusCountOptions(st){return st<3?[W('1',25),W('2',25),W('3',16),W('4',16),W('5',7),W('6',7),W('7',2),W('8',2)]:[W('1',10),W('2',10),W('3',15),W('4',25),W('5',25),W('6',15)]}
@@ -3627,9 +4191,27 @@ function scheduleComponentDetails(prefix,comp){let r=comp.race;
  if(r==='Dragon humanoïde'){insert([task(`${prefix} — Lignée draconique`,[W('Ancestral',50),W('Originel',50)],x=>comp.dragonBlood=x),task(`${prefix} — Puissance`,POWER_STAGE,x=>{comp.power=powerExact(x);comp.powerBand=x;scheduleSuperiorAfterPower(prefix,comp)})]);return}
  if(['Demi-dieu','Cyborg','Titan'].includes(r)){schedulePower(prefix,comp);return}
 }
-function vampireWerewolfOriginOptions(){return raceOptions(['Squelette','Golem / Artificiel','Esprit','Vampire','Loup-garou'])}
-function spiritOriginRaceOptions(){return raceOptions(['Squelette','Golem / Artificiel','Esprit'])}
-function undeadOriginRaceOptions(){return raceOptions(['Squelette','Golem / Artificiel','Esprit','Vampire','Loup-garou'])}
+function vampireWerewolfOriginOptions(){
+  return vampireWerewolfOriginOptionsFor(
+    races,
+    state?.birthRegion||'',
+    affinityWeightsFor
+  );
+}
+function spiritOriginRaceOptions(){
+  return spiritOriginRaceOptionsFor(
+    races,
+    state?.birthRegion||'',
+    affinityWeightsFor
+  );
+}
+function undeadOriginRaceOptions(){
+  return undeadOriginRaceOptionsFor(
+    races,
+    state?.birthRegion||'',
+    affinityWeightsFor
+  );
+}
 function addRaceResult(r,depth=0){state.lineage=state.lineage||{};
  if(r==='Hybride'){state.raceParts=['Hybride'];state.race='Hybride';state.lineage.hybridCompA=null;state.lineage.hybridCompB=null;insert([task('Hybride — Ascendance A',()=>raceOptions(['Hybride','Vampire','Loup-garou','Esprit','Squelette']),x=>{let c=state.lineage.hybridCompA={race:x};state.lineage.hybridA=x;scheduleComponentDetails('Ascendance A',c)}),task('Hybride — Ascendance B',()=>raceOptions(['Hybride','Vampire','Loup-garou','Esprit','Squelette']),x=>{let c=state.lineage.hybridCompB={race:x};state.lineage.hybridB=x;scheduleComponentDetails('Ascendance B',c)})]);return}
  if(['Vampire','Loup-garou'].includes(r)){state.raceParts=[r];updateRace();insert([task(`${r} — Race d’origine`,vampireWerewolfOriginOptions,x=>{let c=state.lineage.originComponent={race:x};state.lineage.originRace=x;scheduleComponentDetails(`${r} — Origine`,c)})]);return}
@@ -3639,44 +4221,10 @@ function addRaceResult(r,depth=0){state.lineage=state.lineage||{};
 }
 function updateRace(){state.race=state.raceParts.join(' / ')}
 function morphologyRaceNames(){
- const L=state.lineage||{}, out=[];
- const addComp=c=>{
-   if(!c||!c.race)return;
-   if(c.race==='Hybride'){
-     addComp(c.compA); addComp(c.compB); return;
-   }
-   // Vampire, Loup-garou, Squelette/Liche and racial Esprit keep the morphology
-   // of their biological origin. The state itself must not reset height.
-   if(['Vampire','Loup-garou','Squelette','Liche','Esprit'].includes(c.race) && c.originComponent){
-     addComp(c.originComponent); return;
-   }
-   out.push(c.race);
- };
- if(L.originComponent) addComp(L.originComponent);
- else if(L.hybridCompA||L.hybridCompB){ addComp(L.hybridCompA); addComp(L.hybridCompB); }
- else if(L.primaryComponent) addComp(L.primaryComponent);
- else (state.raceParts||[]).forEach(r=>out.push(r));
- return [...new Set(out.filter(Boolean))];
+  return morphologyRaceNamesFor(state);
 }
 function sizeOptions(){
- const morphology=morphologyRaceNames();
- const race=morphology.join(' / '),L=state.lineage||{};
- const range=(min,max,step=.1,center=null)=>{
-   const vals=[];for(let n=min;n<=max+1e-9;n+=step){let v=Math.round(n*100)/100;let w=center?Math.max(.35,3-Math.abs(v-center)*2):1;vals.push(W(v.toFixed(2)+' m',w))}
-   return vals;
- };
- // Biological/racial tendencies, never a single forced height.
- if(/Titan/i.test(race)||L.titanRank){
-   if(/fondateur/i.test(L.titanRank||''))return range(12,30,1,20);
-   if(/primordial/i.test(L.titanRank||''))return range(7,20,.5,12);
-   return range(3,12,.5,6);
- }
- if(/Géant/i.test(race))return range(2.5,6,.25,3.5);
- if(/Nain|Gobelin/i.test(race))return range(.8,1.65,.05,1.25);
- if(/Fée/i.test(race))return range(.3,1.8,.05,1.1);
- if(/Orc/i.test(race))return range(1.55,2.5,.05,1.95);
- if(/Dragon/i.test(race))return range(1.45,2.8,.05,1.9);
- return range(1.35,2.2,.05,1.72);
+  return sizeOptionsFor(state);
 }
 function addBlessing(source){let b={source,name:null,intensity:null};insert([task(`${source} — Bénédiction`,EQ(blessings),x=>{b.name=x;if(x==='Bénédiction unique')insert([task(`${source} — Bénédiction unique`,EQ(uniqueBlessings),u=>b.name=u)])}),task(`${source} — Intensité`,intensity,x=>{b.intensity=valNum(x);state.blessings.push(b)})])}
 function curseDetailTasks(c,source){let t=[];if(c.name==='Arme maudite')t.push(task(`${source} — Contrainte de l’arme`,EQ(cursedWeaponCosts),v=>c.detail=v));else if(c.name==='Soif')t.push(task(`${source} — Ressource convoitée`,EQ(thirstResources),v=>c.detail=v));else if(c.name==='Prix équivalent')t.push(task(`${source} — Prix`,EQ(equivalentPrices),v=>c.detail=v));else if(c.name==='Malédiction mortelle')t.push(task(`${source} — Condition mortelle`,EQ(mortalCurseTriggers),v=>c.detail=v));else if(c.name==='Transformation incontrôlée'&&!state.extraDetail.some(o=>o&&o.kind==='Transformation')){let tr={kind:'Transformation maudite',type:null,level:null,traits:[]};state.extraDetail.push(tr);t.push(task(`${source} — Transformation maudite`,EQ(transformationTypes),v=>tr.type=v),task(`${source} — Transformation maudite — Niveau`,centered,v=>tr.level=valNum(v)));}return t}
@@ -3685,8 +4233,10 @@ function artifactEffectDetailTasks(kind,a){let t=[];if(a.effect==='Résistance �
 function addArtifact(kind){let a={kind,form:null,effect:null,effectDetail:null,power:null};insert([task(`${kind} — Forme`,EQ(artifactForms),x=>{a.form=x;if(x==='Forme unique')insert([task(`${kind} — Forme unique`,EQ(uniqueArtifactForms),u=>a.form=u)]);else artifactFormDetail(kind,a)}),task(`${kind} — Effet`,EQ(artifactEffects),x=>{a.effect=x;if(x==='Pouvoir d’artefact unique')insert([task(`${kind} — Pouvoir unique`,EQ(uniqueArtifactEffects),u=>{a.effect=u;insert(artifactEffectDetailTasks(kind,a))})]);else insert(artifactEffectDetailTasks(kind,a))}),task(`${kind} — Puissance`,centered,x=>{a.power=valNum(x);state.extraDetail.push(a)}),...(kind==='Objet béni'?[task('Objet béni — Bénédiction',EQ(blessings),x=>{let b={source:'Objet béni',name:x,intensity:null};if(x==='Bénédiction unique')insert([task('Objet béni — Bénédiction unique',EQ(uniqueBlessings),u=>b.name=u)]);state._objectBless=b}),task('Objet béni — Intensité de bénédiction',intensity,x=>{if(state._objectBless){state._objectBless.intensity=valNum(x);state.blessings.push(state._objectBless);delete state._objectBless}})]:[]),...(kind==='Objet maudit'?[task('Objet maudit — Malédiction',EQ(curses),x=>{let c={source:'Objet maudit',name:x,intensity:null,detail:null};state._objectCurse=c;if(x==='Malédiction unique')insert([task('Objet maudit — Malédiction unique',EQ(uniqueCurses),u=>{c.name=u;insert(curseDetailTasks(c,'Objet maudit'))})]);else insert(curseDetailTasks(c,'Objet maudit'))}),task('Objet maudit — Intensité de malédiction',intensity,x=>{if(state._objectCurse){state._objectCurse.intensity=valNum(x);state.curses.push(state._objectCurse);delete state._objectCurse}})]:[])])}
 
 function addPower(label='Pouvoir',excludeExisting=false){insert([task(label,()=>{const src=(state.archParts.includes('Sorcier')||state.arch==='Sorcier')?chaos:powers;if(!excludeExisting)return EQ(src);const used=new Set((state.powers||[]).map(p=>p&&p.name).filter(Boolean));return EQ(src.filter(v=>!used.has(v)));},x=>{const p={name:x,mastery:null};state.powers.push(p);state._powerIndex=state.powers.length-1;if(x==='Pouvoir unique')replaceUniquePower(state._powerIndex,label);if(x==='Métamorphose')insert(metamorphosisTasks(p,label))}),task(`${label} — Maîtrise`,centered,x=>{state.powers[state._powerIndex].masteryBase=valNum(x);state.powers[state._powerIndex].masteryMod=masteryMod('power');state.powers[state._powerIndex].mastery=Math.max(0,state.powers[state._powerIndex].masteryBase+state.powers[state._powerIndex].masteryMod);delete state._powerIndex})])}
-function noWeakChance(r){if(r<=2)return 0;if(r<=4)return 2;if(r===5)return 5;if(r===6)return 8;if(r===7)return 12;if(r===8)return 16;if(r===9)return 20;if(r===10)return 25;if(r===11)return 30;if(r===12)return 35;if(r===13)return 40;if(r===14)return 45;return 50}
-function weaknessTypeOptions(){return [W('Aucune faiblesse',50),W('Faiblesse improbable',25),W('Faiblesse classique',25)]}
+
+function weaknessTypeOptions(){
+  return weaknessTypeOptionsFor();
+}
 function applyAscensionMods(kind){const map={
 'Demi-dieu':[2,2,1,2,2],
 'Divinité':[3,4,2,3,3]
@@ -3694,11 +4244,11 @@ function applyAscensionMods(kind){const map={
 
 
 // V18.27 — Conséquences concrètes des histoires
-const historyArtifactNatures=['Magique','Divine','Démoniaque','Spirituelle','Maudite','Extraterrestre','Technologique','Ancienne','Vivante / consciente','Inconnue'];
-const deathPowers=['Nécromancie','Drain de vie','Manipulation des âmes','Communication avec les morts','Putréfaction','Énergie nécrotique','Résurrection','Vol de vitalité','Invocation des morts','Passage spectral','Pouvoir unique lié à la mort'];
-const possessionEntities=['Démon','Esprit','Divinité','Âme errante','Créature extraplanaire','Parasite extraterrestre','Entité inconnue'];
-const supernaturalTraits=['Présence spectrale','Corps partiellement immatériel','Perception des âmes','Sang surnaturel','Résistance à la mort','Aura anormale','Anatomie altérée','Connexion à un autre plan'];
-const timeTravelMethods=['Pouvoir personnel','Artefact','Technologie','Phénomène subi','Intervention extérieure'];
+
+
+
+
+
 
 function addHistoryNote(kind,detail={}){const o={kind,source:'Histoire',...detail};state.extraDetail.push(o);return o}
 function addHistoryStatChange(source,sign=1){
@@ -3823,125 +4373,63 @@ function addLegendaryExtra(){insert([task('Extra légendaire — Catégorie',()=
  else if(y==='Compagnon légendaire')insert([task('Compagnon légendaire — Nature',EQ(legendaryCompanions),v=>d.detail=v),task('Compagnon légendaire — Puissance',centered,v=>d.power=valNum(v)),task('Compagnon légendaire — Capacité',EQ(legendaryAbilities),v=>d.ability=v)]);
 })])}
 
-const VAELORIA_CLOTHING_STYLES=[
-'Armure lourde','Armure légère','Vêtements tactiques','Vêtements traditionnels',
-'Vêtements modernes','Vêtements futuristes','Robe / tenue mystique','Tenue de voyage',
-'Tenue noble','Tenue sauvage','Vêtements civils','Style unique',
-'Tenue d’archétype','Tenue de métier'
-];
+
 function contextualOutfitLabel(kind){
- const raw=kind==='arch'
-   ? ((state.archParts||[]).filter(Boolean).join(' + ')||state.arch||'archétype')
-   : (state.job||'métier');
- const role=String(raw).trim();
- if(kind==='job' && /^Sans métier$/i.test(role))return 'Tenue civile (sans métier)';
- if(kind==='arch' && role.includes(' + '))return `Tenue d’archétype — ${role}`;
- const lower=role.charAt(0).toLowerCase()+role.slice(1);
- const elide=/^[aeiouyàâäéèêëîïôöùûüœh]/i.test(lower);
- return `Tenue ${elide?'d’':'de '}${lower}`;
+  return contextualOutfitLabelFor(
+    kind,
+    appearanceContextFor(state)
+  );
 }
+
 function resolveClothingStyle(choice){
- if(choice==='Tenue d’archétype')return contextualOutfitLabel('arch');
- if(choice==='Tenue de métier')return contextualOutfitLabel('job');
- return choice;
+  return resolveClothingStyleFor(
+    choice,
+    appearanceContextFor(state)
+  );
 }
+
+
+
 function clothingStyleOptions(){
- const score=Object.fromEntries(VAELORIA_CLOTHING_STYLES.map(x=>[x,1]));
- const boost=(names,m)=>names.forEach(n=>{if(score[n]!=null)score[n]*=m});
- const culture=state.culture||'',region=state.birthRegion||'',job=state.job||'',arch=(state.archParts||[]).join(' / ');
-
- // Culture / région : influence principale.
- if(/Nexus|Technopolit|techno/i.test(culture)||region==='Nexara')boost(['Vêtements futuristes','Vêtements tactiques'],3);
- if(/Forteresses|Hautes-cimes|Martiale|Volcanique|Forgienne/i.test(culture))boost(['Armure lourde','Armure légère'],2);
- if(/Nomade|Itinérante|Voyageuse|Navigatrice|Frontière/i.test(culture))boost(['Tenue de voyage','Armure légère'],2);
- if(/Sylvaine|Clairières|Jungle|Forestière|Bioluminescente|Boréale/i.test(culture))boost(['Tenue sauvage','Vêtements traditionnels'],2);
- if(/Haute-céleste|Contemplative|Spirituelle|Savante|Cristalline/i.test(culture))boost(['Robe / tenue mystique','Vêtements traditionnels'],2);
- if(/Urbaine|Marchande|Côtière|Littorale|Cosmopolite/i.test(culture))boost(['Vêtements civils','Tenue noble'],1.5);
-
- // Métier : seconde influence.
- if(/soldat|garde|mercenaire|chevalier|guerrier|chasseur|combattant/i.test(job))boost(['Armure lourde','Armure légère','Vêtements tactiques'],2);
- if(/mage|sorcier|prêtre|chaman|alchimiste|érudit|occult/i.test(job))boost(['Robe / tenue mystique','Vêtements traditionnels'],2);
- if(/marchand|noble|diplomate|dirigeant/i.test(job))boost(['Tenue noble','Vêtements civils'],2);
- if(/explorateur|voyageur|aventurier|messager|marin/i.test(job))boost(['Tenue de voyage','Armure légère'],2);
-
- // Archétype : influence complémentaire.
- if(/Guerrier|Tank|Paladin|Slayer/i.test(arch))boost(['Armure lourde','Armure légère'],1.5);
- if(/Sorcier|Mage|Invocateur/i.test(arch))boost(['Robe / tenue mystique'],1.5);
- if(/Assassin|Voleur|Tireur/i.test(arch))boost(['Vêtements tactiques','Armure légère'],1.5);
- if(/Artiste martial/i.test(arch))boost(['Vêtements traditionnels','Vêtements tactiques'],1.5);
-
- return VAELORIA_CLOTHING_STYLES.map(x=>W(x,score[x]));
+  return clothingStyleOptionsFor(
+    appearanceWeightContextFor(state)
+  );
 }
+
+function vaeloriaColorOptions(exclude=null){
+  return vaeloriaColorOptionsFor(
+    colors,
+    colorContextFor(state),
+    exclude
+  );
+}
+
 
 
 function vaeloriaJobOptions(){
- const score=Object.fromEntries(jobs.map(x=>[x,1]));
- const boost=(xs,m)=>xs.forEach(x=>{if(score[x]!=null)score[x]*=m});
- const c=state.culture||'',r=state.birthRegion||'',a=(state.archParts||[]).join(' / ');
- // Culture/région = influence principale.
- if(r==='Nexara'||/Nexus|Technopolit|techno/i.test(c))boost(['Ingénieur / Mécanicien','Scientifique','Pilote'],3);
- if(/Forteresses|Hautes-cimes|Forgienne|Minière/i.test(c))boost(['Forgeron','Mineur','Garde'],2);
- if(/Maritime|Navigatrice|Insulaire|Littorale|Côtière/i.test(c))boost(['Marin / Pirate','Marchand','Explorateur'],2);
- if(/Sylvaine|Clairières|Jungle|Forestière|Boréale/i.test(c))boost(['Chasseur','Agriculteur','Médecin / Guérisseur','Explorateur'],2);
- if(/Savante|Cristalline|Spirituelle|Contemplative/i.test(c))boost(['Enseignant / Érudit','Alchimiste','Prêtre / Religieux'],2);
- if(/Urbaine|Marchande|Cosmopolite/i.test(c))boost(['Marchand','Artiste','Noble / Diplomate','Policier / Enquêteur'],2);
- if(/Martiale|Frontière|Nomade|Clans des steppes/i.test(c))boost(['Soldat','Mercenaire','Chasseur','Garde'],2);
- // Archétype = influence secondaire.
- if(/Guerrier|Tank|Paladin/i.test(a))boost(['Soldat','Garde','Mercenaire'],1.5);
- if(/Assassin|Voleur/i.test(a))boost(['Assassin','Espion','Voleur'],1.5);
- if(/Mage|Sorcier|Invocateur/i.test(a))boost(['Alchimiste','Enseignant / Érudit','Prêtre / Religieux'],1.5);
- if(/Tireur|Slayer/i.test(a))boost(['Chasseur','Chasseur de primes','Mercenaire'],1.5);
- return jobs.map(x=>W(x,score[x]));
-}
-function vaeloriaHistoryOptions(){
- const score=Object.fromEntries(histories.map(x=>[x,1]));
- const boost=(xs,m)=>xs.forEach(x=>{if(score[x]!=null)score[x]*=m});
- const L=state.lineage||{},r=state.birthRegion||'',c=state.culture||'',race=state.race||'';
- // Influence volontairement légère (×1.5 maximum).
- if(r==='Nexara'||/Nexus|Technopolit|techno/i.test(c)||/Cyborg|Artificiel|N\.E\.X\.U\.S/i.test(race))
-   boost(['Expérience scientifique','Créé artificiellement','Artefact découvert'],1.5);
- if(/Martiale|Clans des steppes|Frontière/i.test(c))boost(['Vétéran de guerre','Formé depuis l’enfance','Disciple d’un maître'],1.5);
- if(/Nomade|Itinérante|Voyageuse|Navigatrice/i.test(c))boost(['Exilé','Autodidacte','Rescapé d’un autre monde'],1.5);
- if(/Spirituelle|Haute-céleste/i.test(c)||L.divineRank)boost(['Béni','Élu par une prophétie','Pacte mystérieux'],1.5);
- if(/Squelette|Liche|Vampire/i.test(race))boost(['Revenu d’entre les morts','Maudit','Pacte mystérieux'],1.5);
- return histories.map(x=>W(x,score[x]));
+  return vaeloriaJobOptionsFor(
+    jobs,
+    jobContextFor(state)
+  );
 }
 
+function vaeloriaHistoryOptions(){
+  return vaeloriaHistoryOptionsFor(
+    histories,
+    historyContextFor(state)
+  );
+}
 
 function vaeloriaExtraOptions(){
- // Extra stays broad/random; Artistes martiaux n'ont aucun Pouvoir ni technique générique.
- const allowed=activeArchs().includes('Artiste martial')?extras.filter(x=>x!=='Deuxième pouvoir'):extras.filter(x=>x!=='Maîtrise du Chi avancée');
- const score=Object.fromEntries(allowed.map(x=>[x,1]));
- const boost=(xs,m=1.5)=>xs.forEach(x=>{if(score[x]!=null)score[x]*=m});
- const r=state.birthRegion||'',c=state.culture||'',race=state.race||'',a=(state.archParts||[]).join(' / ');
- if(r==='Nexara'||/Nexus|Technopolit|techno/i.test(c)||/Cyborg|Artificiel|N\.E\.X\.U\.S/i.test(race))
-   boost(['Compagnon artificiel','Armure spéciale','Artefact']);
- if(/Nomade|Navigatrice|Itinérante|Rurale|Frontière/i.test(c))boost(['Monture','Familier']);
- if(/Spirituelle|Haute-céleste|Contemplative/i.test(c))boost(['Bénédiction','Objet béni','Lien mystique']);
- if(/Mage|Sorcier|Invocateur/i.test(a))boost(['Deuxième pouvoir','Artefact','Lien mystique']);
- if(/Guerrier|Berserker|Slayer|Tireur/i.test(a))boost(['Deuxième arme','Technique secrète','Armure spéciale']);
- return allowed.map(x=>W(x,score[x]));
+  return vaeloriaExtraOptionsFor(
+    extras,
+    extraContextFor(
+      state,
+      activeArchs()
+    )
+  );
 }
-function vaeloriaEnchantOptions(){
- // Enchantments are lightly influenced by power/lineage/environment.
- const score=Object.fromEntries(ench.map(x=>[x,1]));
- const boost=(xs,m=1.5)=>xs.forEach(x=>{if(score[x]!=null)score[x]*=m});
- const L=state.lineage||{},r=state.birthRegion||'',c=state.culture||'',race=state.race||'';
- const ps=(state.powers||[]).map(p=>p?.name||'').join(' ');
- const t=[ps,L.vampire,L.spiritEssence,L.dragonLineage,L.divineDomain,L.titanOrigin,r,c,race].filter(Boolean).join(' ');
- if(/Feu|Volcan|Magma/i.test(t))boost(['Flamme','Explosion']);
- if(/Glace|Givre|Glaciaire/i.test(t))boost(['Givre']);
- if(/Foudre|Tempête/i.test(t))boost(['Foudre']);
- if(/Poison/i.test(t))boost(['Poison']);
- if(/Sang|Vampire/i.test(t))boost(['Vampirisme']);
- if(/Lumière|Ange|Divin|Sacré/i.test(t))boost(['Sacré']);
- if(/Spectral|Esprit|Squelette|Liche/i.test(t))boost(['Spectral']);
- if(/Ténèbres|Démon/i.test(t))boost(['Démoniaque']);
- if(/Temps/i.test(t))boost(['Time Slasher']);
- if(/Espace|Téléport/i.test(t))boost(['Distorsion']);
- if(/Chaos/i.test(t))boost(['Chaos','Reality Break']);
- return ench.map(x=>W(x,score[x]));
-}
+
 
 function originsLineageRows(){
  const L=state.lineage||{},rows=[]; const add=(k,v)=>{if(v!==null&&v!==undefined&&v!==''&&(!(Array.isArray(v))||v.length))rows.push([k,Array.isArray(v)?v.join(' / '):v])};
@@ -3951,20 +4439,18 @@ function originsLineageRows(){
  const sc=L.primaryComponent;if(sc&&['Demi-dieu','Cyborg','Titan','Dragon humanoïde'].includes(sc.race)){add('Pureté / puissance',sc.power?`${sc.power} %`:null);add('Stade supérieur',sc.divineRank||sc.nexusStage||sc.titanRank||sc.dragonRank);add('Race d’origine',sc.originRace);add('Domaines divins',sc.divineDomains);add(sc.titanRank==='Titan'?'Affinité titanesque':'Origine primordiale',sc.titanOrigin);add('Lignée draconique',sc.dragonBlood);add('Affinité draconique',sc.dragonAffinity);add('Capacité draconique',sc.dragonAbility);add('Augmentations / structures',sc.nexusStructures);add('Armes Nexus',sc.nexusWeapons)}
  add('Style vestimentaire',state.clothingStyle);return rows;
 }
-function vaeloriaColorOptions(exclude=null){
- const score=Object.fromEntries(colors.filter(x=>x!==exclude).map(x=>[x,1]));
- const boost=(xs,m=1.5)=>xs.forEach(x=>{if(score[x]!=null)score[x]*=m});
- const L=state.lineage||{},t=[state.race,L.vampire,L.werewolf,L.spiritEssence,L.dragonLineage,L.artificialOrigin,L.alienType,L.divineDomain,L.titanOrigin,state.birthRegion,state.culture].filter(Boolean).join(' ');
- if(/Sang|Vampire/i.test(t))boost(['Rouge','Noir','Bordeaux']);
- if(/Nocturne|Ombre|Spectral|Squelette|Liche/i.test(t))boost(['Noir','Violet','Gris']);
- if(/Feu|Volcan|Magma/i.test(t))boost(['Rouge','Orange','Noir']);
- if(/Glace|Glaciaire/i.test(t))boost(['Blanc','Bleu','Cyan']);
- if(/Océan|Aquatique|Maritime|Naeroth/i.test(t))boost(['Bleu','Cyan','Turquoise']);
- if(/Forêt|Forestière|Nature|Sylva/i.test(t))boost(['Vert','Brun','Émeraude']);
- if(/Cristal|Cristallin|Kythera/i.test(t))boost(['Cyan','Violet','Blanc']);
- if(/Lumière|Céleste|Ange|Aetherys/i.test(t))boost(['Blanc','Or','Bleu']);
- if(/Nexus|Synthétique|Artificiel|Cyborg/i.test(t))boost(['Cyan','Argent','Noir']);
- return colors.filter(x=>x!==exclude).map(x=>W(x,score[x]||1));
+
+function vaeloriaEnchantOptions(){
+  return vaeloriaEnchantOptionsFor(
+    ench,
+    {
+      lineage:state.lineage||{},
+      race:state.race||'',
+      birthRegion:state.birthRegion||'',
+      culture:state.culture||'',
+      powers:state.powers||[]
+    }
+  );
 }
 
 function buildInitial(){queue=[task('Strate de naissance',vaeloriaBirthStrataOptions,x=>state.birthStratum=x),
@@ -3983,52 +4469,131 @@ if(l.target==='Un artefact ancien'){let art=state.extraDetail.find(o=>o!==l&&(o.
 })])}else if(x==='Consommable rare'){let d={kind:'Consommable rare',manifestation:null,detail:null};state.extraDetail.push(d);insert([task('Consommable rare — Nature',EQ(rareConsumables),u=>{d.manifestation=u;if(u==='Fiole de résistance élémentaire')insert([task('Consommable rare — Élément',EQ(elementalAffinities),v=>d.detail=v)])})])}else if(x==='Sens extraordinaire'){let d={kind:'Sens extraordinaire',manifestation:null};state.extraDetail.push(d);insert([task('Sens extraordinaire — Nature',EQ(extraordinarySenses),u=>d.manifestation=u)])}else if(x==='Aura dominante'){let d={kind:'Aura dominante',manifestation:null};state.extraDetail.push(d);insert([task('Aura dominante — Nature',EQ(dominantAuras),u=>d.manifestation=u),task('Aura dominante — Intensité',centered,u=>d.power=valNum(u))])}else if(x==='Mutation'){let d={kind:'Mutation',manifestation:null};state.extraDetail.push(d);insert([task('Mutation — Nature',EQ(mutations),u=>d.manifestation=u)])}else if(x==='Double'){let d={kind:'Double',manifestation:null,power:null};state.extraDetail.push(d);insert([task('Double — Type',EQ(doubles),u=>{d.manifestation=u;if(u==='Double unique')insert([task('Double unique — Manifestation',EQ(doubleUnique),z=>d.manifestation=z)])}),task('Double — Puissance',[10,20,30,40,50,60,70,80,90,100].map(n=>W(n+' %')),u=>d.power=parseInt(u))])}else if(x==='Possède un enfant'){
   let c={kind:'Enfant',status:'Naissance en attente de résolution',birthEventId:`BIRTH-${state.id}`,childIds:[],otherParentId:null,origin:null,birthSeason:seasonNumber,eligibleSeason:seasonNumber+1};
   state.extraDetail.push(c);
-}else if(x==='Extra improbable')insert([task('Extra improbable — Manifestation',EQ(improbableExtras),u=>{let d={kind:'Extra improbable',manifestation:u,detail:null};state.extraDetail.push(d);if(u==='Ses chaussures refusent certains terrains')insert([task('Extra improbable — Terrain refusé',EQ(improbableShoeTerrains),v=>d.detail=v)])})]);else if(x==='Extra légendaire')addLegendaryExtra()}),task('Personnalité',EQ(personalities),x=>{state.personality=x;if(x==='Personnalité unique')insert([task('Personnalité unique — manifestation',EQ(uniquePersonalities),u=>state.personality=u)])}),...['Combat','Force','Intelligence','Résilience','Vitesse'].map((stat,si)=>task(`Stat — ${stat}`,centered,x=>{let base=valNum(x),m=modSum()[si];state.stats[stat]=Math.max(0,base+m);state.stats[stat+'_detail']={base,mod:m,breakdown:statBreakdown(si)}})),task('Pouvoir / Chi',()=>activeArchs().includes('Artiste martial')?[W('Chi')]:activeArchs().includes('Sorcier')?EQ(chaos):vaeloriaPowerOptions(),x=>{if(activeArchs().includes('Artiste martial')){insert([task('Chi — Rang',()=>centered.map(o=>W(`${valNum(o.label)} — ${chiRanks[valNum(o.label)-1]}`,o.weight)),m=>{let base=valNum(m),n=Math.min(10,Math.max(1,base+(state._historyChiMod||0)+(state._advancedChiBonus||0)));state.chi={rank:n,base,label:chiRanks[n-1],multiplier:martialChiMultiplier(n)};insert(martialIdentityTasks());if(n>=9&&n<10){state.raceParts.push('Ascension Demi-dieu');applyAscensionMods('Demi-dieu')}else if(n>=10){state.raceParts.push('Martial God');state.lineage=state.lineage||{};state.lineage.divineRank='Divinité';state.lineage.divineDomain='Arts martiaux';applyAscensionMods('Divinité')}})]);return;}let p={name:x,mastery:null};state.powers.push(p);let follow=[];if(x==='Pouvoir unique')follow.push(task('Pouvoir principal — Manifestation unique',EQ(uniquePowers),u=>p.name=u));follow.push(...metamorphosisTasks(p,'Pouvoir principal'));follow.push(task('Pouvoir principal — Maîtrise',centered,m=>{p.masteryBase=valNum(m);p.masteryMod=masteryMod('power');p.mastery=Math.max(0,p.masteryBase+p.masteryMod+(state._historyPowerMasteryMod||0));if(state._lateAwakenedPower)p.awakenedLate=true;if(activeArchs().includes('Mage'))addPower('Pouvoir de Mage',false);if(state._extraPower){state._extraPower=false;addPower('Deuxième pouvoir (Extra)',true)}}));insert(follow)}),
+}else if(x==='Extra improbable')insert([task('Extra improbable — Manifestation',EQ(improbableExtras),u=>{let d={kind:'Extra improbable',manifestation:u,detail:null};state.extraDetail.push(d);if(u==='Ses chaussures refusent certains terrains')insert([task('Extra improbable — Terrain refusé',EQ(improbableShoeTerrains),v=>d.detail=v)])})]);else if(x==='Extra légendaire')addLegendaryExtra()}),task('Personnalité',EQ(personalities),x=>{state.personality=x;if(x==='Personnalité unique')insert([task('Personnalité unique — manifestation',EQ(uniquePersonalities),u=>state.personality=u)])}),...['Combat','Force','Intelligence','Résilience','Vitesse'].map((stat,si)=>task(`Stat — ${stat}`,centered,x=>{let base=valNum(x),m=modSum()[si];state.stats[stat]=Math.max(0,base+m);state.stats[stat+'_detail']={base,mod:m,breakdown:statBreakdown(si)}})),task('Pouvoir / Chi',()=>activeArchs().includes('Artiste martial')?[W('Chi')]:activeArchs().includes('Sorcier')?EQ(chaos):vaeloriaPowerOptions(),x=>{if(activeArchs().includes('Artiste martial')){insert([task('Chi — Rang',()=>centered.map(o=>W(`${valNum(o.label)} — ${chiRanks[valNum(o.label)-1]}`,o.weight)),m=>{
+  const base=valNum(m);
+
+  state.chi=
+    martialChiStateFor({
+      base,
+      historyModifier:
+        state._historyChiMod||0,
+      advancedBonus:
+        state._advancedChiBonus||0,
+      ranks:chiRanks,
+      multiplierFor:
+        martialChiMultiplier
+    });
+
+  insert(
+    martialIdentityTasks()
+  );
+
+  const ascension=
+    martialAscensionFor(
+      state.chi.rank
+    );
+
+  if(!ascension)
+    return;
+
+  state.raceParts.push(
+    ascension.racePart
+  );
+
+  if(
+    ascension.type==='divinity'
+  ){
+    state.lineage=
+      state.lineage||{};
+
+    state.lineage.divineRank=
+      ascension.divineRank;
+
+    state.lineage.divineDomain=
+      ascension.divineDomain;
+  }
+
+  applyAscensionMods(
+    ascension.ascensionMod
+  );
+})]);return;}let p={name:x,mastery:null};state.powers.push(p);let follow=[];if(x==='Pouvoir unique')follow.push(task('Pouvoir principal — Manifestation unique',EQ(uniquePowers),u=>p.name=u));follow.push(...metamorphosisTasks(p,'Pouvoir principal'));follow.push(task('Pouvoir principal — Maîtrise',centered,m=>{p.masteryBase=valNum(m);p.masteryMod=masteryMod('power');p.mastery=Math.max(0,p.masteryBase+p.masteryMod+(state._historyPowerMasteryMod||0));if(state._lateAwakenedPower)p.awakenedLate=true;if(activeArchs().includes('Mage'))addPower('Pouvoir de Mage',false);if(state._extraPower){state._extraPower=false;addPower('Deuxième pouvoir (Extra)',true)}}));insert(follow)}),
 task('Arme principale',()=>activeArchs().includes('Artiste martial')?[W('Armes du clan')]:finalDragonComponent()?EQ(DRAGON_TAIL_WEAPONS):weaponOptions(activeArchs().includes('Tireur')),x=>{if(activeArchs().includes('Artiste martial'))return;let sys=DRAGON_TAIL_WEAPONS.includes(x)?'dragon-tail':'classic';let w=attachWeaponTraits({name:x,mastery:null,ench:[]},sys);if(sys==='dragon-tail'){w.racial=true;w.enchantmentCount=0;const dc=finalDragonComponent();if(dc)dc.dragonWeapon=x}state.weapons.push(w);let follow=[];if(x==='Arme unique')follow.push(task('Arme principale — Manifestation unique',EQ(uniqueWeapons),u=>w.name=u));if(x==='Arme caudale unique')follow.push(dragonTailUniqueMutationTask(w,'Arme principale'));if(x==='Arme improvisée')follow.push(task('Arme principale — Objet improvisé',EQ(improvisedWeapons),u=>w.name=`Arme improvisée — ${u}`));let afterMainWeapon=()=>{if(activeArchs().includes('Berserker'))addWeapon('Deuxième arme du Berserker');if(state._extraWeapon){state._extraWeapon=false;addWeapon('Deuxième arme (Extra)')}};if(x==='Aucune arme'){w.mastery='—';w.enchantmentCount=0;afterMainWeapon()}else{follow.push(task('Arme principale — Maîtrise',centered,m=>{w.masteryBase=valNum(m);w.masteryMod=masteryMod('weapon');w.mastery=Math.max(0,w.masteryBase+w.masteryMod);let n=(w.mastery>=8?2:(w.mastery>=5?1:0));w.directEnchantBonus=activeArchs().includes('Tireur')?1:0;n+=w.directEnchantBonus;w.enchantmentCount=n;insert(enchantTasks(w,'Arme principale',n));afterMainWeapon()}))}insert(follow)}),task('Type de faiblesse',weaknessTypeOptions,x=>{if(x==='Aucune faiblesse')state.weakness='Aucune faiblesse';else if(x==='Faiblesse improbable')insert([task('Faiblesse improbable',EQ(improbableWeak),w=>{state._weak=w}),task('Gravité de la faiblesse',centered,g=>{state.weakness=`Improbable : ${state._weak} — ${valNum(g)}/10`;delete state._weak})]);else insert([task('Faiblesse classique',EQ(classicalWeak),w=>state._weak=w),task('Gravité de la faiblesse',centered,g=>{state.weakness=`${state._weak} — ${valNum(g)}/10`;delete state._weak})])}),task('Âge apparent',[W('Très jeune adulte',10),W('Jeune adulte',25),W('Adulte',35),W('Mature',20),W('Âgé',10)],x=>state.appearance.age=x),task('Corpulence',EQ(bodies),x=>state.appearance.body=x),task('Couleur dominante 1',()=>vaeloriaColorOptions(),x=>{state.appearance.c1=x;if(x==='Couleur unique')insert([task('Couleur dominante 1 — Couleur unique',EQ(uniqueColors),u=>state.appearance.c1=u)])}),task('Couleur dominante 2',()=>vaeloriaColorOptions(state.appearance.c1),x=>{state.appearance.c2=x;if(x==='Couleur unique')insert([task('Couleur dominante 2 — Couleur unique',EQ(uniqueColors.filter(c=>c!==state.appearance.c1)),u=>state.appearance.c2=u)])}),task('Style vestimentaire',clothingStyleOptions,x=>{const resolved=resolveClothingStyle(x);state.clothingStyle=resolved;if(resolved!==x){result.innerHTML=`${resolved}<small>Style vestimentaire — ${x}</small>`;const last=state.logs[state.logs.length-1];if(last&&last.cat==='Style vestimentaire')last.val=resolved}}),task('Signe distinctif',EQ(signs),x=>{state.appearance.sign=x;if(x==='Signe unique')insert([task('Signe unique — manifestation',EQ(['Œil supplémentaire','Halo fracturé','Veines lumineuses','Ombre indépendante','Corne asymétrique','Runes mouvantes','Main cristalline','Cheveux flottant sans vent','Cicatrice en forme de constellation','Tatouage vivant','Peau irisée','Reflet absent','Voix visible comme de la brume','Couronne d’étincelles','Marque impossible']),u=>state.appearance.sign=u)])}),task('Prénom — Structure',EQ(['Court','Long']),x=>{state._nameParts=[];let set=namingSets[namingStyle()]||namingSets.Default;let ts=[task('Prénom — Début',EQ(set.start),v=>state._nameParts.push(v))];if(x==='Long')ts.push(task('Prénom — Milieu',EQ(set.mid),v=>state._nameParts.push(v)));ts.push(task('Prénom — Fin',EQ(set.end),v=>{state._nameParts.push(v);let raw=state._nameParts.join('');state.name=raw.charAt(0).toUpperCase()+raw.slice(1);if(state.martial?.status==='Fondateur'&&state.martial?.clanId)martialUpdateClan(c=>{c.founderName=state.name;c.name=`Clan ${state.name}`});delete state._nameParts}));insert(ts)}),task('Titre',titleOptions,x=>{state.title=x;finalizeMartialClanName()})];}
-function weightedPick(opts){let total=opts.reduce((s,o)=>s+o.weight,0),r=Math.random()*total;for(let i=0;i<opts.length;i++){r-=opts[i].weight;if(r<0)return i}return opts.length-1}
-function wheelRankType(){let t=taskTitle.textContent||'';if(t.includes('Chi — Rang'))return'chi';if(t.includes('Gravité de la faiblesse'))return'weakness';if(t.includes('Maîtrise'))return'mastery';if(t.includes('Intensité')||t.includes('Puissance')||t.includes('Transformation — Niveau')||t.includes('Éveil — Niveau'))return'intensity';if(t.startsWith('Stat —')||t.startsWith('Invocation —'))return'stat';return null}
+
+function wheelRankType(){
+  return wheelRankTypeFor(
+    taskTitle.textContent||''
+  );
+}
 const namedWheelColors={'Noir':'#111827','Blanc':'#ffffff','Gris':'#6b7280','Rouge':'#ef4444','Orange':'#f97316','Jaune':'#facc15','Vert':'#22c55e','Bleu':'#3b82f6','Cyan':'#22d3ee','Violet':'#8b5cf6','Rose':'#ec4899','Brun':'#92400e','Or':'#d4a017','Argent':'#c0c0c0','Cuivre':'#b87333','Couleur unique':'#7c3aed'};
-function readableText(hex){if(!hex||hex[0]!=='#')return'#fff';let h=hex.slice(1);if(h.length===3)h=h.split('').map(x=>x+x).join('');let r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return (r*299+g*587+b*114)/1000>160?'#111827':'#fff'}
-function wheelDisplayLabel(label){let type=wheelRankType(),n=valNum(label);return type&&n?`${n} — ${rankLabel(n,type)}`:label}
+
+function wheelDisplayLabel(label){
+  return wheelDisplayLabelFor(
+    label,
+    wheelRankType(),
+    valNum,
+    rankLabel
+  );
+}
 function wheelDarkFantasyColor(i,count){
-  const palette=(window.HGT_THEME_WHEEL_COLORS&&window.HGT_THEME_WHEEL_COLORS.length?window.HGT_THEME_WHEEL_COLORS:['#b11226','#98152d','#7e1737','#65183f','#4d1742','#37143b','#26102f','#170b20','#08070b']);
-  if(count<=1)return palette[3];
-  const pos=(i/(count-1))*(palette.length-1);
-  const a=Math.floor(pos),b=Math.min(palette.length-1,a+1),t=pos-a;
-  const hex=x=>[parseInt(x.slice(1,3),16),parseInt(x.slice(3,5),16),parseInt(x.slice(5,7),16)];
-  const A=hex(palette[a]),B=hex(palette[b]);
-  const C=A.map((v,k)=>Math.round(v+(B[k]-v)*t));
-  return '#'+C.map(v=>v.toString(16).padStart(2,'0')).join('');
+  const palette=
+    window.HGT_THEME_WHEEL_COLORS &&
+    window.HGT_THEME_WHEEL_COLORS.length
+      ? window.HGT_THEME_WHEEL_COLORS
+      : undefined;
+
+  return wheelDarkFantasyColorFor(
+    i,
+    count,
+    palette
+  );
 }
 let __hgtWheelFx=0;
 let __hgtWheelWinner=-1;
 
 function hgtWheelHexRgb(hex){
-  let h=String(hex||'#d4a017').replace('#','');
-  if(h.length===3)h=h.split('').map(x=>x+x).join('');
-  return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0];
+  return wheelHexRgbFor(hex);
 }
 function hgtWheelRgba(hex,a){
-  const [r,g,b]=hgtWheelHexRgb(hex);return `rgba(${r},${g},${b},${a})`;
+  return wheelRgbaFor(hex,a);
 }
 function hgtWheelPalette(){
-  const p=(window.HGT_THEME_WHEEL_COLORS&&window.HGT_THEME_WHEEL_COLORS.length?window.HGT_THEME_WHEEL_COLORS:['#b11226','#98152d','#7e1737','#65183f','#4d1742','#37143b','#26102f','#170b20','#08070b']);
-  return {main:p[0]||'#b11226',secondary:p[2]||p[1]||'#65183f',accent:p[5]||'#d4a017',dark:p[p.length-1]||'#08070b'};
+  const palette=
+    window.HGT_THEME_WHEEL_COLORS &&
+    window.HGT_THEME_WHEEL_COLORS.length
+      ? window.HGT_THEME_WHEEL_COLORS
+      : undefined;
+
+  return wheelPaletteFor(palette);
 }
-function hgtWheelMetalGradient(cx,cy,r1,r2,accent){
-  const g=ctx.createRadialGradient(cx,cy,r1,cx,cy,r2);
-  g.addColorStop(0,'#17130f');g.addColorStop(.28,'#8a6931');g.addColorStop(.48,'#e0bd67');
-  g.addColorStop(.62,'#5c431f');g.addColorStop(.82,'#b58b3e');g.addColorStop(1,'#120e0b');
-  return g;
+function hgtWheelMetalGradient(
+  cx,
+  cy,
+  r1,
+  r2,
+  accent
+){
+  return wheelMetalGradientFor(
+    ctx,
+    cx,
+    cy,
+    r1,
+    r2,
+    accent
+  );
 }
-function hgtWheelFitText(text,maxWidth,maxPx=18,minPx=8){
-  let px=maxPx;
-  while(px>minPx){
-    ctx.font=`800 ${px}px Georgia,system-ui`;
-    if(ctx.measureText(text).width<=maxWidth)break;
-    px-=1;
-  }
-  return px;
+function hgtWheelFitText(
+  text,
+  maxWidth,
+  maxPx=18,
+  minPx=8
+){
+  return wheelFitTextFor(
+    ctx,
+    text,
+    maxWidth,
+    maxPx,
+    minPx
+  );
 }
 function hgtDrawWheelFrame(cx,cy,R){
   const pal=hgtWheelPalette(),fx=Math.max(0,Math.min(1,__hgtWheelFx||0));
@@ -4348,31 +4913,85 @@ spinBtn.onclick=()=>{
 };autoBtn.onclick=()=>{auto=!auto;autoBtn.textContent=`Auto : ${auto?'ON':'OFF'}`;if(auto&&!spinning)next()};resetBtn.onclick=()=>{auto=false;autoBtn.textContent='Auto : OFF';spinBtn.disabled=false;spinBtn.textContent='Commencer';resetBtn.textContent='Réinitialiser';taskTitle.textContent='Prêt';count.textContent='0 roue';result.innerHTML='Clique sur « Commencer »<small>Les sous-roues seront ajoutées automatiquement selon les résultats.</small>';reset()};exportBtn.onclick=()=>{saveCurrentCharacter();let a=document.createElement('a'),blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});a.href=URL.createObjectURL(blob);a.download=`${state.id}_V18.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};const TOURNAMENT_KEY='roue_tournament_v18';
 const TOURNAMENT_ARCHIVE_KEY='roue_tournament_archive_v18';
 const TOURNAMENT_KEEP_SEASONS=5;
-function loadTournamentArchive(){try{const x=JSON.parse(localStorage.getItem(TOURNAMENT_ARCHIVE_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch(e){return {}}}
-function saveTournamentArchive(a){localStorage.setItem(TOURNAMENT_ARCHIVE_KEY,JSON.stringify(a||{}))}
+function loadTournamentArchive(){
+  return loadTournamentArchiveFromStorage(
+    localStorage,
+    TOURNAMENT_ARCHIVE_KEY
+  );
+}
+function saveTournamentArchive(a){
+  return saveTournamentArchiveToStorage(
+    localStorage,
+    TOURNAMENT_ARCHIVE_KEY,
+    a
+  );
+}
 function archiveTournament(t){
-  if(!t?.season)return;
-  const a=loadTournamentArchive();a[String(t.season)]=JSON.parse(JSON.stringify(t));
-  const maxSeason=Math.max(Number(seasonNumber)||1,...Object.keys(a).map(Number).filter(Number.isFinite));
-  Object.keys(a).forEach(k=>{if(Number(k)<maxSeason-(TOURNAMENT_KEEP_SEASONS-1))delete a[k]});
-  saveTournamentArchive(a);
+  return archiveTournamentInStorage({
+    storage:localStorage,
+    archiveKey:TOURNAMENT_ARCHIVE_KEY,
+    tournament:t,
+    currentSeason:Number(seasonNumber)||1,
+    keepSeasons:TOURNAMENT_KEEP_SEASONS
+  });
 }
 function tournamentForSeason(season){
-  const active=loadTournament();if(Number(active?.season)===Number(season))return active;
-  return loadTournamentArchive()[String(season)]||null;
+  return tournamentForSeasonFromStorage({
+    storage:localStorage,
+    tournamentKey:TOURNAMENT_KEY,
+    archiveKey:TOURNAMENT_ARCHIVE_KEY,
+    season
+  });
 }
 function ensureAutomaticTournament(){
-  const season=tournamentSeason(),roster=tournamentRoster();
-  const ids=Object.keys(roster).filter(id=>id.startsWith(`S${season}-`));
-  if(ids.length<64)return null;
-  let active=loadTournament();
-  if(Number(active?.season)===Number(season))return active;
-  if(active?.season){archiveTournament(active)}
-  const archived=loadTournamentArchive()[String(season)];
-  if(archived){localStorage.setItem(TOURNAMENT_KEY,JSON.stringify(archived));return archived}
-  const ordered=ids.sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).slice(0,64);
-  const t={version:'V18.26',season,createdAt:new Date().toISOString(),rounds:[shuffleTournament(ordered)],winners:{},battles:{},deaths:[]};
-  saveTournament(t);return t;
+  const season=tournamentSeason();
+  const roster=tournamentRoster();
+  const active=loadTournament();
+
+  const archived=
+    loadTournamentArchive()[
+      String(season)
+    ]||null;
+
+  const decision=
+    automaticTournamentDecision({
+      season,
+      roster,
+      active,
+      archived,
+      shuffle:shuffleTournament
+    });
+
+  if(
+    decision.action==='insufficient'
+  ){
+    return null;
+  }
+
+  if(decision.action==='active'){
+    return active;
+  }
+
+  if(active?.season){
+    archiveTournament(active);
+  }
+
+  if(decision.action==='archived'){
+    localStorage.setItem(
+      TOURNAMENT_KEY,
+      JSON.stringify(
+        decision.tournament
+      )
+    );
+
+    return decision.tournament;
+  }
+
+  saveTournament(
+    decision.tournament
+  );
+
+  return decision.tournament;
 }
 const TOURNAMENT_TERRAINS=['Plaine ouverte','Forêt dense','Ruines','Ville','Montagne','Marais','Désert','Caverne','Arène fermée','Zone aquatique'];
 const TOURNAMENT_DISTANCES=[['Corps à corps',2],['Courte distance',8],['Distance moyenne',25],['Longue distance',60]];
@@ -4385,45 +5004,56 @@ const COMBAT_REGIONS=[
 function randomCombatRegion(){return COMBAT_REGIONS[Math.floor(Math.random()*COMBAT_REGIONS.length)]}
 
 function tournamentRoster(){
-  const raw=loadRoster()||{}, out={};
-  Object.entries(raw).forEach(([key,c])=>{
-    if(!c||typeof c!=='object')return;
-    const candidates=[key,c.id,c.character_code,c.characterCode].filter(Boolean).map(String);
-    const id=candidates.find(x=>/^S\d+-\d+$/.test(x));
-    if(id)out[id]={...c,id};
-  });
-  return out;
+  return normalizeTournamentRoster(loadRoster());
 }
 function tournamentSeason(){
-  const roster=tournamentRoster(), seasons={};
-  Object.keys(roster).forEach(id=>{const m=id.match(/^S(\d+)-(\d+)$/);if(m)(seasons[+m[1]]??=[]).push(id)});
-  const complete=Object.keys(seasons).map(Number).filter(n=>seasons[n].length>=64).sort((a,b)=>b-a);
-  return complete[0]||1;
+  return tournamentSeasonFromRoster(
+    tournamentRoster(),
+    64
+  );
 }
-function loadTournament(){try{return JSON.parse(localStorage.getItem(TOURNAMENT_KEY)||'null')}catch(e){return null}}
+function loadTournament(){
+  return loadTournamentFromStorage(
+    localStorage,
+    TOURNAMENT_KEY
+  );
+}
 function ensureTournamentChampion(t){
-  if(!t)return null;
+  if(!t) return null;
+
   const roster=loadRoster();
-  let championId=null;
-  // Source la plus fiable : le combat de finale (tour à 2 combattants).
-  // On ne dépend donc plus de la création éventuelle du tour singleton [champion].
-  let finalRi=-1;
-  for(let ri=(t.rounds?.length||0)-1;ri>=0;ri--){
-    if(Array.isArray(t.rounds[ri])&&t.rounds[ri].length===2){finalRi=ri;break}
-  }
-  if(finalRi>=0)championId=t.winners?.[`${finalRi}-0`]||t.battles?.[`${finalRi}-0`]?.winner||null;
-  if(!championId){
-    const last=t?.rounds?.[t.rounds.length-1];
-    if(last?.length===1)championId=last[0];
-  }
-  if(!championId)return null;
-  const meta=universeMeta();meta.champions??={};
-  const old=meta.champions[String(t.season)];
-  if(!old||old.id!==championId){
-    meta.champions[String(t.season)]={id:championId,name:roster[championId]?.name||old?.name||'Sans nom',season:Number(t.season),wonAt:old?.wonAt||new Date().toISOString()};
+
+  const championId=
+    tournamentChampionIdFromLifecycle(t);
+
+  if(!championId)
+    return null;
+
+  const meta=universeMeta();
+
+  meta.champions??={};
+
+  const old=
+    meta.champions[
+      String(t.season)
+    ];
+
+  if(
+    !old ||
+    old.id!==championId
+  ){
+    meta.champions[
+      String(t.season)
+    ]=championRecord({
+      tournament:t,
+      championId,
+      roster,
+      previous:old
+    });
+
     saveUniverseMeta(meta);
-    if(typeof queueCloudGameStateSave==='function')queueCloudGameStateSave();
   }
+
   return championId;
 }
 function saveTournament(t){
@@ -4432,144 +5062,176 @@ function saveTournament(t){
   if(typeof queueCloudTournamentSave==='function') queueCloudTournamentSave(t);
   ensureTournamentChampion(t);
 }
-function shuffleTournament(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function createTournament(){
-  const season=tournamentSeason(), roster=tournamentRoster();
-  const ids=Object.keys(roster).filter(id=>id.startsWith(`S${season}-`)).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).slice(0,64);
-  if(ids.length<64){alert(`La saison S${season} ne contient que ${ids.length}/64 personnages.`);return}
-  const old=tournamentForSeason(season);
-  if(old&&!confirm(`Le tournoi S${season} existe déjà. Refaire le tirage effacera sa progression, mais pas les Champions déjà archivés. Continuer ?`))return;
-  const t={version:'V18.26',season,createdAt:new Date().toISOString(),rounds:[shuffleTournament(ids)],winners:{},battles:{},deaths:[]};
-  saveTournament(t);renderTournament();
+function shuffleTournament(a){
+  return shuffleTournamentEntries(a);
 }
-function tournamentRoundName(i){return ['32es de finale','16es de finale','8es de finale','Quarts de finale','Demi-finales','Finale'][i]||`Tour ${i+1}`}
+function createTournament(){
+  const season=tournamentSeason();
+  const roster=tournamentRoster();
+
+  const ids=seasonTournamentIds({
+    roster,
+    season
+  });
+
+  if(ids.length<64){
+    alert(
+      `La saison S${season} ne contient que ${ids.length}/64 personnages.`
+    );
+    return;
+  }
+
+  const old=
+    tournamentForSeason(season);
+
+  if(
+    old &&
+    !confirm(
+      `Le tournoi S${season} existe déjà. Refaire le tirage effacera sa progression, mais pas les Champions déjà archivés. Continuer ?`
+    )
+  ){
+    return;
+  }
+
+  const t=createTournamentState({
+    season,
+    ids,
+    shuffle:shuffleTournament
+  });
+
+  saveTournament(t);
+  renderTournament();
+}
+function tournamentRoundName(i){
+  return tournamentRoundNameFor(i);
+}
+
+import {
+  HGT_COMBAT_ENGINE_VERSION,
+  HGT_COMBAT_RULES_VERSION,
+  HGT_COMBAT_CONFIG,
+  HGT_SEASONS,
+  HGT_REGION_CLIMATE,
+  hgtNorm,
+  hgtWeighted,
+  hgtSeasonForTournament,
+  hgtTime,
+  hgtGenerateConditions,
+  hgtCompileCombatProfile,
+  hgtCombatAnalysis,
+  hgtSnapshot,
+  hgtNarrativeFromBattle,
+  hgtPrepareBattleContext
+} from "./rules/combat/engine.js";
 
 /* ========================= HGT COMBAT ENGINE V1 =========================
-   The character sheet remains the canonical source. Combat profiles are
-   compiled on demand; resolved battles keep a snapshot for historical use.
+   Moteur déplacé vers ./rules/combat/engine.js
+   La fonction HTML reste ici car elle appartient à la couche UI.
    ====================================================================== */
-const HGT_COMBAT_ENGINE_VERSION='combat-v1.0.0';
-const HGT_COMBAT_RULES_VERSION='rules-107-v1';
-const HGT_COMBAT_CONFIG={interactionCapPoints:15,environmentCapPoints:10,minProbability:.05,maxProbability:.95,diminishing:[1,.75,.5,.25]};
-const HGT_SEASONS=['Printemps','Été','Automne','Hiver'];
-const HGT_REGION_CLIMATE={
- Aetherys:{temps:[11,17,9,3],weather:[['Clair',25],['Nuageux',25],['Brume',20],['Bruine',12],['Pluie',10],['Forte pluie',5],['Orage',3]],humidity:55,wind:30},
- Thoryndra:{temps:[5,11,4,-3],weather:[['Nuageux',15],['Brume',8],['Bruine',7],['Pluie',20],['Forte pluie',18],['Orage',17],['Violent orage',10],['Grêle',5]],humidity:72,wind:48},
- Liorael:{temps:[14,21,12,7],weather:[['Clair',20],['Nuageux',25],['Brume',15],['Bruine',15],['Pluie',18],['Forte pluie',5],['Orage',2]],humidity:74,wind:18},
- Caelorn:{temps:[13,20,11,5],weather:[['Clair',30],['Partiellement nuageux',20],['Nuageux',20],['Bruine',8],['Pluie',12],['Averse',7],['Orage',3]],humidity:55,wind:35},
- Sylvaeryn:{temps:[14,22,13,7],weather:[['Clair',10],['Nuageux',20],['Brume',20],['Bruine',18],['Pluie',20],['Forte pluie',9],['Orage',3]],humidity:82,wind:12},
- Kharadryn:{temps:[4,11,2,-9],weather:[['Clair froid',25],['Nuageux',20],['Brouillard',10],['Pluie',10],['Neige légère',15],['Neige',10],['Forte neige',6],['Blizzard',4]],humidity:48,wind:42},
- Avelorn:{temps:[14,25,13,4],weather:[['Clair',30],['Partiellement nuageux',20],['Nuageux',18],['Bruine',8],['Pluie',12],['Forte pluie',5],['Orage',7]],humidity:55,wind:20},
- Drakhenor:{temps:[24,35,25,17],weather:[['Clair',48],['Partiellement nuageux',17],['Voile poussiéreux',18],['Nuageux',7],['Pluie',4],['Orage sec',3],['Tempête de poussière',3]],humidity:20,wind:26},
- Maelora:{temps:[26,30,27,23],weather:[['Éclaircies',8],['Nuageux',17],['Brume',15],['Bruine',10],['Pluie',20],['Forte pluie',15],['Pluie torrentielle',8],['Orage',7]],humidity:91,wind:18},
- Iskarya:{temps:[-15,-4,-13,-26],weather:[['Clair froid',22],['Nuageux',18],['Brouillard glacé',10],['Neige légère',18],['Neige',15],['Forte neige',10],['Blizzard',7]],humidity:35,wind:45},
- Nexara:{temps:[17,27,17,9],weather:[['Clair',25],['Partiellement nuageux',20],['Nuageux',15],['Brume',12],['Pluie',10],['Orage',5],['Brume énergétique',8],['Particules énergétiques',5]],humidity:50,wind:18},
- Kaelora:{temps:[27,31,28,24],weather:[['Clair',25],['Partiellement nuageux',15],['Nuageux tropical',12],['Averse',15],['Forte pluie',12],['Pluie torrentielle',8],['Orage tropical',8],['Grain violent',5]],humidity:86,wind:25},
- Vaerunn:{temps:[13,20,12,6],weather:[['Éclaircies',10],['Nuageux',15],['Bruine',10],['Pluie',20],['Forte pluie',15],['Orage',12],['Violent orage',10],['Tempête',8]],humidity:88,wind:48},
- "Mor'Khal":{temps:[25,25,25,25],weather:[['Air sec',45],['Air poussiéreux',25],['Brume minérale',10],['Courants souterrains',15],['Nuage de poussière',5]],humidity:22,wind:12,underground:true},
- Kythera:{temps:[11,11,11,11],weather:[['Air cristallin',45],['Brume légère',20],['Poussière cristalline',15],['Courants souterrains',15],['Nuage cristallin dense',5]],humidity:52,wind:10,underground:true},
- Lumerys:{temps:[18,18,18,18],weather:[['Air humide',25],['Brume bioluminescente',25],['Brume dense',15],['Spores légères',20],['Nuage de spores',10],['Condensation',5]],humidity:92,wind:6,underground:true},
- Varkhoryn:{temps:[42,42,42,42],weather:[['Air brûlant',20],['Fumées volcaniques',25],['Cendres légères',25],['Cendres denses',15],['Émanations brûlantes',10],['Activité volcanique intense',5]],humidity:15,wind:18,underground:true},
- Naeroth:{temps:[12,12,12,12],weather:[['Air humide calme',20],['Brume marine',20],['Embruns',20],['Brume dense',10],['Vent marin souterrain',15],['Orage souterrain',10],['Violent orage',5]],humidity:95,wind:28,underground:true}
-};
-function hgtNorm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
-function hgtWeighted(items){let total=items.reduce((n,x)=>n+Math.max(0,Number(x[1])||0),0),r=Math.random()*total;for(const x of items){r-=Math.max(0,Number(x[1])||0);if(r<=0)return x[0]}return items[items.length-1]?.[0]}
-function hgtSeasonForTournament(t){if(t?.seasonName&&HGT_SEASONS.includes(t.seasonName))return t.seasonName;const n=Math.max(1,Number(t?.season)||1);return HGT_SEASONS[(n-1)%4]}
-function hgtTime(){const periods=[['Nuit profonde',0,4],['Aube',5,6],['Matin',7,10],['Midi',11,13],['Après-midi',14,17],['Crépuscule',18,19],['Soirée',20,23]],p=periods[Math.floor(Math.random()*periods.length)],h=p[1]+Math.floor(Math.random()*(p[2]-p[1]+1)),m=Math.floor(Math.random()*60);return {period:p[0],hour:`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`,hourValue:h}}
-function hgtGenerateConditions(ctx,t){
- const climate=HGT_REGION_CLIMATE[ctx.region]||HGT_REGION_CLIMATE.Avelorn,season=hgtSeasonForTournament(t),si=HGT_SEASONS.indexOf(season),time=hgtTime(),weather=hgtWeighted(climate.weather),wn=hgtNorm(weather);
- const hourAdj=time.hourValue<5?-4:time.hourValue<7?-3:time.hourValue<11?-1:time.hourValue<14?2:time.hourValue<18?3:time.hourValue<20?0:-2;
- let temp=(climate.temps[si]??15)+(Math.random()*8-4)+(climate.underground?0:hourAdj);if(/neige|blizzard|glace/.test(wn))temp=Math.min(temp,1);if(/pluie|averse|orage/.test(wn))temp-=1.5;if(ctx.terrain==='Montagne')temp-=4;if(ctx.region==='Varkhoryn')temp=Math.max(30,temp);temp=Math.round(temp*10)/10;
- let humidity=Math.max(5,Math.min(100,climate.humidity+(/pluie|averse|brume|brouillard|embrun|spore/.test(wn)?12:0)+Math.round(Math.random()*12-6)));
- let wind=Math.max(0,Math.round(climate.wind+Math.random()*20-10+(/tempete|violent|blizzard|orage/.test(wn)?25:0))),gusts=Math.round(wind*(1.15+Math.random()*.35));
- const windIntensity=wind<5?'Calme':wind<=15?'Faible':wind<=30?'Modéré':wind<=50?'Fort':wind<=75?'Violent':'Tempétueux';
- let visibility=/blizzard|tempete de poussiere|brume dense|cendres denses|pluie torrentielle/.test(wn)?20:/brume|brouillard|forte pluie|neige|spore|poussiere|embrun/.test(wn)?70:/pluie|nuageux|cendre/.test(wn)?180:600;
- if(ctx.terrain==='Forêt dense')visibility=Math.min(visibility,90);if(ctx.terrain==='Caverne')visibility=Math.min(visibility,60);
- const visLevel=visibility<5?'Quasi nulle':visibility<25?'Très faible':visibility<75?'Faible':visibility<200?'Moyenne':visibility<500?'Bonne':'Excellente';
- const dark=climate.underground||time.hourValue<6||time.hourValue>=20,lighting={level:dark?'Faible':(/orage|brume dense|blizzard/.test(wn)?'Modérée':'Claire'),source:climate.underground?(ctx.region==='Lumerys'?'Bioluminescence':ctx.region==='Kythera'?'Cristaux':ctx.region==='Varkhoryn'?'Magma':'Lumières souterraines'):'Lumière naturelle'};
- const wet=/pluie|averse|bruine|orage|embrun/.test(wn)||ctx.terrain==='Marais'||ctx.terrain==='Zone aquatique',icy=/neige|blizzard|glace/.test(wn)||temp<=-5,dust=/poussiere|cendre/.test(wn)||ctx.terrain==='Désert';
- const ground={base:ctx.terrain==='Désert'?'sable':ctx.terrain==='Zone aquatique'?'eau':ctx.terrain==='Ville'||ctx.terrain==='Ruines'?'pierre':'terre',moisture:ctx.terrain==='Zone aquatique'?'inondé':wet?'détrempé':'sec',traction:icy||wet?'glissant':dust?'médiocre':'normale',stability:['Ruines','Montagne','Marais'].includes(ctx.terrain)?'irrégulier':'stable',cover:[...(wet?['eau/boue']:[]),...(icy?['neige/glace']:[]),...(dust?['poussière/cendres']:[])]};
- return {version:1,season,time:{period:time.period,hour:time.hour},weather:{type:weather,intensity:/violent|torrentielle|blizzard|tempete|intense/.test(wn)?'forte':/forte|orage/.test(wn)?'importante':'normale'},temperatureC:temp,wind:{intensity:windIntensity,speedKmh:wind,gustsKmh:gusts,direction:['N','NE','E','SE','S','SO','O','NO'][Math.floor(Math.random()*8)]},visibility:{level:visLevel,approximateRangeM:visibility},ground,lighting,humidity,air:{clarity:visibility<75?'trouble':'normale',particles:ground.cover.slice()},atmosphere:weather,environmentalEvent:null};
-}
-function hgtText(c,{excludeWeakness=false}={}){const seen=new WeakSet();return hgtNorm(JSON.stringify(c,(k,v)=>{if(['logs','imageGeneration','genealogy','relationships'].includes(k)||(excludeWeakness&&['weakness','gravity'].includes(k)))return undefined;if(v&&typeof v==='object'){if(seen.has(v))return undefined;seen.add(v)}return v}))}
-function hgtWeakness(c){const raw=String(c?.weakness||''),m=raw.match(/(.+?)(?:\s*[—-]\s*(\d+)\s*\/\s*10)?$/);return {name:(m?.[1]||raw).trim(),severity:Number(m?.[2])||0}}
-function hgtCompileCombatProfile(c,id=''){
- c=c||{};const text=hgtText(c,{excludeWeakness:true}),weak=hgtWeakness(c),powers=(c.powers||[]).map(p=>({name:p.name||'',mastery:Number(p.mastery)||0,source:'power'})),weapons=(c.weapons||[]).map(w=>({name:w.name||'',mastery:Number(w.mastery)||0,enchantments:[...(w.ench||w.enchantments||[])],source:'weapon'}));
- const tags=new Set();const add=(tag,re)=>{if(re.test(text))tags.add(tag)};
- add('fire',/feu|flamme|incend|volcani|brul/);add('water',/\beau\b|aquati|marin|kraken|leviathan/);add('ice',/glace|glacial|neige|givre|froid/);add('electricity',/foudre|electri|eclair/);add('air',/\bair\b|vent|rafale/);add('earth',/\bterre\b|roche|mineral/);add('nature',/nature|veget|plante|spore|champignon/);add('light',/lumiere|solaire|celeste/);add('darkness',/tenebre|ombre/);add('poison',/poison|tox|venin/);add('blood',/sang/);add('magnetism',/magnet/);add('sound',/sonique|\bson\b|cri|silence absolu/);add('explosion',/explosion|explosi/);add('telekinesis',/telekines/);add('telepathy',/telepath/);add('illusion',/illusion/);add('invisibility',/invisib|camouflage optique/);add('teleport',/teleport|portail/);add('gravity',/gravite|gravitation/);add('time',/temps|temporel|time slasher/);add('space',/espace|spatial|dimension/);add('absorption',/absorption/);add('copy',/\bcopie\b|copier/);add('nullification',/annulation|anti-magie|zone sans magie/);add('regeneration',/regener/);add('barrier',/barriere|bouclier/);add('flight',/\bvol\b|ailes|aviaire|pegase/);add('thermalVision',/vision thermique|detection thermique/);add('altSense',/echoloc|vision surnaturelle|scanner biologique|sens de piste|perception/);add('adaptation',/adaptation|memorise les attaques|mémorise les attaques/);add('storage',/stockage|stocke une attaque/);add('transfer',/vol de mouvement|vol d.inertie|transfert|echange de blessures|échange de blessures/);add('zone',/zone sans magie|zone de protection|stase/);add('learning',/lecture du combat|analyse tactique|memoire parfaite|mémoire parfaite/);add('controlledUnknown',/effet impossible|extra totalement absurde|capacite biologique inconnue|capacité biologique inconnue|logique ne peut expliquer/);
- return {id,name:c.name||id,race:c.race||'',arch:c.arch||'',job:c.job||'',stats:{...(c.stats||{})},powers,weapons,weakness:weak,blessings:[...(c.blessings||[])],curses:[...(c.curses||[])],extraDetail:[...(c.extraDetail||[])],transformation:c.transformation||null,awakening:c.awakening||null,chi:c.chi||null,martial:martialCombatData(c),tags:[...tags],sourceFingerprint:hgtFingerprint(c),rulesVersion:HGT_COMBAT_RULES_VERSION};
-}
-function hgtFingerprint(c){const x=JSON.stringify(c,(k,v)=>['logs','imageGeneration','genealogy','relationships'].includes(k)?undefined:v);let h=2166136261;for(let i=0;i<x.length;i++){h^=x.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
-function hgtKnowledgeScore(k){return k==='Bonne connaissance de l’adversaire'?1:k==='Informations partielles'?.5:0}
-function hgtBuildInteractions(a,b,ctx,conditions){
- const out=[],push=(actor,target,key,impact,category,reason,environment=false)=>{impact=Math.max(0,Math.min(4,Number(impact)||0));if(!impact)return;out.push({actor,target,causalKey:key,impact,category,reason,environment})},ta=new Set(a.tags),tb=new Set(b.tags),wA=hgtNorm(a.weakness.name),wB=hgtNorm(b.weakness.name),wet=conditions.ground.moisture!=='sec',lowVis=conditions.visibility.approximateRangeM<75,strongWind=conditions.wind.speedKmh>50,icy=conditions.ground.cover.some(x=>/glace|neige/.test(x));
- const exposeWeak=(actor,target,ts,w,key)=>{if(!w.name||!w.severity)return;const n=hgtNorm(w.name);const pairs=[['electricity',/electri|foudre|eclair/],['fire',/feu|chaleur|brul/],['ice',/glace|froid/],['water',/eau|aquati/],['sound',/son|bruit|applaud/],['nature',/champignon|spore|veget|nature/],['magnetism',/magnet/],['light',/lumiere/],['darkness',/tenebre|ombre/],['poison',/poison|tox|venin/],['time',/temps|temporel/],['space',/espace|spatial|dimension/],['explosion',/explosion/]];for(const [tag,re] of pairs)if(ts.has(tag)&&re.test(n)){push(actor,target,`${actor}:${tag}>${target}:weakness`,Math.min(4,Math.max(1,w.severity/2.5)),'vulnerability',`Faiblesse ${w.name} exposée par ${tag}`);break}};
- exposeWeak('A','B',ta,b.weakness,'B');exposeWeak('B','A',tb,a.weakness,'A');
- if(wet){if(ta.has('electricity'))push('A','B','A:electricity:wet',2.5,'environment','La conductivité du terrain humide favorise la Foudre',true);if(tb.has('electricity'))push('B','A','B:electricity:wet',2.5,'environment','La conductivité du terrain humide favorise la Foudre',true);if(ta.has('fire'))push('B','A','A:fire:wet-penalty',1.5,'environment','L’humidité gêne certaines utilisations du Feu',true);if(tb.has('fire'))push('A','B','B:fire:wet-penalty',1.5,'environment','L’humidité gêne certaines utilisations du Feu',true)}
- if(lowVis){if(ta.has('thermalVision')||ta.has('altSense'))push('A','B','A:senses:lowvis',2,'environment','Perception alternative dans une visibilité réduite',true);if(tb.has('thermalVision')||tb.has('altSense'))push('B','A','B:senses:lowvis',2,'environment','Perception alternative dans une visibilité réduite',true);if(ta.has('invisibility')&&!tb.has('altSense')&&!tb.has('thermalVision'))push('A','B','A:invisibility:detection',2.5,'matchup','Invisibilité difficile à détecter');if(tb.has('invisibility')&&!ta.has('altSense')&&!ta.has('thermalVision'))push('B','A','B:invisibility:detection',2.5,'matchup','Invisibilité difficile à détecter')}
- if(strongWind){if(ta.has('flight'))push('B','A','A:flight:wind',2,'environment','Vent violent défavorable au vol',true);if(tb.has('flight'))push('A','B','B:flight:wind',2,'environment','Vent violent défavorable au vol',true)}
- if(icy){const aAdapt=/glace|glacial|iskarya|resistance environnementale/.test(hgtText(a)),bAdapt=/glace|glacial|iskarya|resistance environnementale/.test(hgtText(b));if(aAdapt&&!bAdapt)push('A','B','A:ice-adaptation',1.5,'environment','Meilleure adaptation au terrain gelé',true);if(bAdapt&&!aAdapt)push('B','A','B:ice-adaptation',1.5,'environment','Meilleure adaptation au terrain gelé',true)}
- if(ctx.distance>=25){if(ta.has('teleport'))push('A','B','A:teleport:distance',2.5,'matchup','Téléportation permettant de casser la distance');if(tb.has('teleport'))push('B','A','B:teleport:distance',2.5,'matchup','Téléportation permettant de casser la distance')}
- if(ta.has('regeneration')&&tb.has('nullification'))push('B','A','B:nullify>A:regen',2.5,'counter','Neutralisation susceptible de réduire la régénération');if(tb.has('regeneration')&&ta.has('nullification'))push('A','B','A:nullify>B:regen',2.5,'counter','Neutralisation susceptible de réduire la régénération');
- return hgtFuseInteractions(out)
-}
-function hgtFuseInteractions(items){const arr=[...items],drop=new Set();for(let i=0;i<arr.length;i++){const x=arr[i];if(!/:electricity:wet$/.test(x.causalKey))continue;const j=arr.findIndex((y,n)=>n!==i&&y.actor===x.actor&&y.target===x.target&&/:electricity>.*:weakness$/.test(y.causalKey));if(j>=0){arr[j]={...arr[j],impact:Math.min(4,Math.max(arr[j].impact,arr[j].impact+x.impact*.25)),environment:true,reason:`${arr[j].reason} dans un environnement conducteur`,causes:[arr[j].reason,x.reason]};drop.add(i)}}const map=new Map();for(let i=0;i<arr.length;i++){if(drop.has(i))continue;const x=arr[i],family=x.causalKey.replace(/:wet|-penalty/g,''),k=`${x.actor}>${x.target}:${family}`,old=map.get(k);if(!old||x.impact>old.impact)map.set(k,{...x,causes:old?[...(old.causes||[old.reason]),x.reason]:(x.causes||[x.reason])})}return [...map.values()]}
-function hgtInteractionScore(items,actor,environmentOnly=false){const arr=items.filter(x=>x.actor===actor&&(!environmentOnly||x.environment)).sort((a,b)=>b.impact-a.impact);return arr.reduce((sum,x,i)=>sum+x.impact*(HGT_COMBAT_CONFIG.diminishing[Math.min(i,3)]),0)}
-function hgtCombatAnalysis(a,b,ctx,conditions,baseProbA){const interactions=hgtBuildInteractions(a,b,ctx,conditions),sa=hgtInteractionScore(interactions,'A'),sb=hgtInteractionScore(interactions,'B'),ea=hgtInteractionScore(interactions,'A',true),eb=hgtInteractionScore(interactions,'B',true),env=Math.max(-HGT_COMBAT_CONFIG.environmentCapPoints,Math.min(HGT_COMBAT_CONFIG.environmentCapPoints,ea-eb)),raw=sa-sb,modifier=Math.max(-HGT_COMBAT_CONFIG.interactionCapPoints,Math.min(HGT_COMBAT_CONFIG.interactionCapPoints,raw)),applied=Math.abs(env)>Math.abs(modifier)?env:modifier,final=Math.max(HGT_COMBAT_CONFIG.minProbability,Math.min(HGT_COMBAT_CONFIG.maxProbability,baseProbA+applied/100));return {version:1,baseProbability:{a:+baseProbA.toFixed(4),b:+(1-baseProbA).toFixed(4)},interactions,rawInteractionScores:{a:+sa.toFixed(2),b:+sb.toFixed(2)},environmentScores:{a:+ea.toFixed(2),b:+eb.toFixed(2)},relativeModifierPoints:+applied.toFixed(2),finalProbability:{a:+final.toFixed(4),b:+(1-final).toFixed(4)}}}
-function hgtSnapshot(profile){return {id:profile.id,name:profile.name,sourceFingerprint:profile.sourceFingerprint,rulesVersion:profile.rulesVersion,tags:[...profile.tags],weakness:{...profile.weakness}}}
-function hgtNarrativeFromBattle(battle,a,b){const winner=battle.winner===battle.a?a:b,loser=battle.winner===battle.a?b:a,ints=(battle.analysis?.interactions||[]).slice().sort((x,y)=>y.impact-x.impact),key=ints[0],c=battle.conditions||{},weather=c.weather?.type||'conditions changeantes';const pa=battle.analysis?.finalProbability?.a??battle.probA??.5,expected=pa>=.5?battle.a:b,upset=expected!==battle.winner;const opening=`À ${c.time?.hour||'une heure indéterminée'}, ${a.name||battle.a} et ${b.name||battle.b} se font face sur ${String(battle.terrain||'le terrain').toLowerCase()}, sous ${String(weather).toLowerCase()}. La distance initiale est de ${battle.distance??'plusieurs'} mètres.`;const middle=key?`Le combat bascule lorsque ${key.reason.toLowerCase()}. Les deux adversaires adaptent leur rythme, sans que cet avantage suffise à lui seul à décider de l’issue.`:`Aucun facteur contextuel ne domine nettement l’affrontement : les échanges reposent surtout sur les qualités propres des deux combattants.`;const turn=upset?`${winner.name||battle.winner}, pourtant désavantagé avant le tirage final, exploite une ouverture décisive et renverse progressivement le rapport de force.`:`${winner.name||battle.winner} transforme progressivement son avantage en ouverture décisive.`;const end=battle.death===battle.loser?`${loser.name||battle.loser} reçoit finalement une blessure mortelle. ${winner.name||battle.winner} demeure seul en état de poursuivre le tournoi.`:`Après le dernier échange, ${loser.name||battle.loser} n’est plus en mesure de poursuivre. ${winner.name||battle.winner} remporte le combat.`;return {version:1,chronicle:[opening,middle,turn,end].join('\n\n'),closingLine:`🏆 ${winner.name||battle.winner} remporte l’affrontement.`,direction:{tone:'cinematic_dark_fantasy',estimatedDurationSec:upset?120:Math.abs(pa-.5)>.3?45:90,intensity:'high',pacing:upset?'progressive':'dynamic'},sequences:[],generatedAt:new Date().toISOString(),generator:'deterministic-v1'}}
-function hgtPrepareBattleContext(ctx,t,a,b,idA,idB,baseProbA){const conditions=hgtGenerateConditions(ctx,t),pa=hgtCompileCombatProfile(a,idA),pb=hgtCompileCombatProfile(b,idB),analysis=hgtCombatAnalysis(pa,pb,ctx,conditions,baseProbA);return {conditions,profiles:{a:pa,b:pb},analysis}}
 function hgtConditionsHtml(c){if(!c)return'';return `<div class="combat-param"><b>Saison / heure</b>${escapeHtml(c.season||'—')} • ${escapeHtml(c.time?.period||'—')} ${escapeHtml(c.time?.hour||'')}</div><div class="combat-param"><b>Météo</b>${escapeHtml(c.weather?.type||'—')} • ${escapeHtml(String(c.temperatureC??'—'))} °C</div><div class="combat-param"><b>Vent / visibilité</b>${escapeHtml(c.wind?.intensity||'—')} ${escapeHtml(String(c.wind?.speedKmh??''))} km/h • ${escapeHtml(c.visibility?.level||'—')} (~${escapeHtml(String(c.visibility?.approximateRangeM??'—'))} m)</div><div class="combat-param"><b>Sol / lumière</b>${escapeHtml(c.ground?.moisture||'—')} • ${escapeHtml(c.ground?.traction||'—')} • ${escapeHtml(c.lighting?.level||'—')}</div>`}
 /* ======================= END HGT COMBAT ENGINE V1 ======================= */
 
 function fighterValue(c,ctx){
-  const st=c?.stats||{}, combat=Number(st.Combat)||0, force=Number(st.Force)||0, intel=Number(st.Intelligence)||0, res=Number(st['Résilience'])||0, vit=Number(st['Vitesse'])||0;
-  const powers=(c?.powers||[]).map(p=>Number(p.mastery)||0); if(c?.martial?.techniques?.length)powers.push(...c.martial.techniques.map(t=>Number(t.equivalentPower)||0));
-  const weapons=(c?.weapons||[]).map(w=>Number(w.mastery)||0);
-  const p=powers.length?Math.max(...powers):0,w=weapons.length?Math.max(...weapons):0;
-  let v=combat*2.2+force*1.15+intel*1.15+res*1.45+vit*1.35+p*1.7+w*1.25;
-  const arch=String(c?.arch||'');
-  if(ctx.distance>=25){if(/Tireur|Mage|Sorcier/.test(arch))v+=4;if(/Assassin|Berserker|Artiste martial/.test(arch))v-=2}
-  if(ctx.distance<=8){if(/Artiste martial|Berserker|Guerrier|Assassin/.test(arch))v+=3;if(/Tireur/.test(arch))v-=2}
-  if(ctx.terrain==='Forêt dense'||ctx.terrain==='Ruines'){if(/Chasseur|Éclaireur|Assassin|Trickster/.test(arch))v+=2}
-  if(ctx.terrain==='Plaine ouverte'){if(/Tireur|Commandant/.test(arch))v+=2}
-  if(ctx.terrain==='Zone aquatique' && String(c?.race||'').match(/Requin|Baleine|Poulpe|Kraken|Serpent de mer|Léviathan/i))v+=5;
-  return v;
+  return tournamentFighterValue(c,ctx);
 }
-function resolveTournamentBattleInto(t,ri,mi,roster,{replace=false}={}){
-  t.battles??={};t.deaths??=[];t.winners??={};
-  const round=t.rounds[ri]||[],a=round[mi*2],b=round[mi*2+1];if(!a||!b)return false;
-  const key=`${ri}-${mi}`;if(t.winners[key]&&!replace)return false;
-  const terrain=TOURNAMENT_TERRAINS[Math.floor(Math.random()*TOURNAMENT_TERRAINS.length)],d=TOURNAMENT_DISTANCES[Math.floor(Math.random()*TOURNAMENT_DISTANCES.length)],region=randomCombatRegion();
-  const ctx={terrain,distanceLabel:d[0],distance:d[1],region:region[0],regionSlug:region[1],knowledgeA:TOURNAMENT_KNOWLEDGE[Math.floor(Math.random()*3)],knowledgeB:TOURNAMENT_KNOWLEDGE[Math.floor(Math.random()*3)]};
-  let va=fighterValue(roster[a],ctx),vb=fighterValue(roster[b],ctx);
-  if(ctx.knowledgeA==='Informations partielles')va+=1.5;else if(ctx.knowledgeA==='Bonne connaissance de l’adversaire')va+=3;
-  if(ctx.knowledgeB==='Informations partielles')vb+=1.5;else if(ctx.knowledgeB==='Bonne connaissance de l’adversaire')vb+=3;
-  const diff=va-vb,baseProbA=Math.max(.1,Math.min(.9,1/(1+Math.exp(-diff/10))));
-  const prepared=hgtPrepareBattleContext(ctx,t,roster[a],roster[b],a,b,baseProbA),probA=prepared.analysis.finalProbability.a,roll=Math.random(),winner=roll<probA?a:b,loser=winner===a?b:a;
-  const lr=Number(roster[loser]?.stats?.['Résilience'])||0,deathChance=Math.max(.01,Math.min(.18,.10-lr*.006+Math.abs(diff)*.002)),died=Math.random()<deathChance;
-  const battle={a,b,winner,loser,region:ctx.region,regionSlug:ctx.regionSlug,terrain,distanceLabel:d[0],distance:d[1],knowledgeA:ctx.knowledgeA,knowledgeB:ctx.knowledgeB,probA:+probA.toFixed(4),baseProbA:+baseProbA.toFixed(4),roll:+roll.toFixed(4),death:died?loser:null,conditions:prepared.conditions,analysis:prepared.analysis,engine:{version:HGT_COMBAT_ENGINE_VERSION,rulesVersion:HGT_COMBAT_RULES_VERSION,characterA:hgtSnapshot(prepared.profiles.a),characterB:hgtSnapshot(prepared.profiles.b)},at:new Date().toISOString()};
-  battle.narrative=null;battle.narrativeStatus='pending';t.battles[key]=battle;
-  if(died&&!t.deaths.includes(loser))t.deaths.push(loser);t.winners[key]=winner;return true;
+function resolveTournamentBattleInto(
+  t,
+  ri,
+  mi,
+  roster,
+  {replace=false}={}
+){
+  return resolveTournamentBattle({
+    tournament:t,
+    roundIndex:ri,
+    matchIndex:mi,
+    roster,
+    replace,
+
+    terrains:TOURNAMENT_TERRAINS,
+    distances:TOURNAMENT_DISTANCES,
+    knowledgeOptions:TOURNAMENT_KNOWLEDGE,
+    regions:COMBAT_REGIONS,
+
+    prepareBattleContext:
+      hgtPrepareBattleContext,
+
+    snapshot:
+      hgtSnapshot,
+
+    engineVersion:
+      HGT_COMBAT_ENGINE_VERSION,
+
+    rulesVersion:
+      HGT_COMBAT_RULES_VERSION
+  });
 }
 function simulateTournamentBattle(ri,mi){
-  const t=loadTournament(),roster=loadRoster();if(!t)return;const key=`${ri}-${mi}`;
-  if(t.winners?.[key])return;
-  if(!resolveTournamentBattleInto(t,ri,mi,roster))return;advanceTournamentIfRoundComplete(t,ri);saveTournament(t);renderTournament();
+  const t=loadTournament();
+  const roster=loadRoster();
+
+  if(!t)return;
+
+  const result=
+    simulateTournamentMatch({
+      tournament:t,
+      roster,
+      roundIndex:ri,
+      matchIndex:mi,
+      resolveBattle:
+        resolveTournamentBattleInto,
+      advanceRound:
+        advanceTournamentIfRoundComplete
+    });
+
+  if(!result.simulated)
+    return;
+
+  saveTournament(t);
+  renderTournament();
 }
 function currentIncompleteTournamentRound(t){
-  for(let ri=0;ri<t.rounds.length;ri++){const round=t.rounds[ri]||[],matches=Math.floor(round.length/2);if(round.length<=1)continue;for(let mi=0;mi<matches;mi++)if(!t.winners?.[`${ri}-${mi}`])return ri}
-  return -1;
+  return currentIncompleteTournamentRoundFor(t);
 }
 function simulateTournamentBatch(mode='round'){
-  const t=loadTournament(),roster=loadRoster();if(!t){alert('Crée d’abord le tirage du tournoi.');return}
-  let simulated=0,safety=0;
-  while(safety++<12){const ri=currentIncompleteTournamentRound(t);if(ri<0)break;const round=t.rounds[ri]||[],matches=Math.floor(round.length/2);for(let mi=0;mi<matches;mi++){const key=`${ri}-${mi}`;if(t.winners?.[key])continue;if(resolveTournamentBattleInto(t,ri,mi,roster))simulated++}advanceTournamentIfRoundComplete(t,ri);if(mode==='round')break}
-  if(!simulated){alert('Aucun combat non résolu à simuler.');return}saveTournament(t);renderTournament();
+  const t=loadTournament();
+  const roster=loadRoster();
+
+  if(!t){
+    alert(
+      'Crée d’abord le tirage du tournoi.'
+    );
+    return;
+  }
+
+  const result=
+    simulateTournamentMatches({
+      tournament:t,
+      roster,
+      mode,
+      resolveBattle:
+        resolveTournamentBattleInto,
+      currentRound:
+        currentIncompleteTournamentRoundFor,
+      advanceRound:
+        advanceTournamentIfRoundComplete
+    });
+
+  if(!result.simulated){
+    alert(
+      'Aucun combat non résolu à simuler.'
+    );
+    return;
+  }
+
+  saveTournament(t);
+  renderTournament();
 }
 function advanceTournamentIfRoundComplete(t,roundIndex){
-  const round=t.rounds[roundIndex]||[],matches=Math.ceil(round.length/2),all=[];for(let i=0;i<matches;i++){const w=t.winners[`${roundIndex}-${i}`];if(!w)return;all.push(w)}
-  if(round.length>1)t.rounds[roundIndex+1]=all;
+  advanceTournamentRoundIfComplete(
+    t,
+    roundIndex
+  );
 }
 async function tournamentPortrait(el,id){try{const f=await getIllustration(id);if(!f)return;const url=URL.createObjectURL(f),img=document.createElement('img');img.src=url;img.onload=()=>URL.revokeObjectURL(url);el.replaceChildren(img)}catch(e){}}
 function drawTournamentConnectors(){
@@ -4908,67 +5570,11 @@ if(multiplayerTabBtn)multiplayerTabBtn.onclick=async()=>{closeArenaMenu();showTa
 document.addEventListener('click',(e)=>{if(!e.target.closest('.arena-nav')){arenaMenu.hidden=true;arenaTabBtn.setAttribute('aria-expanded','false')}});
 
 // Univers V18 — sous-navigation et codex racial relié aux données du jeu.
-const RACE_CODEX_LORE={
- 'Humain':{origin:'Les Humains sont originaires des grandes plaines d’Avelorn, au cœur de Yndara, où les vallées fluviales fertiles ont favorisé leurs premiers grands foyers de peuplement.',development:'Leur forte capacité d’adaptation a favorisé une grande diversité de sociétés, de modes de vie et de traditions. Les communautés d’Avelorn ont progressivement développé agriculture, villes et réseaux commerciaux avant de se diffuser bien au-delà de leur région d’origine.',geography:'Très largement répandus sur Vaeloria. Avelorn reste leur berceau historique, mais des populations humaines vivent aujourd’hui dans de nombreuses régions de Yndara ainsi que, plus ponctuellement, dans Elyrion et Nharak.',biology:'Humanoïdes de taille moyenne à la morphologie très variable. Ils ne possèdent pas de caractère biologique surnaturel propre à leur race ; leur principal trait commun est une grande plasticité physique et culturelle face à des environnements très différents.'},
- 'Elfe':{origin:'Ancien peuple biologique apparu dans les forêts primordiales de Sylvaeryn, dont les grands massifs et les cours d’eau constituent leur berceau historique.',development:'Les premières sociétés elfiques se sont développées au sein de la forêt ancienne en maintenant un lien étroit avec ses cycles naturels. Avec le temps, certaines lignées ont quitté Sylvaeryn et se sont adaptées à d’autres régions sans perdre leur héritage commun.',geography:'Fortement associés à Sylvaeryn, où ils restent particulièrement présents. Des communautés elfiques existent néanmoins ailleurs en Yndara et, plus rarement, dans les autres strates.',biology:'Humanoïdes généralement élancés, aux traits fins et aux longues oreilles pointues. Leurs sens sont particulièrement développés et leur longévité dépasse celle de nombreux peuples communs de Vaeloria.'},
- 'Nain':{origin:'Peuple ancien originaire de Kharadryn, façonné par les hautes montagnes, les vallées froides et les vastes réseaux rocheux de la région.',development:'Les Nains ont développé des communautés adaptées aux reliefs extrêmes, ainsi qu’une longue tradition de construction, d’extraction et de travail des matériaux. Les routes profondes de Kharadryn ont également favorisé très tôt leurs contacts avec Nharak.',geography:'Kharadryn demeure leur principal foyer historique. Des populations naines se sont établies le long des chaînes montagneuses, des réseaux souterrains et des grands axes reliant Yndara à Nharak.',biology:'Humanoïdes de petite taille à l’ossature dense, au corps compact et robuste. Leur constitution favorise endurance et résistance physique ; la pilosité faciale peut être particulièrement développée chez de nombreux individus.'},
- 'Orc':{origin:'Peuple originaire de Drakhenor, vaste région de steppes sèches, plateaux rocheux, mesas et canyons de Yndara.',development:'Les Orcs ont développé des cultures très diverses adaptées aux longues distances et à l’irrégularité des ressources : clans nomades, communautés des steppes et cités fortifiées des plateaux. Leurs sociétés ne forment pas un ensemble culturel unique.',geography:'Drakhenor reste leur berceau historique et leur principal foyer, mais les migrations, échanges et conflits ont établi des communautés orques dans de nombreuses autres régions de Yndara.',biology:'Humanoïdes généralement puissants et robustes, avec une musculature dense, des traits marqués et des canines inférieures pouvant former de petites défenses visibles. La couleur de peau et la morphologie varient selon les lignées.'},
- 'Gobelin':{origin:'Peuple de Yndara dont de nombreuses communautés anciennes se sont développées dans des milieux difficiles et fortement contrastés, notamment à Maelora et dans les territoires voisins de Drakhenor.',development:'Leur petite taille et leur grande dextérité ont favorisé des modes de vie très variés. Certaines communautés sont devenues itinérantes, d’autres se sont spécialisées dans l’artisanat, la récupération, la mécanique ou l’occupation d’espaces difficiles d’accès.',geography:'Présents dans plusieurs régions de Yndara et diffusés jusqu’à Nharak. Drakhenor abrite notamment d’importantes communautés gobelines intégrées aux ateliers et aux centres urbains.',biology:'Petits humanoïdes nerveux et agiles, reconnaissables à leurs grandes oreilles pointues, leurs traits expressifs et une peau dont les teintes peuvent varier, souvent dans des nuances vertes, olive ou terreuses. Leurs mains fines favorisent les travaux demandant précision et dextérité.'},
- 'Fée':{origin:'Ancienne race biologique de Vaeloria historiquement liée aux grands milieux forestiers et aux zones où l’énergie naturelle est particulièrement présente.',development:'Les Fées ont développé des populations très diverses selon leur environnement. Certaines communautés se sont établies autour de végétaux gigantesques, de champignons lumineux ou d’autres écosystèmes riches en énergie naturelle, notamment à Lumerys.',geography:'Présentes dans plusieurs régions de Vaeloria, avec des foyers particulièrement anciens à Sylvaeryn et dans des territoires fortement imprégnés d’énergie naturelle comme Lumerys.',biology:'Humanoïdes légers et graciles possédant une paire d’ailes translucides biologiquement intégrées au dos. Leurs ailes présentent des nervures organiques et des reflets variables. Leur petite masse corporelle et leur anatomie légère favorisent une grande mobilité aérienne.'},
- 'Géant':{origin:'Ancienne race biologique de Yndara, distincte de la lignée des Titans. Plusieurs populations anciennes se sont établies dans les grands reliefs, notamment les sommets et hautes vallées de Kharadryn.',development:'Leur gigantisme a conduit à des sociétés adaptées à des territoires capables de soutenir des organismes de très grande taille. Dans les régions froides, leurs communautés ont développé vêtements, habitats et pratiques compatibles avec les hautes altitudes et les hivers prolongés.',geography:'Présents surtout dans les régions de Yndara offrant de vastes espaces et d’importantes ressources. Kharadryn constitue l’un de leurs foyers historiques les plus importants.',biology:'Humanoïdes gigantesques dont la taille dépasse largement celle des peuples communs, mais reste très inférieure à celle des Titans. Leur squelette, leur musculature et leur système circulatoire sont adaptés à ce gigantisme naturel.'},
- 'Vampire':{origin:'Le vampirisme est une condition ou une lignée transformative pouvant apparaître au sein de différentes races biologiques de Vaeloria. Les Vampires ne possèdent donc pas une ascendance morphologique unique : leur forme dépend en partie du peuple dont ils sont issus.',development:'Les lignées vampiriques se sont développées de manière différente selon les peuples, les régions et les époques. Malgré des caractères vampiriques communs, elles conservent une part importante de leur héritage d’origine, ce qui produit une grande diversité de morphologies et de modes de vie.',geography:'Les Vampires peuvent apparaître partout où vivent les races susceptibles de porter le vampirisme. Certaines lignées anciennes sont implantées à Mor\'khal, mais aucune région ni aucune strate ne regroupe à elle seule l’ensemble des Vampires de Vaeloria.',biology:'Le vampirisme modifie un organisme préexistant plutôt qu’il ne remplace entièrement son anatomie. Il entraîne généralement des canines prédatrices, des sens surnaturels, une régénération importante, une longévité exceptionnelle et diverses modifications du regard, de la peau ou du métabolisme. Les caractères biologiques de la race d’origine peuvent être conservés et se combiner aux caractères vampiriques.'},
- 'Loup-garou':{origin:'La lycanthropie est une lignée ou transformation lupine pouvant se manifester chez différentes races biologiques de Vaeloria. Les Loups-garous ne constituent donc pas une population issue d’une morphologie humanoïde unique.',development:'La transformation combine les caractéristiques de l’ascendance d’origine avec une morphologie lupine puissante. Les lignées peuvent différer par leur apparence, leur stature et l’intensité de leurs caractères animaux, tout en partageant un ensemble de traits liés à la lycanthropie.',geography:'Des Loups-garous existent dans plusieurs régions et strates de Vaeloria, leur répartition suivant en partie celle des peuples dont ils sont issus. Certaines populations privilégient de vastes territoires sauvages comme les forêts de Sylvaeryn, sans que la race y soit limitée.',biology:'La forme transformée développe généralement fourrure, tête et dentition lupines, griffes, sens surnaturels, musculature accrue et capacités de régénération. La taille, les proportions et certains caractères corporels restent influencés par la race d’origine, ce qui peut produire des différences considérables entre individus.'},
- 'Démon':{origin:'Peuple natif de Nharak. Le terme Démon désigne ici une lignée raciale de Vaeloria et ne détermine ni la morale, ni l’allégeance, ni la nature des pouvoirs d’un individu.',development:'Les Démons constituent la forme de base de cette lignée. Une partie d’entre eux peut atteindre une forme évoluée appelée Archdémon. Cette évolution ne crée pas une nouvelle race : l’Archdémon reste un Démon dont la lignée a atteint un stade supérieur.',geography:'Nharak est la strate d’origine de la lignée démoniaque, même si des individus peuvent vivre ou voyager ailleurs sur Vaeloria.',biology:'Démon et Archdémon partagent la même continuité biologique et raciale. L’évolution en Archdémon conserve l’identité fondamentale du Démon tout en renforçant ses capacités physiques et surnaturelles ; son apparence peut accentuer les marqueurs propres à sa lignée sans effacer son individualité.',evolution:'Démon → Archdémon. L’Archdémon est une évolution du Démon, jamais une race indépendante. Un individu qui évolue conserve donc son ascendance, son identité et son appartenance à la lignée démoniaque.'},
- 'Ange':{origin:'Peuple natif d’Elyrion, distinct de la lignée des Divinités. Les Anges ne sont pas nécessairement au service des Divinités : ils constituent leur propre lignée raciale.',development:'Les Anges constituent la forme de base de cette lignée. Une partie d’entre eux peut atteindre une forme évoluée appelée Archange. Cette évolution ne crée pas une nouvelle race : l’Archange reste un Ange dont la lignée a atteint un stade supérieur.',geography:'Elyrion est la strate d’origine de la lignée angélique, même si des individus peuvent vivre ou voyager ailleurs sur Vaeloria.',biology:'Ange et Archange partagent la même continuité biologique et raciale. L’évolution en Archange conserve l’identité fondamentale de l’Ange tout en renforçant ses capacités physiques et surnaturelles ; son apparence peut accentuer les marqueurs propres à sa lignée sans effacer son individualité.',evolution:'Ange → Archange. L’Archange est une évolution de l’Ange, jamais une race indépendante. Un individu qui évolue conserve donc son ascendance, son identité et son appartenance à la lignée angélique.'},
- 'Esprit':{origin:'Les Esprits constituent un ensemble d’êtres immatériels ou partiellement immatériels de Vaeloria. Certains naissent de phénomènes naturels, de lieux ou d’énergies particulières, tandis que d’autres proviennent de la persistance spirituelle d’un être autrefois vivant.',development:'Leur forme et leur identité dépendent fortement de leur origine. Un Esprit issu d’un ancien être vivant peut conserver une silhouette et certains marqueurs de son ascendance, tandis qu’un Esprit né directement d’un phénomène ou d’un lieu peut adopter une apparence beaucoup moins humanoïde.',geography:'Les Esprits peuvent apparaître dans Elyrion, Yndara et Nharak. Leur présence est particulièrement fréquente autour de lieux chargés d’énergie, de phénomènes naturels persistants ou de sites marqués par une longue histoire. Kythera compte notamment de nombreuses manifestations spirituelles liées à ses environnements cristallins et souterrains.',biology:'Les Esprits ne reposent pas sur un organisme biologique ordinaire. Leur forme peut être translucide, lumineuse, intangible ou partiellement matérialisée, et leur cohésion dépend d’une énergie spirituelle. Ceux issus d’êtres vivants peuvent conserver des caractéristiques anatomiques de leur ancienne race sans retrouver pour autant un fonctionnement biologique complet.'},
-'Dragon humanoïde':{origin:'Forme d’entrée actuelle de la lignée draconique de Vaeloria. Un Dragon humanoïde peut appartenir à une ascendance de Dragon ancestral ou de Dragon originel.',development:'La lignée draconique est déterminée par l’ascendance et la pureté du sang. Sous 50 %, l’individu reste Dragon humanoïde. Entre 50 et 90 %, il conserve cette forme mais manifeste plus fortement les affinités et l’esprit de sa lignée ancienne. Au-delà de 90 %, il atteint la forme pure correspondant à sa lignée : Dragon ancestral ou Dragon originel.',geography:'Présents dans les trois strates de Vaeloria. Leur implantation dépend de leur lignée, de leur affinité et de leur histoire.',biology:'Morphologie principalement humanoïde avec des caractères draconiques variables : écailles, cornes, queue, yeux, griffes, crocs et autres traits hérités. Un Dragon humanoïde ne produit pas seul de descendant ; en revanche, un Dragon ancestral ou originel peut engendrer une descendance même sans second parent. Lorsqu’un Dragon humanoïde a un enfant avec un second parent, la transmission raciale suit les règles de descendance, avec 50 % de chances pour chacune des deux races parentales.'},
- 'Dragon originel':{origin:'L’une des deux anciennes lignées draconiques coexistantes de Vaeloria, distincte des Dragons ancestraux et ne descendant pas d’eux.',development:'Les Dragons originels développent la Domination primordiale : ils projettent et contrôlent avec une précision extrême les phénomènes liés à leur affinité. Leur maîtrise s’affine avec l’âge et l’expérience.',geography:'Extrêmement rares sous leur forme pure. Ils peuvent vivre dans les trois strates de Vaeloria selon leur affinité et leur histoire.',biology:'Véritables dragons non humanoïdes au corps très long et serpentin, quatre membres et aucune aile. Ils possèdent généralement cornes, crinière, longues structures sensorielles et des rubans translucides biologiques semblables à du verre vivant, servant à percevoir et canaliser leur Domination primordiale. Leur vol ne dépend pas d’ailes.'},
- 'Dragon ancestral':{origin:'L’une des deux anciennes lignées draconiques coexistantes de Vaeloria, distincte des Dragons originels et ne descendant pas d’eux.',development:'Les Dragons ancestraux développent l’Incarnation primordiale : leur affinité imprègne directement leur organisme, renforçant et transformant souffle, griffes, écailles, résistance et puissance corporelle.',geography:'Extrêmement rares à l’époque actuelle, mais non éteints. Quelques individus très anciens subsistent dans des régions difficiles d’accès des trois strates.',biology:'Véritables dragons entièrement non humanoïdes à six membres : quatre pattes et deux ailes, avec longue queue, corps colossal, cou robuste et immense envergure. Leurs écailles très anciennes peuvent devenir des plaques minérales naturelles. L’énergie primordiale propre à l’affinité de chaque individu circule dans leur organisme et peut devenir visible entre les écailles.'},
- 'Golem / Artificiel':{origin:'Les Artificiels sont des êtres construits plutôt que nés biologiquement. Ils peuvent provenir de traditions arcaniques, mécaniques ou d’autres techniques de création développées sur Vaeloria. Ils sont distincts de la lignée Nexus : une construction artificielle n’est pas, par nature, un Neoxus ni un Cyborg.',development:'Leur histoire commence avec une création volontaire, mais certains Artificiels acquièrent une autonomie durable et deviennent de véritables individus. Leur corps peut être réparé, modifié ou progressivement transformé au cours de leur existence. Le portrait du Codex représente un ancien colosse artificiel de pierre et de métal dont la structure a été lentement colonisée par la végétation.',geography:'Ils peuvent exister dans les trois strates dès lors qu’une civilisation ou un créateur a pu les y construire. Des Artificiels abandonnés peuvent également subsister très longtemps loin de leur lieu de fabrication initial.',biology:'Ils ne possèdent pas de biologie commune : pierre animée, métal, bois, cristal, assemblages mécaniques ou matériaux composites peuvent former leur corps. Leur cohésion dépend d’un principe d’animation propre à leur fabrication. La végétation, les dépôts minéraux ou l’usure peuvent modifier leur apparence sans nécessairement altérer leur conscience.'},
- 'Extraterrestre':{origin:'Le terme Extraterrestre regroupe les espèces intelligentes venues de mondes extérieurs à Vaeloria. Il ne désigne pas une espèce unique. Les Neoxus possèdent leur propre lignée et leur propre histoire et sont donc traités séparément dans le Codex.',development:'Chaque population extraterrestre possède une origine, une culture et une histoire d’arrivée qui lui sont propres. Certaines ne comptent que quelques individus sur Vaeloria, tandis que d’autres peuvent y avoir établi des lignées durables. Le portrait du Codex montre l’un de ces êtres installé à Thoryndra, sans caractères techno-organiques Neoxus.',geography:'Leur présence est ponctuelle et dépend des circonstances de leur arrivée. Des individus ou communautés peuvent se rencontrer dans Elyrion, Yndara ou Nharak sans qu’une région unique constitue le berceau de l’ensemble des Extraterrestres.',biology:'Aucune anatomie universelle ne définit cette catégorie. Morphologie, peau, membres, organes sensoriels et métabolisme peuvent varier radicalement d’une espèce à l’autre. Cette diversité biologique est précisément ce qui distingue la catégorie générale Extraterrestre de l’espèce Neoxus clairement définie.'},
-'Demi-dieu':{origin:'Forme d’entrée de la lignée divine, correspondant à moins de 50 % de pureté de sang divin. Les anciennes lignées divines remontent à des entités apparues lors de la formation de Vaeloria.',development:'Tout Demi-dieu possède déjà un domaine divin, naturel, matériel ou conceptuel, mais celui-ci reste partiellement latent. Les premiers signes du domaine peuvent apparaître sans former une véritable Roue divine. Le domaine est conservé si la pureté conduit ensuite à une forme supérieure.',geography:'Présents dans Elyrion, Yndara et Nharak. Leur apparence encore très humanoïde facilite leur présence parmi les autres peuples.',biology:'Anatomie essentiellement humanoïde à deux bras. Des marques naturelles, modifications des yeux ou de la peau et une marque thoracique discrète peuvent annoncer le domaine. Des fragments instables liés au domaine peuvent préfigurer la future Roue divine, sans constituer encore une véritable roue.'},
-'Divinité':{origin:'Forme intermédiaire de la lignée divine, correspondant à une pureté de sang divin comprise entre 50 et 90 %. La lignée remonte aux très anciennes entités apparues lors de la formation de Vaeloria.',development:'À ce stade, le domaine divin se manifeste véritablement. Une Divinité maîtrise fortement son domaine, naturel, matériel ou conceptuel, sans atteindre l’expression extrême d’un Dieu céleste. Un second domaine peut exister très rarement.',geography:'Présentes dans les trois strates de Vaeloria et extrêmement rares. Leur domaine, leur ascendance et leur histoire influencent leur implantation.',biology:'Anatomie encore essentiellement humanoïde à deux bras. Le domaine transforme davantage le corps : marque ou cercle thoracique développé, fissures ou manifestations corporelles propres au domaine. Une véritable Roue divine apparaît derrière l’individu, mais demeure incomplète, fragmentée ou partiellement énergétique.'},
-'Dieu céleste':{origin:'Forme de très haute pureté de la lignée divine, au-delà de 90 % de sang divin. Les premières entités de cette lignée sont apparues au moment de la formation de Vaeloria.',development:'Le domaine divin atteint son expression la plus poussée. La Roue divine devient monumentale et manifeste directement le domaine de l’individu. Un Dieu céleste possède généralement un domaine principal et, très rarement, un second domaine.',geography:'Peuvent apparaître dans les trois strates de Vaeloria mais sont extrêmement rares.',biology:'Forme humanoïde profondément transformée : quatre bras, Roue divine pleinement manifestée et cavité thoracique surnaturelle dont l’apparence dépend du domaine. Chez un Dieu céleste de la Mort, cette cavité peut prendre la forme d’un vide noir profond contenant un crâne flottant, tandis que la Roue se compose d’ossements et de spectres.'},
- 'Titan':{origin:'Ancienne race native de Vaeloria et forme la plus commune de la grande lignée titanesque.',development:'Êtres conscients et intelligents capables de communautés, traditions, outils et constructions adaptés à leur échelle. Leur puissance repose avant tout sur leur gigantisme biologique.',geography:'Présents dans les trois strates lorsque l’espace et les ressources le permettent.',biology:'Adultes généralement d’environ 15 à 40 mètres. Ossature, musculature et peau adaptées au gigantisme. De petites zones de biominéralisation apparaissent déjà sur les parties fortement sollicitées du corps.'},
- 'Squelette':{origin:'Le Squelette est une forme de non-vie pouvant apparaître à partir de différentes races de Vaeloria. La réanimation ne crée donc pas une ascendance entièrement nouvelle : l’individu conserve sa race d’origine, dont son squelette peut encore porter certains caractères anatomiques. Le portrait du Codex représente un ancien Orc réanimé à Varkhoryn.',development:'La plupart demeurent de simples Squelettes animés, mais une minorité peut évoluer jusqu’à l’état de Liche. La Liche n’est pas une race séparée : elle constitue une forme supérieure de la même condition morte-vivante, comme une évolution au sein de la lignée. Cette transformation préserve l’ascendance d’origine tout en renforçant considérablement la conscience et les capacités surnaturelles.',geography:'Des Squelettes peuvent apparaître dans les trois strates à la suite de rituels, malédictions, phénomènes mort-vivants ou autres formes de réanimation. Varkhoryn et Mor’khal en offrent des exemples, mais la condition n’est limitée à aucune de ces régions.',biology:'Le corps a perdu tout ou partie de ses tissus vivants et fonctionne sans besoins biologiques ordinaires. La morphologie osseuse reste influencée par la race d’origine. Une Liche conserve cette base morte-vivante mais développe une cohésion surnaturelle bien plus puissante et une magie innée ; son existence peut être liée à un phylactère. Le portrait de Liche représente un individu issu d’un Demi-dieu de la Mort et ne définit pas l’apparence de toutes les Liches.',evolution:'Squelette → Liche. La Liche est l’évolution du Squelette et non une race indépendante. Cette évolution conserve la race biologique d’origine de l’individu ainsi que sa condition morte-vivante, tout en lui donnant accès au stade supérieur de la lignée.'},
- 'Homme-bête':{origin:'Les Hommes-bêtes regroupent de nombreuses lignées humanoïdes dont l’anatomie est durablement associée à une espèce animale réelle ou fantastique. Ils ne constituent pas une morphologie unique : chaque lignée possède ses propres caractères hérités de l’animal correspondant.',development:'Les différentes lignées se sont adaptées à des milieux très variés et ont développé des cultures indépendantes. Leur apparence peut aller d’un humanoïde portant quelques caractères animaux à une fusion anatomique beaucoup plus marquée. Le portrait du Codex représente une femme-requin des archipels de Kaelora.',geography:'Leur répartition dépend fortement de l’animal associé. Les lignées aquatiques et marines sont naturellement fréquentes dans les archipels et régions côtières comme Kaelora, tandis que d’autres Hommes-bêtes occupent forêts, plaines, montagnes ou profondeurs de Vaeloria.',biology:'L’organisme combine une base humanoïde et des caractères fonctionnels de l’espèce animale : peau, fourrure, écailles, branchies, nageoires, queue, griffes, dentition, organes sensoriels ou autres adaptations. Chez les Hommes-bêtes requins, la peau, les branchies, la dentition, les nageoires et la queue sont intégrées à une anatomie humanoïde adaptée à la vie littorale et aquatique.'},
- 'Hybride':{origin:'Un Hybride naît de deux ascendances raciales différentes et réunit réellement leurs héritages biologiques. Il ne s’agit pas d’une race uniforme : chaque combinaison forme une ascendance mixte particulière. Le portrait du Codex représente un homme Gobelin-Fée vivant dans les milieux humides de Maelora.',development:'Les caractères des deux ascendances ne sont pas simplement juxtaposés : ils peuvent se combiner en une morphologie intermédiaire cohérente et varier fortement d’un individu à l’autre. Les descendants peuvent ainsi exprimer davantage certains traits d’un parent tout en conservant des caractères reconnaissables de l’autre.',geography:'Les Hybrides peuvent apparaître partout où des populations de races différentes se rencontrent et fondent des lignées communes. Leur répartition dépend donc directement de celle de leurs ascendances. Maelora accueille notamment des communautés où les héritages gobelins et féeriques peuvent se rencontrer.',biology:'Leur anatomie associe des caractères héréditaires provenant des deux races parentales. Un Gobelin-Fée peut par exemple présenter une petite stature, de grandes oreilles gobelines, des traits plus fins, une constitution légère et des ailes féeriques pleinement biologiques. D’autres croisements produisent des combinaisons entièrement différentes.'},
-'Cyborg':{origin:'Forme d’entrée de la lignée Nexus, correspondant à moins de 50 % de pureté de sang Neoxus. Cet héritage provient des Neoxus extraterrestres arrivés sur Vaeloria et des lignées métissées apparues après leur implantation.',development:'L’héritage Neoxus reste faible : le corps ne produit pas encore sa propre technologie vivante. Le Cyborg complète donc son organisme par des augmentations artificielles — membres, organes, interfaces ou protections — que son héritage lui permet d’intégrer biologiquement avec une efficacité inhabituelle.',geography:'Présents dans Elyrion, Yndara et Nharak selon les lignées et l’accès aux technologies. Leur histoire reste fortement liée à l’héritage de Nexara sans s’y limiter.',biology:'L’ascendance non-Neoxus reste dominante. Quelques lignes dorées sous-cutanées, zones graphite ou manifestations cosmiques discrètes dans les yeux peuvent apparaître. Les mains conservent normalement cinq doigts. Aux interfaces cybernétiques, les premiers tissus Nexus peuvent commencer à interagir avec les augmentations sans encore les produire.'},
-'N.E.X.U.S.':{origin:'Forme intermédiaire de la lignée Nexus, correspondant à 50–90 % de pureté de sang Neoxus. Elle résulte de l’héritage génétique laissé par l’espèce extraterrestre Neoxus après son arrivée et son métissage sur Vaeloria.',development:'À ce degré de pureté, biologie et technologie commencent à fusionner profondément. Le corps devient capable de produire des structures techno-organiques vivantes : plaques, interfaces, conduits et organes spécialisés pouvant croître, s’adapter et cicatriser avec lui.',geography:'Présents dans les trois strates, particulièrement dans les lignées liées historiquement à Nexara, sans y être limités.',biology:'Une partie de l’ascendance humanoïde reste visible tandis que des tissus graphite, gris-noir ou bleu-noir et un réseau doré sous-cutané se développent. Les yeux deviennent progressivement cosmiques, quatre doigts et structures crâniennes peuvent apparaître. Plus la pureté approche de 90 %, plus les caractères Neoxus dominent.'},
- 'Deus Machina':{origin:'Descendance exceptionnelle issue d’une Divinité et d’un N.E.X.U.S.',development:'À développer.',geography:'À développer.',biology:'À développer.'},
- 'Titan céleste':{origin:'Descendance exceptionnelle issue d’une Divinité et d’un Titan primordial.',development:'À développer.',geography:'À développer.',biology:'À développer.'},
- 'Colosse Nexus':{origin:'Descendance exceptionnelle issue d’un N.E.X.U.S. et d’un Titan primordial.',development:'À développer.',geography:'À développer.',biology:'À développer.'},
-'Neoxus':{origin:'Espèce extraterrestre à l’origine de toute la lignée Nexus. Les Neoxus sont arrivés sur Vaeloria depuis un autre monde ; une civilisation Neoxus s’y est ensuite développée et métissée avec les peuples locaux.',development:'Leur civilisation a poussé la fusion entre biologie et technologie jusqu’à rendre les deux presque indissociables. Leur technologie est cultivée comme une matière vivante capable de croître, de s’adapter et de se régénérer. Les formes présentant plus de 90 % de pureté de sang retrouvent l’expression Neoxus presque complète.',geography:'Les Neoxus purs sont extrêmement rares sur Vaeloria, avec une présence particulièrement liée à l’histoire de Nexara. Leur héritage génétique est beaucoup plus répandu dans les populations Nexus. Des Neoxus peuvent également subsister ailleurs dans le cosmos.',biology:'Humanoïdes techno-organiques à peau noire, grise ou bleu sombre, parcourue de fines lignes dorées lumineuses sous-cutanées. Ils possèdent des yeux cosmiques étoilés, quatre doigts et des structures crâniennes organiques caractéristiques. Leur corps peut développer naturellement des structures vivantes spécialisées sans distinction nette entre organe et technologie.'},
- 'Titan primordial':{origin:'Forme supérieure de l’ancienne lignée titanesque, spécialisée autour des grandes forces naturelles de Vaeloria.',development:'Chaque individu exprime biologiquement une force naturelle dominante telle que le Feu, l’Eau, la Terre ou l’Air. Il ne lance pas simplement son élément : sa physiologie s’est développée comme l’expression vivante de ce phénomène.',geography:'Très rares mais moins exceptionnels que les Fondateurs. Ils peuvent exister dans les trois strates, leur environnement étant souvent influencé par leur force naturelle.',biology:'Géants de plusieurs centaines de mètres conservant une ascendance humanoïde reconnaissable, avec anatomie altérée et biominéralisation avancée. Leur force naturelle modifie profondément tissus, organes et structures minérales.'},
- 'Titan fondateur':{origin:'Parmi les formes de vie natives les plus anciennes de Vaeloria. Leur nom vient de leur rôle dans la formation physique de certains reliefs, sans qu’ils aient créé le monde.',development:'Leur existence se déroule sur des échelles de temps immenses. Certains restent immobiles durant des siècles ou des millénaires jusqu’à être colonisés par de véritables écosystèmes et intégrés au paysage.',geography:'Extrêmement rares. Certains individus actifs subsistent tandis que d’autres sont devenus presque indiscernables des reliefs. La lignée peut également réapparaître par descendance.',biology:'Organismes de plusieurs kilomètres, encore vaguement humanoïdes mais profondément transformés. Chair et matière géologique vivante sont mêlées par une biominéralisation extrême. Leur Force tellurique et leur Ancrage tellurique les relient aux pressions, vibrations et fractures du monde.'}
-};
-const RACE_CODEX_FILES={'Dragon humanoïde':'dragon','Dragon originel':'dragon-originel','Dragon ancestral':'dragon-ancestral','Titan':'titan','Titan primordial':'titan-primordial','Titan fondateur':'titan-fondateur','Neoxus':'neoxus','N.E.X.U.S.':'nexus','Cyborg':'cyborg','Golem / Artificiel':'artificiel','Demi-dieu':'demi-dieu','Divinité':'divinite','Dieu céleste':'dieu-celeste','Homme-bête':'homme-bete','Hybride':'hybride','Squelette':'squelette','Liche':'liche','Extraterrestre':'extraterrestre','Golem / Artificiel':'artificiel','Loup-garou':'loup-garou','Deus Machina':'deus-machina','Titan céleste':'titan-celeste','Colosse Nexus':'colosse-nexus','Drakéon':'drakeon','Nexaryx':'nexaryx','Tyrakhan':'tyrakhan'};
+
+
 function raceCodexSlug(name){return RACE_CODEX_FILES[name]||String(name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
-const DRAGON_CODEX_CROSSES=[
- {label:'Drakéon',other:'Dieu céleste',ancestral:'Dragon ancestral',originel:'Dragon originel'},
- {label:'Nexaryx',other:'Neoxus',ancestral:'Dragon ancestral',originel:'Dragon originel'},
- {label:'Tyrakhan',other:'Titan fondateur',ancestral:'Dragon ancestral',originel:'Dragon originel'}
-];
-const DRAGON_CROSS_CODEX_LORE={
- 'Drakéon':{
-  origin:'Croisement supérieur entre une lignée draconique pure et la lignée d’un Dieu céleste. Deux formes existent : Dragon ancestral × Dieu céleste et Dragon originel × Dieu céleste.',
-  development:'Le Drakéon combine les caractères fondamentaux de sa lignée draconique avec les manifestations d’un domaine divin. La Roue divine et les marques liées au domaine se transforment pour s’intégrer à l’anatomie draconique. Les portraits représentatifs utilisent le domaine de la Mort, associé aux Ténèbres pour la forme ancestrale et au Son pour la forme originelle.',
-  geography:'Croisement exceptionnel pouvant apparaître dans les différentes strates selon l’origine de ses deux lignées parentales.',
-  biology:'La forme ancestrale conserve une morphologie draconique ailée et l’Incarnation primordiale de sa lignée ; la forme originelle conserve un corps serpentin sans ailes, quatre membres et la Domination primordiale. Les caractères divins se superposent à cette base sans effacer l’anatomie draconique.'
- },
- 'Nexaryx':{
-  origin:'Croisement supérieur entre une lignée draconique pure et un Neoxus. Deux formes existent : Dragon ancestral × Neoxus et Dragon originel × Neoxus.',
-  development:'Le Nexaryx demeure fondamentalement draconique, mais son organisme incorpore la biologie techno-organique Neoxus. Les structures technologiques ne sont pas une armure ajoutée : elles croissent avec le corps et font partie de ses tissus vivants.',
-  geography:'Croisement exceptionnel dont la présence dépend des lignées draconiques concernées et de l’héritage Neoxus présent sur Vaeloria.',
-  biology:'La forme ancestrale conserve quatre pattes, deux ailes et l’Incarnation primordiale ; la forme originelle conserve son long corps serpentin, quatre membres, aucune aile et la Domination primordiale. Des plaques techno-organiques sombres, des réseaux dorés vivants et d’autres caractères Neoxus peuvent parcourir leur organisme. Les portraits représentatifs conservent les Ténèbres pour l’ancestral et le Son pour l’originel.'
- },
- 'Tyrakhan':{
-  origin:'Croisement supérieur entre une lignée draconique pure et un Titan fondateur. Deux formes existent : Dragon ancestral × Titan fondateur et Dragon originel × Titan fondateur.',
-  development:'L’héritage du Titan fondateur pousse le gigantisme draconique à une échelle géographique de plusieurs kilomètres. Une biominéralisation extrême se développe avec l’âge et certaines zones stables du corps peuvent être colonisées naturellement par des écosystèmes.',
-  geography:'Croisement exceptionnel à l’échelle du monde. La forme ancestrale peut s’intégrer aux grands reliefs de Yndara, tandis que la forme originelle est capable de traverser l’immense espace aérien séparant Yndara d’Elyrion.',
-  biology:'Le Tyrakhan reste un véritable dragon vivant. La forme ancestrale conserve exactement quatre pattes, deux ailes et l’Incarnation primordiale ; la forme originelle conserve un corps serpentin, exactement quatre membres, aucune aile et la Domination primordiale. Toutes deux héritent de la biominéralisation extrême, de la Force tellurique et de l’Ancrage tellurique du Titan fondateur. Les portraits représentatifs conservent les Ténèbres pour l’ancestral et le Son pour l’originel.'
- }
-};
+
+
 Object.assign(RACE_CODEX_LORE,DRAGON_CROSS_CODEX_LORE);
 function raceCodexData(){
  const opts=raceOptions(); const total=opts.reduce((a,o)=>a+Number(o.weight||0),0)||100;
@@ -5079,37 +5685,14 @@ if(exportUniverseBtn)exportUniverseBtn.onclick=exportUniverse;
 // ============================================================
 const SUPABASE_URL='https://qeuqxvyrmrqvymrafvtv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_cRbNvF-wSAkFrSUYq_Uc6g_sJ56grrF';
-const CLOUD_GAME_KEY='roue_cloud_game_id_v1';
-const CLOUD_LOADED_GAME_KEY='roue_cloud_loaded_game_id_v1';
-const CLOUD_BACKUP_KEY='roue_local_backup_before_cloud_v1';
 let cloudClient=null,cloudUser=null,cloudGames=[],cloudCurrentGame=null,cloudProfile=null;
 const PLAYER_PROFILE_TABLE='player_profiles';
-let __cloudCharacterTimers=new Map(),__cloudUniverseTimer=null,__cloudGameTimer=null,__cloudTournamentTimer=null;
-let __cloudSyncBusy=false;
 
 function hgtEntryMessage(text,kind=''){const e=document.getElementById('hgtEntryMessage');if(e){e.textContent=text||'';e.style.color=kind==='error'?'#f0b5b5':'#b9aab1'}}
 function validPseudo(v){return typeof v==='string'&&v.trim().length>=3&&v.trim().length<=24&&/^[A-Za-zÀ-ÖØ-öø-ÿ0-9 _.-]+$/u.test(v.trim())}
-async function loadCloudProfile(){
-  cloudProfile=null;if(!cloudClient||!cloudUser)return null;
-  const {data,error}=await cloudClient.from(PLAYER_PROFILE_TABLE).select('user_id,username,avatar_champion_id,avatar_image_path,avatar_focus_x,avatar_focus_y,avatar_zoom,created_at,updated_at').eq('user_id',cloudUser.id).maybeSingle();
-  if(error){console.warn('Profil joueur indisponible',error);return null}cloudProfile=data||null;return cloudProfile;
-}
-async function createCloudProfile(username){
-  const clean=String(username||'').trim();if(!validPseudo(clean))throw new Error('Pseudo : 3 à 24 caractères, lettres/chiffres/espaces/._- uniquement.');
-  const {data,error}=await cloudClient.from(PLAYER_PROFILE_TABLE).insert({user_id:cloudUser.id,username:clean}).select('user_id,username,avatar_champion_id,avatar_image_path,avatar_focus_x,avatar_focus_y,avatar_zoom,created_at,updated_at').single();
-  if(error){if(error.code==='23505')throw new Error('Ce pseudo exact existe déjà. La casse compte : Damien et damien sont différents.');throw error}
-  cloudProfile=data;updatePlayerPseudo();return data;
-}
 let __profileAvatarObjectUrl=null;
 async function renderPlayerAvatar(){const host=document.getElementById('playerAvatar');if(!host)return;host.style.setProperty('--avatar-x',(cloudProfile?.avatar_focus_x??50)+'%');host.style.setProperty('--avatar-y',(cloudProfile?.avatar_focus_y??32)+'%');host.style.setProperty('--avatar-zoom',String((Number(cloudProfile?.avatar_zoom??160)||160)/100));if(__profileAvatarObjectUrl){URL.revokeObjectURL(__profileAvatarObjectUrl);__profileAvatarObjectUrl=null}host.textContent='👤';const path=cloudProfile?.avatar_image_path;if(!path||!cloudReady())return;try{const blob=await cloudDownloadPortraitPath(path);if(!blob)return;const u=URL.createObjectURL(blob);__profileAvatarObjectUrl=u;const img=document.createElement('img');img.src=u;img.alt='Icône de profil';host.replaceChildren(img)}catch(e){}}
 function updatePlayerPseudo(){const e=document.getElementById('playerPseudo'),label=document.getElementById('playerPseudoText');if(!e)return;if(cloudUser&&cloudProfile?.username){e.hidden=false;if(label)label.textContent=cloudProfile.username;e.title='Ouvrir le profil';e.onclick=openProfileModal;const av=e.querySelector('#playerAvatar');if(av){av.title='Ouvrir le profil';av.onclick=null}renderPlayerAvatar()}else{e.hidden=true;e.onclick=null}}
-async function saveProfileChampionAvatar(championId,x,y,zoom){
- const ch=championHistory().find(v=>v.id===championId);if(!ch)throw new Error("Ce personnage n’est pas un Champion du joueur.");
- const c=loadRoster()[championId]||{},path=c?.imageGeneration?.championPath||c?.imageGeneration?.selectedPortrait||null;if(!path)throw new Error("Ce Champion n’a pas encore de portrait disponible.");
- x=Math.max(0,Math.min(100,Number(x)));y=Math.max(0,Math.min(100,Number(y)));zoom=Math.max(100,Math.min(300,Math.round(Number(zoom)||160)));
- const {data,error}=await cloudClient.from(PLAYER_PROFILE_TABLE).update({avatar_champion_id:championId,avatar_image_path:path,avatar_focus_x:x,avatar_focus_y:y,avatar_zoom:zoom}).eq('user_id',cloudUser.id).select('user_id,username,avatar_champion_id,avatar_image_path,avatar_focus_x,avatar_focus_y,avatar_zoom,created_at,updated_at').single();
- if(error)throw error;cloudProfile=data;updatePlayerPseudo();return data;
-}
 let __avatarEditChampionId=null,__avatarEditObjectUrl=null;
 function closeAvatarChampionModal(){document.getElementById('avatarChampionModal')?.classList.remove('active')}
 function closeAvatarCropModal(){document.getElementById('avatarCropModal')?.classList.remove('active');if(__avatarEditObjectUrl){URL.revokeObjectURL(__avatarEditObjectUrl);__avatarEditObjectUrl=null}}
@@ -5163,32 +5746,6 @@ function renderEntryGate(){
   if(!cloudProfile?.username){sub.textContent='Choisis ton identité publique pour les combats en ligne.';root.innerHTML=`<div class="hgt-entry-form"><input id="entryPseudo" maxlength="24" autocomplete="nickname" placeholder="Pseudo (3–24 caractères)"><button id="entryPseudoBtn">Créer mon pseudo</button><button class="secondary" id="entryLogout">Se déconnecter</button></div><div class="muted" style="margin-top:8px">Le pseudo est unique à l’identique. La casse compte : « Damien » et « damien » peuvent coexister.</div>`;document.getElementById('entryPseudoBtn').onclick=async()=>{const b=document.getElementById('entryPseudoBtn');b.disabled=true;try{await createCloudProfile(document.getElementById('entryPseudo').value);renderEntryGate()}catch(e){hgtEntryMessage(e.message||String(e),'error')}finally{b.disabled=false}};document.getElementById('entryLogout').onclick=cloudLogout;return}
   sub.replaceChildren(document.createTextNode('Bienvenue, '),Object.assign(document.createElement('span'),{className:'hgt-entry-user',textContent:cloudProfile.username}),document.createTextNode('.'));root.innerHTML=`<div class="hgt-entry-form"><button id="entryPlay">⚔️ Jouer</button></div>`;document.getElementById('entryPlay').onclick=enterHgt;
 }
-async function entryForgotPassword(){
-  const email=document.getElementById('entryEmail')?.value.trim();
-  if(!email){hgtEntryMessage('Entre d’abord ton adresse e-mail.','error');return}
-  if(!cloudClient){hgtEntryMessage('Connexion au service en cours… réessaie dans un instant.','error');return}
-  hgtEntryMessage('Envoi du lien de récupération…');
-  const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
-  if(error){hgtEntryMessage('Envoi impossible : '+error.message,'error');return}
-  hgtEntryMessage('Lien envoyé. Vérifie ta boîte e-mail.');
-}
-async function entryUpdatePassword(){
-  const password=document.getElementById('entryNewPassword')?.value||'',confirmPassword=document.getElementById('entryNewPasswordConfirm')?.value||'';
-  if(password.length<6){hgtEntryMessage('Le nouveau mot de passe doit contenir au moins 6 caractères.','error');return}
-  if(password!==confirmPassword){hgtEntryMessage('Les deux mots de passe ne correspondent pas.','error');return}
-  hgtEntryMessage('Mise à jour du mot de passe…');
-  const {error}=await cloudClient.auth.updateUser({password});
-  if(error){hgtEntryMessage('Mise à jour impossible : '+error.message,'error');return}
-  hgtEntryMessage('Mot de passe modifié ✓');
-  hgtPasswordRecovery=false;
-  history.replaceState({},document.title,location.origin+location.pathname);
-  await cloudClient.auth.signOut();
-  cloudUser=null;cloudProfile=null;cloudGames=[];cloudCurrentGame=null;
-  setTimeout(()=>renderEntryGate(),700);
-}
-async function entryLogin(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||!password){hgtEntryMessage('Entre ton e-mail et ton mot de passe.','error');return}if(!cloudClient){hgtEntryMessage('Connexion au service en cours… réessaie dans un instant.','error');return}hgtEntryMessage('Connexion…');const {error}=await cloudClient.auth.signInWithPassword({email,password});if(error)hgtEntryMessage('Connexion impossible : '+error.message,'error')}
-async function entrySignup(){const email=document.getElementById('entryEmail')?.value.trim(),password=document.getElementById('entryPassword')?.value||'';if(!email||password.length<6){hgtEntryMessage('Entre un e-mail et un mot de passe d’au moins 6 caractères.','error');return}hgtEntryMessage('Création du compte…');const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});if(error){hgtEntryMessage('Inscription impossible : '+error.message,'error');return}if(!data.session)hgtEntryMessage('Compte créé. Vérifie ton e-mail si une confirmation est demandée.');}
-
 function cloudReady(){return !!(cloudClient&&cloudUser&&cloudCurrentGame?.id)}
 const HGT_PREF_HIDE_SUBWHEELS='hgt_pref_hide_subwheels';
 function hideSubwheelsEnabled(){return localStorage.getItem(HGT_PREF_HIDE_SUBWHEELS)==='1'}
@@ -5203,20 +5760,11 @@ function hgtTimeZoneOptions(){
   if(!zones.length)zones=['UTC','Europe/Paris','Europe/London','Asia/Seoul','Asia/Tokyo','America/New_York','America/Los_Angeles'];
   const current=hgtTimeZone();if(!zones.includes(current))zones.unshift(current);return zones;
 }
-async function saveHgtTimeZone(zone){
-  zone=String(zone||'').trim();try{new Intl.DateTimeFormat('fr-FR',{timeZone:zone}).format(new Date())}catch(_){throw new Error('Fuseau horaire invalide.')}
-  if(!cloudClient||!cloudUser)throw new Error('Compte non connecté.');
-  const {data,error}=await cloudClient.auth.updateUser({data:{...(cloudUser.user_metadata||{}),[HGT_TIMEZONE_META_KEY]:zone}});
-  if(error)throw error;cloudUser=data?.user||cloudUser;return zone;
-}
 function formatHgtDateTime(value,withDate=true){
   const d=value instanceof Date?value:new Date(value);if(Number.isNaN(d.getTime()))return '—';
   return d.toLocaleString('fr-FR',{timeZone:hgtTimeZone(),...(withDate?{day:'2-digit',month:'2-digit'}:{}),hour:'2-digit',minute:'2-digit'});
 }
 function hgtDuration(ms){ms=Math.max(0,Number(ms)||0);const h=Math.floor(ms/3600000),m=Math.ceil((ms%3600000)/60000);return h?`${h} h ${m} min`:`${Math.max(1,m)} min`}
-async function getRollingNeuronUsage(){
-  if(!cloudClient||!cloudUser)return null;const {data,error}=await cloudClient.functions.invoke('Generate-character-image',{body:{action:'usage24h'}});if(error)throw error;if(!data?.success)throw new Error(data?.error||'Compteur 24 h indisponible');return data;
-}
 function closeNeuronDetail(){document.getElementById('neuronDetailModal')?.classList.remove('active')}
 async function openNeuronDetail(){
   const modal=document.getElementById('neuronDetailModal'),root=document.getElementById('neuronDetailContent');if(!modal||!root)return;modal.classList.add('active');root.innerHTML='<h2>⚡ Énergie de Vaeloria — 24 h</h2><div class="muted">Chargement…</div>';
@@ -5564,14 +6112,6 @@ function clearLocalUniverse(){
   localStorage.setItem(STORAGE_SEASON,'1');localStorage.setItem(STORAGE_CURRENT,'1');
 }
 function parseCharacterCode(code){const m=String(code||'').match(/^S(\d+)-(\d+)$/);return m?{season:+m[1],number:+m[2]}:{season:1,number:1}}
-async function cloudRefreshGames(){
-  if(!cloudClient||!cloudUser)return [];
-  const {data,error}=await cloudClient.from('games').select('*').order('updated_at',{ascending:false});
-  if(error)throw error;cloudGames=data||[];
-  const currentId=localStorage.getItem(CLOUD_GAME_KEY);
-  cloudCurrentGame=cloudGames.find(g=>g.id===currentId)||null;
-  return cloudGames;
-}
 function renderCloudModal(){
   const root=document.getElementById('cloudModalContent');if(!root)return;
   if(!cloudUser){
@@ -5593,163 +6133,7 @@ function renderCloudModal(){
   document.getElementById('cloudLogoutBtn').onclick=cloudLogout;
 }
 function escapeHtml(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function cloudForgotPassword(){
-  const email=document.getElementById('cloudEmail')?.value.trim();
-  if(!email){cloudSetMessage('Entre d’abord ton adresse e-mail.');return}
-  cloudSetMessage('Envoi du lien de récupération…');
-  const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
-  if(error){cloudSetMessage('Envoi impossible : '+error.message);return}
-  cloudSetMessage('Lien envoyé. Vérifie ta boîte e-mail.');
-}
-async function cloudLogin(){
-  const email=document.getElementById('cloudEmail')?.value.trim(),password=document.getElementById('cloudPassword')?.value||'';
-  if(!email||!password){cloudSetMessage('Entre ton e-mail et ton mot de passe.');return}
-  cloudSetMessage('Connexion…');const {error}=await cloudClient.auth.signInWithPassword({email,password});if(error)cloudSetMessage('Connexion impossible : '+error.message);
-}
-async function cloudSignup(){
-  const email=document.getElementById('cloudEmail')?.value.trim(),password=document.getElementById('cloudPassword')?.value||'';
-  if(!email||password.length<6){cloudSetMessage('Entre un e-mail et un mot de passe d’au moins 6 caractères.');return}
-  cloudSetMessage('Création du compte…');
-  const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
-  if(error){cloudSetMessage('Inscription impossible : '+error.message);return}
-  if(data.session)cloudSetMessage('Compte créé et connecté ✓');else cloudSetMessage('Compte créé. Vérifie ton e-mail si Supabase demande une confirmation.');
-}
-async function cloudLogout(){if(cloudReady())try{await cloudSyncAllData()}catch(e){} await cloudClient.auth.signOut();localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY);cloudCurrentGame=null;cloudProfile=null;closeCloudModal();leaveHgtGate()}
-async function cloudCreateGame(){
-  const root=document.getElementById('cloudModalContent');if(!root)return;
-  root.innerHTML=`<div class="hgt-new-game-card"><div class="hgt-new-game-emblem"><img src="assets/icons/hgt-512.png" alt=""></div><h2>Nouvelle partie</h2><div class="muted">Crée une nouvelle aventure sans modifier les règles actuelles de génération.</div><div class="hgt-new-game-form"><label for="cloudNewGameName">Nom de la partie</label><input id="cloudNewGameName" maxlength="60" value="Ma partie" autocomplete="off"><div class="hgt-new-game-actions"><button id="cloudCreateGameConfirm" type="button">Commencer</button><button id="cloudCreateGameCancel" class="secondary" type="button">Annuler</button></div><div id="cloudNewGameMessage" class="cloud-message" hidden></div></div></div>`;
-  const input=root.querySelector('#cloudNewGameName'),confirmBtn=root.querySelector('#cloudCreateGameConfirm'),cancelBtn=root.querySelector('#cloudCreateGameCancel'),msg=root.querySelector('#cloudNewGameMessage');
-  const create=async()=>{const name=(input?.value||'').trim()||'Ma partie';confirmBtn.disabled=true;if(msg){msg.hidden=false;msg.textContent='Création…'}try{const {data,error}=await cloudClient.from('games').insert({owner_id:cloudUser.id,name}).select().single();if(error)throw error;await cloudRefreshGames();await cloudOpenGame(data.id,true)}catch(e){confirmBtn.disabled=false;if(msg){msg.hidden=false;msg.textContent='Création impossible : '+(e.message||e)}}};
-  confirmBtn.onclick=create;cancelBtn.onclick=renderCloudModal;input.onkeydown=e=>{if(e.key==='Enter')create()};setTimeout(()=>{input.focus();input.select()},0);
-}
-async function cloudRenameGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;const name=prompt('Nouveau nom :',g.name||'Partie');if(name===null||!name.trim())return;const {error}=await cloudClient.from('games').update({name:name.trim()}).eq('id',id);if(error){cloudSetMessage(error.message);return}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
-async function cloudDeleteGame(id){const g=cloudGames.find(x=>x.id===id);if(!g)return;if(!confirm(`Supprimer définitivement la partie « ${g.name} » et toutes ses données en ligne ?`))return;const {error}=await cloudClient.from('games').delete().eq('id',id);if(error){cloudSetMessage(error.message);return}if(cloudCurrentGame?.id===id){cloudCurrentGame=null;localStorage.removeItem(CLOUD_GAME_KEY);localStorage.removeItem(CLOUD_LOADED_GAME_KEY)}await cloudRefreshGames();renderCloudModal();cloudUpdateTopStatus()}
-async function cloudOpenGame(id,justCreated=false){
-  const g=cloudGames.find(x=>x.id===id);if(!g)return;
-  const loadedId=localStorage.getItem(CLOUD_LOADED_GAME_KEY);
-  if(cloudCurrentGame?.id&&loadedId===cloudCurrentGame.id&&cloudCurrentGame.id!==id){try{await cloudSyncAllData()}catch(e){if(!confirm('La sauvegarde de la partie actuelle vers le cloud a échoué. Changer quand même de partie ?'))return}}
-  // Première migration : protéger la partie locale existante et proposer de l'envoyer dans la nouvelle partie.
-  if(!loadedId&&hasLocalUniverse()){
-    saveEmergencyLocalBackup();
-    const n=Object.keys(loadRoster()).length;
-    if(confirm(`Une partie locale contenant ${n} personnage${n>1?'s':''} est présente sur cet appareil.\n\nL’importer dans « ${g.name} » ?\n\nOK = migrer la partie locale vers ce compte.\nAnnuler = charger la partie en ligne à la place.`)){
-      cloudCurrentGame=g;localStorage.setItem(CLOUD_GAME_KEY,id);localStorage.setItem(CLOUD_LOADED_GAME_KEY,id);
-      await cloudSyncAllData();cloudUpdateTopStatus();closeCloudModal();location.reload();return;
-    }
-  }
-  saveEmergencyLocalBackup();cloudCurrentGame=g;localStorage.setItem(CLOUD_GAME_KEY,id);
-  await cloudLoadGameToLocal(id);localStorage.setItem(CLOUD_LOADED_GAME_KEY,id);closeCloudModal();location.reload();
-}
-async function cloudLoadGameToLocal(id){
-  cloudStatus('☁️ Chargement…','syncing');
-  // IMPORTANT : on capture l’état local en mémoire AVANT tout chargement cloud.
-  // On ne détruit plus jamais une partie locale valide pour la remplacer par une réponse cloud partielle.
-  const before=localUniverseSnapshot();
-  if(Object.keys(before.roster||{}).length||before.tournament||Object.keys(before.meta?.champions||{}).length){
-    try{localStorage.setItem(CLOUD_BACKUP_KEY,JSON.stringify(before))}catch(e){}
-  }
-  const [gr,cr,dr,nr,tr]=await Promise.all([
-    cloudClient.from('games').select('*').eq('id',id).single(),
-    cloudClient.from('characters').select('*').eq('game_id',id),
-    cloudClient.from('descendants').select('*').eq('game_id',id),
-    cloudClient.from('npcs').select('*').eq('game_id',id),
-    cloudClient.from('tournaments').select('*').eq('game_id',id).order('season',{ascending:false})
-  ]);
-  for(const r of [gr,cr,dr,nr,tr])if(r.error)throw r.error;
 
-  const remoteRoster={};for(const r of cr.data||[]){const c=r.data||{};const code=r.character_code||c.id;if(code)remoteRoster[code]=c}
-  const roster={...(before.roster||{}),...remoteRoster};saveRoster(roster);
-  const remoteDesc={};for(const r of dr.data||[]){const x=r.data||{};const code=r.descendant_code||x.id;if(code)remoteDesc[code]=x}
-  localStorage.setItem(STORAGE_DESC,JSON.stringify({...(before.descendants||{}),...remoteDesc}));
-  const remoteNpcs={};for(const r of nr.data||[]){const x=r.data||{};const code=r.npc_code||x.id;if(code)remoteNpcs[code]=x}
-  localStorage.setItem(STORAGE_NPCS,JSON.stringify({...(before.npcs||{}),...remoteNpcs}));
-
-  const remoteMeta=(gr.data?.universe_meta&&typeof gr.data.universe_meta==='object')?gr.data.universe_meta:{};
-  const localMeta=(before.meta&&typeof before.meta==='object')?before.meta:{};
-  const mergedMeta={...localMeta,...remoteMeta};
-  mergedMeta.champions={...(localMeta.champions||{}),...(remoteMeta.champions||{})};
-  mergedMeta.championTeam=(remoteMeta.championTeam?.length?remoteMeta.championTeam:(localMeta.championTeam||[]));
-  mergedMeta.championTeamDraft=(remoteMeta.championTeamDraft?.length?remoteMeta.championTeamDraft:(localMeta.championTeamDraft||[]));
-  mergedMeta.multiplayerStats={...(localMeta.multiplayerStats||{}),...(remoteMeta.multiplayerStats||{})};
-  localStorage.setItem(STORAGE_META,JSON.stringify(mergedMeta));
-
-  // Choisit le tournoi cloud le plus utile : priorité à celui qui possède une vraie progression,
-  // sinon conserve le tournoi local existant.
-  const cloudTs=(tr.data||[]).map(r=>r.data).filter(Boolean).sort((a,b)=>Number(b.season)-Number(a.season));
-  const archive=loadTournamentArchive();
-  cloudTs.slice(0,TOURNAMENT_KEEP_SEASONS).forEach(ct=>{if(ct?.season)archive[String(ct.season)]=ct});
-  saveTournamentArchive(archive);
-  const scoreT=t=>{const first=Array.isArray(t?.rounds?.[0])?t.rounds[0].length:0;const wins=Object.keys(t?.winners||{}).length;return Number(t?.season||0)*100000+first*100+wins};
-  let chosen=before.tournament||null;
-  for(const ct of cloudTs.slice(0,TOURNAMENT_KEEP_SEASONS))if(!chosen||scoreT(ct)>scoreT(chosen))chosen=ct;
-  if(chosen)localStorage.setItem(TOURNAMENT_KEY,JSON.stringify(chosen));
-
-  // Le curseur cloud n’est accepté que s’il ne ferait pas régresser une partie locale existante.
-  const remoteSeason=Number(gr.data?.current_season||1),remoteChar=Number(gr.data?.current_character_number||1);
-  const localSeason=Number(before.season||1),localChar=Number(before.characterNumber||1);
-  const useRemote=remoteSeason>localSeason||(remoteSeason===localSeason&&remoteChar>=localChar);
-  localStorage.setItem(STORAGE_SEASON,String(useRemote?remoteSeason:localSeason));
-  localStorage.setItem(STORAGE_CURRENT,String(useRemote?remoteChar:localChar));
-
-  recoverCriticalHgtStateFromBackup();
-  const activeT=loadTournament();if(activeT)ensureTournamentChampion(activeT);
-  const repairedBirths=repairMissingBirthEvents(loadRoster(),descendants());
-  if((repairedBirths.changed||Object.keys(remoteRoster).length<Object.keys(roster).length) && typeof cloudSyncAllData==='function') setTimeout(()=>cloudSyncAllData().catch(cloudSyncError),350);
-}
-function queueCloudCharacterSave(character){if(!cloudReady()||!character?.id)return;const copy=JSON.parse(JSON.stringify(character));clearTimeout(__cloudCharacterTimers.get(character.id));__cloudCharacterTimers.set(character.id,setTimeout(()=>cloudSaveCharacter(copy).catch(cloudSyncError),900))}
-async function cloudSaveCharacter(character){
-  if(!cloudReady()||!character?.id)return;cloudStatus(`☁️ ${cloudCurrentGame.name} • sauvegarde…`,'syncing');
-  const p=parseCharacterCode(character.id);const {error}=await cloudClient.from('characters').upsert({game_id:cloudCurrentGame.id,character_code:character.id,season:p.season,character_number:p.number,name:character.name||null,data:character},{onConflict:'game_id,character_code'});if(error)throw error;queueCloudGameStateSave();cloudUpdateTopStatus();
-}
-async function cloudDeleteCharacter(code){if(!cloudReady())return;const {error}=await cloudClient.from('characters').delete().eq('game_id',cloudCurrentGame.id).eq('character_code',code);if(error)cloudSyncError(error)}
-function queueCloudGameStateSave(){if(!cloudReady())return;clearTimeout(__cloudGameTimer);__cloudGameTimer=setTimeout(()=>cloudSaveGameState().catch(cloudSyncError),900)}
-async function cloudSaveGameState(){if(!cloudReady())return;const {error}=await cloudClient.from('games').update({current_season:seasonNumber,current_character_number:characterNumber,universe_meta:universeMeta()}).eq('id',cloudCurrentGame.id);if(error)throw error}
-function queueCloudUniverseSync(){if(!cloudReady())return;clearTimeout(__cloudUniverseTimer);__cloudUniverseTimer=setTimeout(()=>cloudSyncGenealogy().catch(cloudSyncError),1400)}
-async function cloudSyncGenealogy(){
-  if(!cloudReady())return;
-  const gid=cloudCurrentGame.id,d=descendants(),n=npcs();
-  // Ne jamais faire DELETE ALL puis INSERT : un rechargement entre les deux pouvait
-  // laisser la partie cloud sans descendants. On écrit d'abord, puis on supprime les entrées obsolètes.
-  const drows=Object.values(d).filter(Boolean).map(x=>({game_id:gid,descendant_code:x.id||null,season:x.eligibleSeason||x.birthSeason||null,data:x}));
-  if(drows.length){const q=await cloudClient.from('descendants').upsert(drows,{onConflict:'game_id,descendant_code'});if(q.error)throw q.error}
-  const remoteD=await cloudClient.from('descendants').select('descendant_code').eq('game_id',gid);if(remoteD.error)throw remoteD.error;
-  const keepD=new Set(drows.map(r=>r.descendant_code).filter(Boolean));
-  const staleD=(remoteD.data||[]).map(r=>r.descendant_code).filter(code=>code&&!keepD.has(code));
-  for(const code of staleD){const q=await cloudClient.from('descendants').delete().eq('game_id',gid).eq('descendant_code',code);if(q.error)throw q.error}
-
-  const nrows=Object.values(n).filter(Boolean).map(x=>({game_id:gid,npc_code:x.id||null,data:x}));
-  if(nrows.length){const q=await cloudClient.from('npcs').upsert(nrows,{onConflict:'game_id,npc_code'});if(q.error)throw q.error}
-  const remoteN=await cloudClient.from('npcs').select('npc_code').eq('game_id',gid);if(remoteN.error)throw remoteN.error;
-  const keepN=new Set(nrows.map(r=>r.npc_code).filter(Boolean));
-  const staleN=(remoteN.data||[]).map(r=>r.npc_code).filter(code=>code&&!keepN.has(code));
-  for(const code of staleN){const q=await cloudClient.from('npcs').delete().eq('game_id',gid).eq('npc_code',code);if(q.error)throw q.error}
-  await cloudSaveGameState();cloudUpdateTopStatus();
-}
-function queueCloudTournamentSave(t){if(!cloudReady()||!t)return;const copy=JSON.parse(JSON.stringify(t));clearTimeout(__cloudTournamentTimer);__cloudTournamentTimer=setTimeout(()=>cloudSaveTournament(copy).catch(cloudSyncError),900)}
-async function cloudSaveTournament(t){if(!cloudReady()||!t)return;const {error}=await cloudClient.from('tournaments').upsert({game_id:cloudCurrentGame.id,season:t.season||1,data:t},{onConflict:'game_id,season'});if(error)throw error;const cutoff=Number(t.season||1)-TOURNAMENT_KEEP_SEASONS;if(cutoff>=1){const {error:pruneError}=await cloudClient.from('tournaments').delete().eq('game_id',cloudCurrentGame.id).lte('season',cutoff);if(pruneError)console.warn('Nettoyage anciens tournois',pruneError)}cloudUpdateTopStatus()}
-async function cloudDeleteTournament(season){if(!cloudReady()||!season)return;const {error}=await cloudClient.from('tournaments').delete().eq('game_id',cloudCurrentGame.id).eq('season',season);if(error)cloudSyncError(error)}
-async function cloudSyncAllData(){
-  if(!cloudReady()||__cloudSyncBusy)return;__cloudSyncBusy=true;cloudStatus(`☁️ ${cloudCurrentGame.name} • synchronisation…`,'syncing');
-  try{
-    const roster=loadRoster(),rows=Object.values(roster).filter(c=>c?.id).map(c=>{const p=parseCharacterCode(c.id);return{game_id:cloudCurrentGame.id,character_code:c.id,season:p.season,character_number:p.number,name:c.name||null,data:c}});
-    if(rows.length){const {error}=await cloudClient.from('characters').upsert(rows,{onConflict:'game_id,character_code'});if(error)throw error}
-    await cloudSyncGenealogy();const t=loadTournament();if(t)await cloudSaveTournament(t);await cloudSaveGameState();cloudUpdateTopStatus();
-  }finally{__cloudSyncBusy=false}
-}
-const IMAGE_REGEN_LIMIT_PER_DAY=5;
-const __imageGenerationBusy=new Set();
-function imageStorageCharacterKey(characterId){return `${cloudCurrentGame.id}__${characterImageIdentity(characterId)}`}
-function cloudGeneratedImageDir(characterId){return `${cloudUser.id}/characters/${imageStorageCharacterKey(characterId)}`}
-function cloudGeneratedImagePath(characterId,portraitNumber=1){return `${cloudGeneratedImageDir(characterId)}/${characterImageIdentity(characterId)}-Portrait_${portraitNumber}.png`}
-async function cloudListGeneratedPortraits(characterId){
-  if(!cloudReady())return [];
-  const dir=cloudGeneratedImageDir(characterId);
-  const {data,error}=await cloudClient.storage.from('character-images').list(dir,{limit:100,sortBy:{column:'name',order:'asc'}});
-  if(error){console.warn('Liste portraits',error);return []}
-  return (data||[]).filter(x=>x.name.startsWith(`${characterImageIdentity(characterId)}-Portrait_`) && /-Portrait_\d+\.png$/.test(x.name)).map(x=>({name:x.name,path:`${dir}/${x.name}`,number:Number((x.name.match(/Portrait_(\d+)\.png$/)||[])[1])||0})).sort((a,b)=>a.number-b.number);
-}
-async function cloudDownloadPortraitPath(path){if(!cloudReady()||!path)return null;const r=await cloudClient.storage.from('character-images').download(path);return (!r.error&&r.data)?r.data:null}
-async function nextPortraitNumber(characterId){const list=await cloudListGeneratedPortraits(characterId);return list.length?Math.max(...list.map(x=>x.number))+1:1}
 async function selectGeneratedPortrait(characterId,path){
   const roster=loadRoster(),c=roster[characterId];if(!c||!cloudReady())return;
   const list=await cloudListGeneratedPortraits(characterId),chosen=list.find(x=>x.path===path);if(!chosen)return;
@@ -5880,16 +6264,6 @@ The stated race must be unmistakable at first glance. Preserve its iconic physic
 CLEAN ILLUSTRATION ONLY:
 Absolutely no readable or pseudo-readable text anywhere in the image. No words, letters, numbers, names, captions, signatures, runes arranged like writing, labels, emblems containing text, poster typography, card typography, watermark, logo, interface, frame or decorative title block. Keep the lower part of the image as pure environment and character artwork, with no graphic-design elements.`;
 }
-function regenCounterFor(c){
-  const day=new Date().toISOString().slice(0,10),r=c?.imageGeneration?.regenDaily;
-  return r?.day===day?Math.max(0,Number(r.count)||0):0;
-}
-function recordRegeneration(c){
-  const day=new Date().toISOString().slice(0,10),count=regenCounterFor(c)+1;
-  c.imageGeneration={...(c.imageGeneration||{}),regenDaily:{day,count},lastGeneratedAt:new Date().toISOString()};
-  const roster=loadRoster();roster[c.id]=JSON.parse(JSON.stringify(c));saveRoster(roster);if(typeof queueCloudCharacterSave==='function')queueCloudCharacterSave(c);
-  return count;
-}
 async function refreshNeuronStatus(){
   const el=document.getElementById('neuronRemaining');if(!el)return;
   try{
@@ -5961,9 +6335,6 @@ async function scheduleAutomaticCharacterImageGeneration(characterId){
 const HGT_IMAGE_TRANSIENT_MAX_RETRIES=3;
 const hgtImageRetrySleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function hgtImageErrorText(err){return String(err?.message||err||'').toLowerCase()}
-function hgtImageIsFlagged(err){const code=String(err?.code||err?.hgtCode||'').toUpperCase();if(code==='3030_RETRY_FLAGGED'||code==='3030')return true;const t=hgtImageErrorText(err);return /3030_retry_flagged|cloudflare 3030|retry_also_flagged/.test(t)}
-function hgtImageIsQuota(err){const t=hgtImageErrorText(err);return /429|4006|daily free allocation|quota|neurons? used|allocation.*used|too many requests/.test(t)}
-function hgtImageIsTransient(err){const t=hgtImageErrorText(err);return /failed to fetch|network|timeout|timed out|d[ée]pass[ée]|temporar|unavailable|502|503|504|gateway|connection|edge function/.test(t)}
 async function hgtVaeloriaQuotaMessage(){
   try{
     const u=await getRollingNeuronUsage(),now=Date.now(),events=Array.isArray(u?.events)?u.events:[];
@@ -5972,40 +6343,6 @@ async function hgtVaeloriaQuotaMessage(){
   }catch(_){ }
   return '⚡ Les réserves d’Énergie de Vaeloria sont épuisées. Réessaie lorsque de l’EV sera de nouveau disponible.';
 }
-async function hgtInvokeImageWithRecovery(characterId,payload){
-  let flaggedCount=0,transientCount=0;
-  for(;;){
-    try{
-      const invokePromise=cloudClient.functions.invoke('Generate-character-image',{body:payload});
-      const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('generation timeout')),240000));
-      const result=await Promise.race([invokePromise,timeoutPromise]);
-      if(result?.error){
-        let detail=result.error.message||String(result.error),code=result.error?.code||'';
-        try{if(result.error.context&&typeof result.error.context.json==='function'){const b=await result.error.context.json();detail=b?.error||b?.message||detail;code=b?.code||b?.errorCode||code}}catch(_){ }
-        const invokeError=new Error(detail);if(code)invokeError.code=String(code);throw invokeError;
-      }
-      if(!result?.data?.success){const dataError=new Error(result?.data?.error||result?.data?.message||result?.data?.code||'generation failed');if(result?.data?.code)dataError.code=String(result.data.code);throw dataError;}
-      return result.data;
-    }catch(e){
-      if(hgtImageIsQuota(e))throw Object.assign(new Error(await hgtVaeloriaQuotaMessage()),{hgtFriendly:true,hgtQuota:true,cause:e});
-      if(hgtImageIsFlagged(e)){
-        flaggedCount++;
-        const variants=['🛡️ Les Arbitres de Vaeloria ont refusé cette vision… Nouvelle tentative en cours.','🛡️ Encore rejetée par les Arbitres. Ils sont difficiles aujourd’hui… Nouvelle tentative en cours.','🛡️ Cette vision n’a pas franchi les portes de Vaeloria… Nouvelle tentative en cours.'];
-        illustrationStatus(characterId,variants[(flaggedCount-1)%variants.length]);
-        await hgtImageRetrySleep(Math.min(5000,1000+flaggedCount*250));
-        continue;
-      }
-      if(hgtImageIsTransient(e)&&transientCount<HGT_IMAGE_TRANSIENT_MAX_RETRIES){
-        transientCount++;
-        illustrationStatus(characterId,transientCount===1?'🌩️ Les communications avec Elyrion vacillent… Reconnexion en cours.':`🌀 Une perturbation traverse les strates de Vaeloria… Nouvelle tentative ${transientCount}/${HGT_IMAGE_TRANSIENT_MAX_RETRIES}.`);
-        await hgtImageRetrySleep([0,2000,5000,10000][transientCount]);
-        continue;
-      }
-      if(hgtImageIsTransient(e))throw Object.assign(new Error('🌌 Le lien avec Vaeloria est rompu. Impossible de poursuivre la génération pour le moment.'),{hgtFriendly:true,cause:e});
-      throw e;
-    }
-  }
-}
 async function hgtDownloadPortraitWithRecovery(characterId,path){
   let last=null;
   for(let attempt=1;attempt<=3;attempt++){
@@ -6013,26 +6350,6 @@ async function hgtDownloadPortraitWithRecovery(characterId,path){
     if(attempt<3){illustrationStatus(characterId,'📜 Les Archives de Vaeloria ont égaré l’illustration… Recherche en cours.');await hgtImageRetrySleep(1200*attempt)}
   }
   throw Object.assign(new Error('📚 Les Archives refusent obstinément ce portrait. Impossible de l’enregistrer pour le moment.'),{hgtFriendly:true,cause:last});
-}
-async function champion9bPreflight(characterId,character){
-  const [usageResult,costResult]=await Promise.all([
-    getRollingNeuronUsage(),
-    cloudClient.functions.invoke('Generate-character-image',{body:{action:'estimateChampionCost',character}})
-  ]);
-  if(costResult?.error){
-    let detail=costResult.error.message||String(costResult.error);
-    try{if(costResult.error.context&&typeof costResult.error.context.json==='function'){const b=await costResult.error.context.json();detail=b?.error||b?.message||detail}}catch(_){}
-    throw new Error(`Estimation 9B indisponible : ${detail}`);
-  }
-  const estimate=costResult?.data;
-  if(!estimate?.success)throw new Error(estimate?.error||'Estimation 9B indisponible');
-  const cost=Number(estimate.estimated_cost||0),referenceCount=Math.max(0,Number(estimate.reference_count||0));
-  const remaining=Number(usageResult?.neurons_remaining??Math.max(0,Number(usageResult?.neurons_limit||10000)-Number(usageResult?.neurons_used||0)));
-  if(remaining+1e-9>=cost)return {ok:true,cost,referenceCount,remaining};
-  const needed=Math.max(0,cost-remaining),events=(Array.isArray(usageResult?.events)?usageResult.events:[]).filter(e=>new Date(e.releases_at).getTime()>Date.now()).sort((a,b)=>new Date(a.releases_at)-new Date(b.releases_at));
-  let released=0,availableAt=null;
-  for(const e of events){released+=Number(e.neurons||0);if(released+1e-9>=needed){availableAt=e.releases_at;break}}
-  return {ok:false,cost,referenceCount,remaining,availableAt};
 }
 async function invokeCharacterImageGeneration(characterId,{regenerate=false,champion=false,championSeason=null}={}){
   const busyKey=champion?`${characterId}::champion`:characterId;
@@ -6255,18 +6572,6 @@ async function ensureMissingCharacterPortraits(){
     }
   }finally{__portraitCatchupRunning=false}
 }
-function cloudImagePath(characterId){return `${cloudUser.id}/${cloudCurrentGame.id}/${characterImageIdentity(characterId)}`}
-
-async function cloudUploadIllustration(characterId,file){if(!cloudReady()||!file)return;const {error}=await cloudClient.storage.from('character-images').upload(cloudImagePath(characterId),file,{upsert:true,contentType:file.type||'application/octet-stream'});if(error)cloudSyncError(error)}
-async function cloudDownloadIllustration(characterId,generatedOnly=false){
-  if(!cloudReady())return null;const c=loadRoster()[characterId];
-  // Un Champion utilise toujours son portrait 9B comme portrait principal.
-  if(c?.imageGeneration?.championPath){const b=await cloudDownloadPortraitPath(c.imageGeneration.championPath);if(b)return b}
-  if(c?.imageGeneration?.selectedPortrait){const b=await cloudDownloadPortraitPath(c.imageGeneration.selectedPortrait);if(b)return b}
-  const list=await cloudListGeneratedPortraits(characterId);if(list.length){const b=await cloudDownloadPortraitPath(list[list.length-1].path);if(b)return b}
-  if(generatedOnly)return null;const r=await cloudClient.storage.from('character-images').download(cloudImagePath(characterId));return (!r.error&&r.data)?r.data:null
-}
-async function cloudDeleteIllustration(characterId){if(!cloudReady())return;const list=await cloudListGeneratedPortraits(characterId);const paths=[cloudImagePath(characterId),...list.map(x=>x.path)];const {error}=await cloudClient.storage.from('character-images').remove(paths);if(error)cloudSyncError(error)}
 function cloudSyncError(e){console.error('Supabase sync',e);cloudStatus('☁️ Erreur de synchronisation','error')}
 function cloudUpdateTopStatus(){
   const btn=document.getElementById('cloudAccountBtn');
@@ -6274,32 +6579,9 @@ function cloudUpdateTopStatus(){
   if(cloudCurrentGame){cloudStatus(`☁️ ${cloudCurrentGame.name} • synchronisé`,'online');if(btn)btn.textContent='☁️ Mes parties'}
   else{cloudStatus('☁️ Connecté • aucune partie','online');if(btn)btn.textContent='☁️ Mes parties'}updatePlayerPseudo();
 }
-async function initCloud(){
-  if(!window.supabase){cloudStatus('☁️ Supabase indisponible','error');return}
-  cloudClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-  const {data}=await cloudClient.auth.getSession();cloudUser=data.session?.user||null;
-  if(cloudUser){
-    try{
-      await loadCloudProfile();
-      await cloudRefreshGames();
-      if(seasonCursorReconciled && cloudCurrentGame){
-        await cloudSaveGameState();
-        seasonCursorReconciled=false;
-        await cloudRefreshGames();
-      }
-    }catch(e){cloudSyncError(e)}
-  }
-  cloudUpdateTopStatus();
-  renderEntryGate();
-  // Le compteur dépend de cloudClient + cloudUser : le charger seulement après restauration de session.
-  await refreshNeuronStatus();
-  if(cloudReady()) setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1800);
-  cloudClient.auth.onAuthStateChange(async(_event,session)=>{if(_event==='PASSWORD_RECOVERY')hgtPasswordRecovery=true;cloudUser=session?.user||null;if(cloudUser&&!hgtPasswordRecovery){try{await loadCloudProfile();await startHgtPresence();await loadHgtFriends();await startHgtInviteRealtime();await startCommunityRealtime();await cloudRefreshGames();if(cloudReady())setTimeout(()=>ensureMissingCharacterPortraits().catch(console.error),1200)}catch(e){cloudSyncError(e)}}else if(!cloudUser){cloudGames=[];cloudCurrentGame=null;cloudProfile=null}cloudUpdateTopStatus();renderEntryGate();renderCloudModal();await refreshNeuronStatus()});
-}
 const cloudAccountBtn=document.getElementById('cloudAccountBtn');if(cloudAccountBtn)cloudAccountBtn.onclick=()=>cloudUser?openProfileModal():openCloudModal();
 document.getElementById('cloudCloseBtn').onclick=closeCloudModal;
 document.getElementById('cloudModal').onclick=e=>{if(e.target.id==='cloudModal')closeCloudModal()};document.getElementById('profileModal').onclick=e=>{if(e.target.id==='profileModal')closeProfileModal()};document.getElementById('profileCloseBtn').onclick=closeProfileModal;document.getElementById('tutorialModal').onclick=e=>{if(e.target.id==='tutorialModal')closeTutorial()};document.getElementById('tutorialCloseBtn').onclick=closeTutorial;document.getElementById('friendsModal').onclick=e=>{if(e.target.id==='friendsModal')closeFriendsModal()};document.getElementById('friendsCloseBtn').onclick=closeFriendsModal;document.getElementById('friendGameModal').onclick=e=>{if(e.target.id==='friendGameModal')closeFriendGameModal()};document.getElementById('friendGameCloseBtn').onclick=closeFriendGameModal;document.getElementById('avatarChampionModal').onclick=e=>{if(e.target.id==='avatarChampionModal')closeAvatarChampionModal()};document.getElementById('avatarCropModal').onclick=e=>{if(e.target.id==='avatarCropModal')closeAvatarCropModal()};
-initCloud().catch(cloudSyncError);
 
 // Répare aussi une session déjà touchée par l'ancienne synchro, sans attendre une nouvelle ouverture cloud.
 try{recoverCriticalHgtStateFromBackup();const __t=loadTournament();if(__t)ensureTournamentChampion(__t)}catch(e){console.warn('Auto-réparation HGT',e)}

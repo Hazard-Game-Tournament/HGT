@@ -1,0 +1,56 @@
+name: Angular build
+
+on:
+  push:
+    branches: [refactor/angular]
+  pull_request:
+    branches: [refactor/angular]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Récupérer CSS, assets et manifest depuis main
+        run: |
+          git fetch origin main
+          mkdir -p hgt-angular/legacy hgt-angular/public
+          git --work-tree=hgt-angular/legacy checkout origin/main -- css assets
+          git show origin/main:manifest.webmanifest > hgt-angular/public/manifest.webmanifest
+          git reset -q
+
+      - name: Nettoyer le CSS legacy pour Angular
+        working-directory: hgt-angular/legacy/css
+        run: |
+          # 1. url('assets/...') ou url('../assets/...') -> url('/assets/...') (servi par Angular)
+          sed -i -E "s#url\((['\"]?)(\.\./|\./)?assets/#url(\1/assets/#g" styles.css
+          # 2. Supprimer les balises <style ...> et </style> collées dans le CSS
+          sed -i -E 's#</?style[^>]*>##g' styles.css
+          # 3. ';drop-shadow(' orphelin -> rattaché à la propriété filter précédente
+          sed -i -E 's#;[[:space:]]*drop-shadow\(# drop-shadow(#g' styles.css
+          grep -n "url(" styles.css | grep -v "url('/\|url(\"/\|url(/\|data:\|http" || true
+
+      - uses: actions/setup-node@v4
+        with:
+          # Angular CLI exige Node >= 22.22.3, >= 24.15.0 ou >= 26
+          node-version: 24
+          cache: npm
+          cache-dependency-path: hgt-angular/package-lock.json
+
+      - name: Installer les dépendances
+        working-directory: hgt-angular
+        run: npm ci
+
+      - name: Build
+        working-directory: hgt-angular
+        run: npx ng build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hgt-angular-dist
+          path: hgt-angular/dist
+          if-no-files-found: error

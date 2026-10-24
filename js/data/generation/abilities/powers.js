@@ -1,0 +1,1 @@
+export const powers=['Feu','Eau','Glace','Foudre','Air','Terre','Nature','Lumière','Ténèbres','Poison','Sang','Magnétisme','Son','Explosion','Télékinésie','Télépathie','Illusion','Invisibilité','Téléportation','Métamorphose','Clonage','Régénération','Barrières','Gravité','Temps','Espace','Absorption','Copie','Annulation','Pouvoir unique'];

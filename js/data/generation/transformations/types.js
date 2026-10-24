@@ -1,0 +1,1 @@
+export const transformationTypes=['Bestiale','Monstrueuse','Élémentaire','Démoniaque','Céleste','Draconique','Spectrale','Mécanique','Cosmique','Chaotique','Forme géante','Forme miniature','Forme énergétique','Forme ancestrale','Forme évoluée','Forme berserk','Forme parfaite','Forme interdite','Transformation improbable','Transformation unique'];

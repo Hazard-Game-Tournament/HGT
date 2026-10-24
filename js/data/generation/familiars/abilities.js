@@ -1,0 +1,1 @@
+export const familiarAbilities=['Sens surdéveloppés','Pistage','Détection surnaturelle','Lien télépathique','Camouflage','Vol','Venin','Soins mineurs','Barrière protectrice','Attaque élémentaire','Entrave','Éclaireur','Partage sensoriel','Absorption d’énergie','Téléportation courte','Illusion','Régénération','Cri intimidant','Protection du maître','Capacité unique'];

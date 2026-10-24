@@ -1,0 +1,1 @@
+export const blessings=['Fortune','Vitalité','Protection divine','Grâce guerrière','Puissance divine','Célérité divine','Clarté absolue','Prémonition','Grâce magique','Arme consacrée','Lumière protectrice','Grâce céleste','Refus de mourir','Dernier sursaut','Purification','Présence sacrée','Lien protecteur','Potentiel libéré','Faveur cosmique','Bénédiction unique'];

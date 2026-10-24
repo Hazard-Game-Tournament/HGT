@@ -1,0 +1,1 @@
+export const curses=['Corps fragile','Guérison entravée','Dégradation','Folie rampante','Hallucinations','Terreur','Pouvoir instable','Arme maudite','Soif','Transformation incontrôlée','Corruption','Entravé','Hanté','Double maléfique','Temps compté','Prix équivalent','Marqué','Destin inversé','Malédiction mortelle','Malédiction unique'];

@@ -1,0 +1,15 @@
+export { RACE_BASE_WEIGHTS } from "./weights.js";
+export { RACIAL7 } from "./stats/racial-modifiers.js";
+export { ART_ORIGIN7 } from "./artificial/origin-modifiers.js";
+export { ART_BODY7 } from "./artificial/body-modifiers.js";
+export { ALIEN7 } from "./alien/stat-modifiers.js";
+export { ALIEN_ENV_AFF } from "./alien/environment-affinities.js";
+export { ALIEN_TYPES } from "./alien/types.js";
+export { BEAST_REAL } from "./beast/real.js";
+export { BEAST_FANTASY } from "./beast/fantasy.js";
+export { BEAST_MANDATORY_TRAITS } from "./beast/mandatory-traits.js";
+export { BEAST_FORBIDDEN_VISUAL_CONFUSIONS } from "./beast/forbidden-confusions.js";
+export { BEAST_REAL_AFF } from "./beast/real-affinities.js";
+export { BEAST_FANTASY_AFF } from "./beast/fantasy-affinities.js";
+export { RACE_MANDATORY_VISUAL_TRAITS } from "./visual/mandatory-traits.js";
+export { RACIAL_TRAITS } from "./traits.js";

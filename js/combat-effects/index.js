@@ -1,0 +1,217 @@
+export const COMBAT_EFFECTS_VERSION = 1;
+
+import { POWER_EFFECTS } from "./powers/index.js";
+
+import {
+  METAMORPHOSIS_ALIASES,
+  METAMORPHOSIS_FORMS,
+  METAMORPHOSIS_EFFECTS,
+  BEAST_METAMORPHOSIS_EFFECTS
+} from "./metamorphosis/index.js";
+
+import {
+  WEAPON_EFFECTS,
+  IMPROVISED_WEAPON_EFFECTS,
+  DRAGON_TAIL_WEAPON_EFFECTS,
+  DRAGON_TAIL_UNIQUE_EFFECTS,
+  CYBORG_WEAPON_EFFECTS,
+  NEXUS_WEAPON_EFFECTS
+} from "./weapons/index.js";
+
+import { ENCHANTMENT_EFFECTS } from "./enchantments/index.js";
+
+import {
+  ARTIFACT_EFFECTS,
+  UNIQUE_ARTIFACT_EFFECTS,
+  RARE_CONSUMABLE_EFFECTS,
+  ARTIFACT_COPY_RULES
+} from "./artifacts/index.js";
+
+import { EXTRAORDINARY_SENSE_EFFECTS } from "./senses/index.js";
+import { ARMOR_EFFECTS } from "./armor/index.js";
+import { AURA_EFFECTS } from "./auras/index.js";
+import { MUTATION_EFFECTS } from "./mutations/index.js";
+
+import {
+  MYSTIC_LINK_EFFECTS,
+  UNIQUE_MYSTIC_LINK_EFFECTS
+} from "./mystic-links/index.js";
+
+import {
+  BLESSING_EFFECTS,
+  UNIQUE_BLESSING_EFFECTS
+} from "./blessings/index.js";
+
+import {
+  CURSE_EFFECTS,
+  UNIQUE_CURSE_EFFECTS
+} from "./curses/index.js";
+
+import {
+  EXTRA_EFFECTS,
+  IMPROBABLE_EXTRA_EFFECTS,
+  SECRET_TECHNIQUE_EFFECTS,
+  UNIQUE_SECRET_TECHNIQUE_EFFECTS,
+  LEGENDARY_ARMOR_EFFECTS,
+  UNIQUE_LEGENDARY_ARMOR_EFFECTS,
+  LEGENDARY_TECHNIQUE_EFFECTS,
+  UNIQUE_LEGENDARY_TECHNIQUE_EFFECTS,
+  LEGENDARY_DORMANT_POWER_EFFECTS,
+  UNIQUE_LEGENDARY_DORMANT_POWER_EFFECTS,
+  LEGENDARY_RELIC_NATURES,
+  LEGENDARY_EXTRA_RULES
+} from "./extras/index.js";
+
+import {
+  MARTIAL_CHI_MULTIPLIER,
+  MARTIAL_EQUIVALENT_POWER,
+  MARTIAL_DISCIPLINE_EFFECTS
+} from "./martial/index.js";
+
+import { getMartialTechniqueEffect } from "./martial/resolver.js";
+import { getPowerEffect } from "./powers/resolver.js";
+import { getWeaponEffect } from "./weapons/resolver.js";
+
+import {
+  normalizeMetamorphosisName,
+  getMetamorphosisEffect
+} from "./metamorphosis/resolver.js";
+
+
+export {
+  POWER_EFFECTS,
+
+  METAMORPHOSIS_ALIASES,
+  METAMORPHOSIS_FORMS,
+  METAMORPHOSIS_EFFECTS,
+  BEAST_METAMORPHOSIS_EFFECTS,
+
+  WEAPON_EFFECTS,
+  IMPROVISED_WEAPON_EFFECTS,
+  DRAGON_TAIL_WEAPON_EFFECTS,
+  DRAGON_TAIL_UNIQUE_EFFECTS,
+  CYBORG_WEAPON_EFFECTS,
+  NEXUS_WEAPON_EFFECTS,
+
+  ENCHANTMENT_EFFECTS,
+
+  ARTIFACT_EFFECTS,
+  UNIQUE_ARTIFACT_EFFECTS,
+  RARE_CONSUMABLE_EFFECTS,
+  ARTIFACT_COPY_RULES,
+
+  SECRET_TECHNIQUE_EFFECTS,
+  UNIQUE_SECRET_TECHNIQUE_EFFECTS,
+
+  EXTRAORDINARY_SENSE_EFFECTS,
+  ARMOR_EFFECTS,
+  EXTRA_EFFECTS,
+  IMPROBABLE_EXTRA_EFFECTS,
+
+  AURA_EFFECTS,
+  MUTATION_EFFECTS,
+
+  MYSTIC_LINK_EFFECTS,
+  UNIQUE_MYSTIC_LINK_EFFECTS,
+
+  BLESSING_EFFECTS,
+  UNIQUE_BLESSING_EFFECTS,
+
+  CURSE_EFFECTS,
+  UNIQUE_CURSE_EFFECTS,
+
+  LEGENDARY_ARMOR_EFFECTS,
+  UNIQUE_LEGENDARY_ARMOR_EFFECTS,
+
+  LEGENDARY_TECHNIQUE_EFFECTS,
+  UNIQUE_LEGENDARY_TECHNIQUE_EFFECTS,
+
+  LEGENDARY_DORMANT_POWER_EFFECTS,
+  UNIQUE_LEGENDARY_DORMANT_POWER_EFFECTS,
+
+  LEGENDARY_RELIC_NATURES,
+  LEGENDARY_EXTRA_RULES,
+
+  MARTIAL_CHI_MULTIPLIER,
+  MARTIAL_EQUIVALENT_POWER,
+  MARTIAL_DISCIPLINE_EFFECTS,
+
+  getPowerEffect,
+  getWeaponEffect,
+  normalizeMetamorphosisName,
+  getMetamorphosisEffect,
+  getMartialTechniqueEffect
+};
+
+
+export const COMBAT_EFFECTS_STATUS = {
+  powers:"VALIDATED",
+  metamorphosis:"VALIDATED",
+  weapons:"VALIDATED",
+  enchantments:"VALIDATED",
+  blessings:"VALIDATED",
+  curses:"VALIDATED",
+  transformations:"TODO",
+  artifacts:"VALIDATED",
+  extras:"VALIDATED",
+  racial:"TODO",
+  historyEffects:"TODO"
+};
+
+
+export const COMBAT_EFFECTS = {
+  powers:POWER_EFFECTS,
+
+  metamorphosis:METAMORPHOSIS_EFFECTS,
+  beastMetamorphosis:BEAST_METAMORPHOSIS_EFFECTS,
+
+  weapons:WEAPON_EFFECTS,
+  improvisedWeapons:IMPROVISED_WEAPON_EFFECTS,
+  dragonTailWeapons:DRAGON_TAIL_WEAPON_EFFECTS,
+  dragonTailUnique:DRAGON_TAIL_UNIQUE_EFFECTS,
+  cyborgWeapons:CYBORG_WEAPON_EFFECTS,
+  nexusWeapons:NEXUS_WEAPON_EFFECTS,
+
+  enchantments:ENCHANTMENT_EFFECTS,
+
+  artifacts:ARTIFACT_EFFECTS,
+  uniqueArtifacts:UNIQUE_ARTIFACT_EFFECTS,
+  rareConsumables:RARE_CONSUMABLE_EFFECTS,
+
+  secretTechniques:SECRET_TECHNIQUE_EFFECTS,
+  uniqueSecretTechniques:UNIQUE_SECRET_TECHNIQUE_EFFECTS,
+
+  extraordinarySenses:EXTRAORDINARY_SENSE_EFFECTS,
+  armor:ARMOR_EFFECTS,
+  extras:EXTRA_EFFECTS,
+
+  auras:AURA_EFFECTS,
+  mutations:MUTATION_EFFECTS,
+
+  mysticLinks:MYSTIC_LINK_EFFECTS,
+  uniqueMysticLinks:UNIQUE_MYSTIC_LINK_EFFECTS,
+
+  blessings:BLESSING_EFFECTS,
+  uniqueBlessings:UNIQUE_BLESSING_EFFECTS,
+
+  curses:CURSE_EFFECTS,
+  uniqueCurses:UNIQUE_CURSE_EFFECTS,
+
+  aliases:{
+    metamorphosis:METAMORPHOSIS_ALIASES
+  },
+
+  improbableExtras:IMPROBABLE_EXTRA_EFFECTS,
+
+  legendaryArmor:LEGENDARY_ARMOR_EFFECTS,
+  uniqueLegendaryArmor:UNIQUE_LEGENDARY_ARMOR_EFFECTS,
+
+  legendaryTechniques:LEGENDARY_TECHNIQUE_EFFECTS,
+  uniqueLegendaryTechniques:UNIQUE_LEGENDARY_TECHNIQUE_EFFECTS,
+
+  legendaryDormantPowers:LEGENDARY_DORMANT_POWER_EFFECTS,
+  uniqueLegendaryDormantPowers:UNIQUE_LEGENDARY_DORMANT_POWER_EFFECTS,
+
+  legendaryRelics:LEGENDARY_RELIC_NATURES,
+  legendaryExtras:LEGENDARY_EXTRA_RULES
+};
