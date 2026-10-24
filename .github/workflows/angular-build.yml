@@ -25,7 +25,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Angular CLI exige Node >= 22.22.3, >= 24.15.0 ou >= 26
+          node-version: 24
           cache: npm
           cache-dependency-path: hgt-angular/package-lock.json
 
