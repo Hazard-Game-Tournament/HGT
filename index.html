@@ -1,13 +1,15 @@
 <!doctype html>
-<html lang="en" data-beasties-container>
-<head>
-  <meta charset="utf-8">
-  <title>HgtAngular</title>
-  <base href="/HGT/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-<link rel="stylesheet" href="styles-5INURTSO.css"></head>
-<body>
-  <app-root></app-root>
-<script src="main-USY7IXD2.js" type="module"></script></body>
-</html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Hazard Game Tournament</title><meta name="theme-color" content="#0b0e13"></head>
+<body style="background:#0b0e13;color:#ddd;font-family:serif">
+<p id="hgtLoading" style="text-align:center;margin-top:40vh">Chargement de Hazard Game Tournament…</p>
+<script>
+// Page HGT legacy (version d'avant la migration Angular, commit f28b8f4).
+// Les js/css/assets restent servis depuis ce dépôt (chemins relatifs).
+(function(){
+  var SRC='https://raw.githubusercontent.com/Hazard-Game-Tournament/HGT/f28b8f4/index.html';
+  fetch(SRC,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text();})
+  .then(function(html){document.open();document.write(html);document.close();})
+  .catch(function(e){document.getElementById('hgtLoading').textContent='Erreur de chargement ('+e.message+'). Recharge la page.';});
+})();
+</script>
+</body></html>
