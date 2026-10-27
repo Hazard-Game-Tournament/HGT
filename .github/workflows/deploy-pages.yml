@@ -1,9 +1,11 @@
-name: Déployer Angular sur GitHub Pages
+name: Déployer le site HGT sur GitHub Pages
 
-# Déclenchement MANUEL uniquement : rien n'est publié tant que tu ne lances pas
-# ce workflow (Actions > Déployer Angular sur GitHub Pages > Run workflow)
-# ET que Settings > Pages > Source = "GitHub Actions".
+# Publie automatiquement le site HGT (version classique : index.html + js/app.js + css + assets)
+# à chaque push sur main. La migration Angular reste en cours sur refactor/angular
+# et ne sera publiée que lorsqu'elle affichera réellement le jeu.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -23,54 +25,38 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Récupérer CSS, assets et manifest depuis main
+      - name: Préparer le site classique
         run: |
-          git fetch origin main
-          mkdir -p hgt-angular/legacy hgt-angular/public
-          git --work-tree=hgt-angular/legacy checkout origin/main -- css assets
-          git show origin/main:manifest.webmanifest > hgt-angular/public/manifest.webmanifest
-          git show origin/main:CNAME > hgt-angular/public/CNAME 2>/dev/null || rm -f hgt-angular/public/CNAME
-          git reset -q
+          set -e
+          mkdir -p _site
+          cp -r assets css js _site/
+          cp manifest.webmanifest sw.js _site/
+          [ -f CNAME ] && cp CNAME _site/ || true
 
-      - name: Nettoyer le CSS legacy pour Angular
-        working-directory: hgt-angular/legacy/css
-        run: |
-          sed -i -E "s#url\((['\"]?)(\.\./|\./)?assets/#url(\1/assets/#g" styles.css
-          sed -i -E 's#</?style[^>]*>##g' styles.css
-          sed -i -E 's#;[[:space:]]*drop-shadow\(# drop-shadow(#g' styles.css
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: hgt-angular/package-lock.json
-
-      - name: Installer les dépendances
-        working-directory: hgt-angular
-        run: npm ci
-
-      - name: Calculer le base-href
-        id: base
-        run: |
-          if [ -f hgt-angular/public/CNAME ]; then echo "href=/" >> "$GITHUB_OUTPUT"; else echo "href=/${GITHUB_REPOSITORY#*/}/" >> "$GITHUB_OUTPUT"; fi
-
-      - name: Build
-        working-directory: hgt-angular
-        run: npx ng build --base-href=${{ steps.base.outputs.href }}
-
-      - name: Préparer le site (SPA 404 + .nojekyll)
-        run: |
-          OUT=$(dirname $(find hgt-angular/dist -name index.html -path '*browser*' | head -n1))
-          echo "Dossier de sortie : $OUT"
-          cp "$OUT/index.html" "$OUT/404.html"
-          touch "$OUT/.nojekyll"
-          echo "OUT=$OUT" >> "$GITHUB_ENV"
+          # index.html actuel = build Angular cassé (écran noir) ?
+          # Si oui, on reprend la dernière version classique de l'historique.
+          if grep -q '<app-root' index.html; then
+            echo "index.html actuel = build Angular, recherche de la dernière version classique..."
+            FOUND=""
+            for c in $(git log --format=%H -- index.html); do
+              if git show "$c:index.html" > /tmp/idx.html 2>/dev/null && ! grep -q '<app-root' /tmp/idx.html && grep -q 'js/app.js' /tmp/idx.html; then
+                FOUND=$c; break
+              fi
+            done
+            [ -n "$FOUND" ] || { echo "Aucun index.html classique trouvé"; exit 1; }
+            echo "index.html restauré depuis $FOUND"
+            cp /tmp/idx.html _site/index.html
+          else
+            cp index.html _site/index.html
+          fi
+          touch _site/.nojekyll
+          ls -la _site
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ env.OUT }}
+          path: _site
 
   deploy:
     needs: build
