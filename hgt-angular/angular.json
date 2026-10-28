@@ -22,7 +22,8 @@
             "assets": [
               { "glob": "**/*", "input": "public" },
               { "glob": "**/*", "input": "legacy/assets", "output": "assets" },
-              { "glob": "**/*", "input": "legacy/css", "output": "css" }
+              { "glob": "**/*", "input": "legacy/css", "output": "css" },
+              { "glob": "**/*", "input": "legacy-js", "output": "js" }
             ],
             "styles": ["src/styles.css"]
           },

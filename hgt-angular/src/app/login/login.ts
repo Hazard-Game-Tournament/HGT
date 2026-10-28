@@ -1,6 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../core/supabase.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-login',
@@ -41,10 +42,17 @@ import { SupabaseService } from '../core/supabase.service';
 })
 export class Login {
   protected readonly cloud = inject(SupabaseService);
+  private readonly router = inject(Router);
   protected email = '';
   protected password = '';
   protected readonly busy = signal(false);
   protected readonly message = signal('');
+
+  constructor() {
+    effect(() => {
+      if (this.cloud.ready() && this.cloud.user()) void this.router.navigateByUrl('/menu');
+    });
+  }
 
   protected async login() { await this.run(() => this.cloud.signIn(this.email.trim(), this.password), ''); }
   protected async register() { await this.run(() => this.cloud.signUp(this.email.trim(), this.password), 'Compte créé. Vérifie tes e-mails si une confirmation est demandée.'); }

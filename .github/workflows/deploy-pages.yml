@@ -27,11 +27,13 @@ jobs:
         with:
           node-version: 24
 
-      - name: Copier les styles et images de l'ancienne version
+      - name: Préparer les ressources legacy pour Angular
         run: |
-          mkdir -p legacy/css legacy/assets public
+          mkdir -p legacy/css legacy/assets legacy-js public
           cp -r ../css/. legacy/css/
           cp -r ../assets/. legacy/assets/
+          cp -r ../js/. legacy-js/
+          cp ../manifest.webmanifest public/manifest.webmanifest
           [ -f legacy/css/styles.css ] || touch legacy/css/styles.css
 
       - name: Installer les dépendances
@@ -39,6 +41,13 @@ jobs:
 
       - name: Compiler Angular
         run: npx ng build --configuration production --base-href ./
+
+      - name: Ajouter la page legacy de création de personnage au site compilé
+        run: |
+          OUT=dist/hgt-angular/browser
+          mkdir -p "$OUT/legacy"
+          cp ../index.html "$OUT/legacy/index.html"
+          sed -i 's#<head>#<head><base href="../">#' "$OUT/legacy/index.html"
 
       - name: Préparer le site
         run: |
