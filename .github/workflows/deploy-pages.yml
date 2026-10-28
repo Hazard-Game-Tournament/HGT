@@ -1,8 +1,5 @@
-name: Déployer le site HGT sur GitHub Pages
+name: Déployer le site HGT (Angular) sur GitHub Pages
 
-# Publie automatiquement le site HGT (version classique : index.html + js/app.js + css + assets)
-# à chaque push sur main. La migration Angular reste en cours sur refactor/angular
-# et ne sera publiée que lorsqu'elle affichera réellement le jeu.
 on:
   push:
     branches: [main]
@@ -20,43 +17,41 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hgt-angular
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
+          node-version: 24
 
-      - name: Préparer le site classique
+      - name: Copier les styles et images de l'ancienne version
         run: |
-          set -e
-          mkdir -p _site
-          cp -r assets css js _site/
-          cp manifest.webmanifest sw.js _site/
-          [ -f CNAME ] && cp CNAME _site/ || true
+          mkdir -p legacy/css legacy/assets public
+          cp -r ../css/. legacy/css/
+          cp -r ../assets/. legacy/assets/
+          [ -f legacy/css/styles.css ] || touch legacy/css/styles.css
 
-          # index.html actuel = build Angular cassé (écran noir) ?
-          # Si oui, on reprend la dernière version classique de l'historique.
-          if grep -q '<app-root' index.html; then
-            echo "index.html actuel = build Angular, recherche de la dernière version classique..."
-            FOUND=""
-            for c in $(git log --format=%H -- index.html); do
-              if git show "$c:index.html" > /tmp/idx.html 2>/dev/null && ! grep -q '<app-root' /tmp/idx.html && grep -q 'js/app.js' /tmp/idx.html; then
-                FOUND=$c; break
-              fi
-            done
-            [ -n "$FOUND" ] || { echo "Aucun index.html classique trouvé"; exit 1; }
-            echo "index.html restauré depuis $FOUND"
-            cp /tmp/idx.html _site/index.html
-          else
-            cp index.html _site/index.html
-          fi
-          touch _site/.nojekyll
-          ls -la _site
+      - name: Installer les dépendances
+        run: npm install --no-audit --no-fund
+
+      - name: Compiler Angular
+        run: npx ng build --configuration production --base-href ./
+
+      - name: Préparer le site
+        run: |
+          OUT=dist/hgt-angular/browser
+          cp $OUT/index.html $OUT/404.html
+          touch $OUT/.nojekyll
+          ls -la $OUT
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: hgt-angular/dist/hgt-angular/browser
 
   deploy:
     needs: build
