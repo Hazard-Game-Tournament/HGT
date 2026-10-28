@@ -21,9 +21,10 @@
             "tsConfig": "tsconfig.app.json",
             "assets": [
               { "glob": "**/*", "input": "public" },
-              { "glob": "**/*", "input": "legacy/assets", "output": "assets" }
+              { "glob": "**/*", "input": "legacy/assets", "output": "assets" },
+              { "glob": "**/*", "input": "legacy/css", "output": "css" }
             ],
-            "styles": ["legacy/css/styles.css", "src/styles.css"]
+            "styles": ["src/styles.css"]
           },
           "configurations": {
             "production": {
