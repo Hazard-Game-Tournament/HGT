@@ -6,6 +6,44 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0e13">
+  <script>
+    // Diagnostic visible (utile sur mobile, sans console)
+    (function () {
+      var box = null;
+      function report(msg) {
+        try {
+          if (!box) {
+            box = document.createElement('pre');
+            box.id = 'hgt-diag';
+            box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;margin:0;padding:8px;background:#b00020;color:#fff;font:12px monospace;white-space:pre-wrap;max-height:50vh;overflow:auto';
+            box.title = 'Toucher pour fermer';
+            box.onclick = function () { box.remove(); box = null; };
+            (document.body || document.documentElement).appendChild(box);
+          }
+          box.textContent += msg + '\n';
+        } catch (e) { console.error(msg); }
+      }
+      window.__hgtReport = report;
+      window.addEventListener('error', function (e) {
+        var t = e.target;
+        if (t && t !== window && (t.src || t.href)) {
+          report('Fichier introuvable : ' + (t.src || t.href));
+        } else {
+          report('Erreur JS : ' + (e.message || e) + (e.filename ? ' (' + e.filename + ':' + e.lineno + ')' : ''));
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e.reason;
+        report('Promesse rejetée : ' + (r && r.stack ? r.stack : (r && r.message) || r));
+      });
+      setTimeout(function () {
+        var root = document.querySelector('app-root');
+        if (root && !root.children.length) {
+          report('Angular ne s\'est pas lancé après 8 s.');
+        }
+      }, 8000);
+    })();
+  </script>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
