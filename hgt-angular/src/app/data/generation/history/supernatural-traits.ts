@@ -1,0 +1,1 @@
+export const supernaturalTraits: readonly string[] = ['Présence spectrale','Corps partiellement immatériel','Perception des âmes','Sang surnaturel','Résistance à la mort','Aura anormale','Anatomie altérée','Connexion à un autre plan'];

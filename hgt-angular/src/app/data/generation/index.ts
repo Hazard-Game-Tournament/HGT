@@ -7,3 +7,6 @@ export * from './character';
 export * from './companions';
 export * from './creatures';
 export * from './curses';
+export * from './extras';
+export * from './familiars';
+export * from './history';
