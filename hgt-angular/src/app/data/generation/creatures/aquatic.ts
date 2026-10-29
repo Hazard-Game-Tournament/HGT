@@ -1,0 +1,1 @@
+export const aquaticCreatures: readonly string[] = ['Requin','Raie manta','Murène','Espadon','Orque','Dauphin','Pieuvre','Calmar géant','Crabe géant','Homard cuirassé','Anguille électrique','Poisson-lune','Barracuda','Méduse','Tortue marine','Hippocampe géant'];

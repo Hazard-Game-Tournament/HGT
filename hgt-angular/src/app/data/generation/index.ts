@@ -5,3 +5,5 @@ export * from './artifacts';
 export * from './blessings';
 export * from './character';
 export * from './companions';
+export * from './creatures';
+export * from './curses';
