@@ -1,0 +1,10 @@
+export { artifactCopyNatures } from './copy-natures';
+export { artifactEffects } from './effects';
+export { artifactForms } from './forms';
+export { legendaryRelics } from './legendary-relics';
+export { artifactPhenomena } from './phenomena';
+export { relicForms } from './relic-forms';
+export { strangeObjects } from './strange-objects';
+export { artifactTransformations } from './transformations';
+export { uniqueArtifactEffects } from './unique-effects';
+export { uniqueArtifactForms } from './unique-forms';
