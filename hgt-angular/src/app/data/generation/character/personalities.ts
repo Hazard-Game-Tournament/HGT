@@ -1,0 +1,1 @@
+export const personalities: readonly string[] = ['Agressif','Prudent','Calculateur','Impulsif','Imprévisible','Sanguinaire','Honorable','Fourbe','Courageux','Lâche','Froid','Colérique','Sadique','Pacifiste','Arrogant','Discipliné','Opportuniste','Protecteur','Excentrique','Personnalité unique'];

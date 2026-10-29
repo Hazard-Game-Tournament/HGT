@@ -1,0 +1,1 @@
+export const artificialCompanionTypes: readonly string[] = ['Drone','Robot humanoïde','Robot quadrupède','Mécha miniature','Tourelle autonome','Essaim de drones','IA holographique','Automate magique','Golem mécanique','Androïde','Bio-robot','Exosquelette autonome','Machine extraterrestre','Prototype militaire','Compagnon artificiel unique'];
