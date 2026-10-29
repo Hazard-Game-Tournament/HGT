@@ -1,7 +1,7 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SupabaseService } from '../core/supabase.service';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'app-login',
@@ -14,7 +14,7 @@ import { Router } from '@angular/router';
         <p>Connexion au serveur…</p>
       } @else if (cloud.user(); as u) {
         <p>Connecté en tant que <b>{{ u.email }}</b></p>
-        <p class="note">Les autres écrans arrivent bientôt.</p>
+        <p class="note">Redirection vers le menu…</p>
         <button type="button" (click)="logout()">Se déconnecter</button>
       } @else {
         <form (ngSubmit)="login()">
@@ -43,6 +43,7 @@ import { Router } from '@angular/router';
 export class Login {
   protected readonly cloud = inject(SupabaseService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   protected email = '';
   protected password = '';
   protected readonly busy = signal(false);
@@ -50,7 +51,10 @@ export class Login {
 
   constructor() {
     effect(() => {
-      if (this.cloud.ready() && this.cloud.user()) void this.router.navigateByUrl('/menu');
+      if (this.cloud.ready() && this.cloud.user()) {
+        const target = this.route.snapshot.queryParamMap.get('returnUrl');
+        void this.router.navigateByUrl(target && target.startsWith('/') && !target.startsWith('/login') ? target : '/menu');
+      }
     });
   }
 
