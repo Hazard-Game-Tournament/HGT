@@ -23,6 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Règle du projet - aucun fichier JavaScript dans hgt-angular/src
+        run: |
+          FILES=$(find src -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.jsx' \) || true)
+          if [ -n "$FILES" ]; then
+            echo "::error::Fichiers JavaScript interdits (TypeScript uniquement) :"
+            echo "$FILES"
+            exit 1
+          fi
+          echo "OK : aucun fichier JavaScript dans src/"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
