@@ -1,0 +1,1 @@
+export const DRAGON_AFFINITIES: readonly string[] = ['Feu','Glace','Foudre','Tempête','Terre','Océan','Nature','Vent','Magma','Sable','Lumière','Ténèbres','Cristal','Métal','Poison','Cendre','Gravité','Son','Sang','Éther'];

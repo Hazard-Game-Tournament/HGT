@@ -1,0 +1,1 @@
+export const DRAGON_TAIL_WEAPONS: readonly string[] = ['Lame caudale','Masse caudale','Pointe perforante','Faux caudale','Massue épineuse','Queue barbelée','Pince caudale','Dard caudal','Foreuse caudale','Arme caudale unique'];
